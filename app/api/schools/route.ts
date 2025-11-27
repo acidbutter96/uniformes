@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { schools } from '@/app/data/schools';
+import { schools } from '@/lib/database';
 
 export async function GET() {
   return NextResponse.json({ data: schools });

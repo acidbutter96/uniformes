@@ -1,32 +1,56 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 import useRequireAuth from '@/src/hooks/useRequireAuth';
 
 interface AdminGuardProps {
-    children: ReactNode;
-    loadingMessage?: string;
+  children: ReactNode;
+  loadingMessage?: string;
+  redirectTo?: string;
+  requiredRole?: string;
 }
 
-export default function AdminGuard({ children, loadingMessage }: AdminGuardProps) {
-    const { user, loading } = useRequireAuth();
+export default function AdminGuard({
+  children,
+  loadingMessage,
+  redirectTo,
+  requiredRole,
+}: AdminGuardProps) {
+  const router = useRouter();
+  const { user, loading } = useRequireAuth({ redirectTo });
 
-    if (loading) {
-        return (
-            <div className="flex min-h-[40vh] items-center justify-center text-sm text-text-muted">
-                {loadingMessage ?? 'Validando acesso...'}
-            </div>
-        );
+  let role: string | undefined;
+  if (typeof user === 'object' && user !== null) {
+    const candidate = (user as { role?: unknown }).role;
+    if (typeof candidate === 'string') {
+      role = candidate;
     }
+  }
+  const shouldRedirectForRole = !loading && !!requiredRole && role !== requiredRole;
 
-    if (!user) {
-        return (
-            <div className="flex min-h-[40vh] items-center justify-center text-sm text-text-muted">
-                Redirecionando para login...
-            </div>
-        );
+  useEffect(() => {
+    if (shouldRedirectForRole) {
+      router.replace(redirectTo ?? '/login');
     }
+  }, [shouldRedirectForRole, router, redirectTo]);
 
-    return <>{children}</>;
+  if (loading || shouldRedirectForRole) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-text-muted">
+        {loadingMessage ?? (shouldRedirectForRole ? 'Redirecionando...' : 'Validando acesso...')}
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-text-muted">
+        Redirecionando para login...
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }

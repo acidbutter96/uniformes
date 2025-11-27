@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -13,6 +13,16 @@ import type { Supplier } from '@/app/lib/models/supplier';
 import { loadOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
 export default function UniformsPage() {
+  return (
+    <Suspense
+      fallback={<div className="p-6 text-center text-sm text-text-muted">Carregando...</div>}
+    >
+      <UniformsPageContent />
+    </Suspense>
+  );
+}
+
+function UniformsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const schoolIdFromParams = searchParams.get('schoolId');

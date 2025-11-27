@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
 import { useAuth as useAuthContext } from '@/src/context/AuthContext';
 
 export function useAuth() {
-    return useAuthContext();
+  return useAuthContext();
 }
 
 export default useAuth;

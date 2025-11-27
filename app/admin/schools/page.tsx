@@ -23,7 +23,9 @@ const createEmptyForm = (): Omit<SchoolSummary, 'id'> => ({
 });
 
 export default function AdminSchoolsPage() {
-  const [schools, setSchools] = useState<SchoolSummary[]>(() => initialSchools.map(item => ({ ...item })));
+  const [schools, setSchools] = useState<SchoolSummary[]>(() =>
+    initialSchools.map(item => ({ ...item })),
+  );
   const [formValues, setFormValues] = useState<Omit<SchoolSummary, 'id'>>(createEmptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -60,11 +62,13 @@ export default function AdminSchoolsPage() {
     }
 
     if (isEditing && editingId) {
-        setSchools(prev =>
-          prev.map(item =>
-            item.id === editingId ? { ...item, ...formValues, students: Number(formValues.students) } : item,
-          ),
-        );
+      setSchools(prev =>
+        prev.map(item =>
+          item.id === editingId
+            ? { ...item, ...formValues, students: Number(formValues.students) }
+            : item,
+        ),
+      );
       resetForm();
       return;
     }
@@ -85,8 +89,8 @@ export default function AdminSchoolsPage() {
     if (!target) return;
 
     setEditingId(id);
-    const { id: _id, ...rest } = target;
-    setFormValues(rest);
+    const { name, city, students, status } = target;
+    setFormValues({ name, city, students, status });
   };
 
   const handleDelete = (id: string) => {

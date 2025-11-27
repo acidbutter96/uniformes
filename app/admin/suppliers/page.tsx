@@ -69,9 +69,9 @@ export default function AdminSuppliersPage() {
     const target = suppliers.find(item => item.id === id);
     if (!target) return;
 
-    const { id: _id, ...rest } = target;
     setEditingId(id);
-    setFormValues(rest);
+    const { name, specialty, leadTimeDays, rating } = target;
+    setFormValues({ name, specialty, leadTimeDays, rating });
   };
 
   const handleDelete = (id: string) => {

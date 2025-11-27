@@ -18,8 +18,11 @@ export interface MeasurementsData {
 }
 
 interface ChildMeasurementsFormProps {
-  onSubmit?: (data: MeasurementsData) => void;
+  onSubmit?: (data: MeasurementsData) => Promise<void> | void;
   className?: string;
+  submitLabel?: string;
+  successMessage?: string;
+  errorMessage?: string;
 }
 
 type FieldConfig = {
@@ -50,7 +53,13 @@ const initialValues: Record<MeasurementField, string> = {
   hips: '',
 };
 
-export function ChildMeasurementsForm({ onSubmit, className }: ChildMeasurementsFormProps) {
+export function ChildMeasurementsForm({
+  onSubmit,
+  className,
+  submitLabel = 'Salvar medidas',
+  successMessage = 'Medidas salvas!',
+  errorMessage = 'Não foi possível salvar as medidas. Tente novamente.',
+}: ChildMeasurementsFormProps) {
   const [values, setValues] = useState(initialValues);
   const [touched, setTouched] = useState<Record<MeasurementField, boolean>>({
     age: false,
@@ -60,7 +69,7 @@ export function ChildMeasurementsForm({ onSubmit, className }: ChildMeasurements
     waist: false,
     hips: false,
   });
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   const errors = useMemo(() => {
     const next: Partial<Record<MeasurementField, string>> = {};
@@ -98,7 +107,7 @@ export function ChildMeasurementsForm({ onSubmit, className }: ChildMeasurements
     setTouched(prev => ({ ...prev, [field]: true }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const allTouched = fields.reduce<Record<MeasurementField, boolean>>(
       (acc, { name }) => ({ ...acc, [name]: true }),
@@ -115,8 +124,18 @@ export function ChildMeasurementsForm({ onSubmit, className }: ChildMeasurements
       return acc;
     }, {} as MeasurementsData);
 
-    onSubmit?.(payload);
-    setSubmitStatus('success');
+    setSubmitStatus('loading');
+
+    try {
+      if (onSubmit) {
+        await onSubmit(payload);
+      }
+
+      setSubmitStatus('success');
+    } catch (error) {
+      console.error('Failed to submit measurements', error);
+      setSubmitStatus('error');
+    }
   }
 
   return (
@@ -174,13 +193,17 @@ export function ChildMeasurementsForm({ onSubmit, className }: ChildMeasurements
         <p className="text-caption text-text-muted">
           Todos os campos são obrigatórios.
         </p>
-        <Button type="submit" disabled={!isComplete || hasErrors}>
-          Salvar medidas
+        <Button type="submit" disabled={!isComplete || hasErrors || submitStatus === 'loading'}>
+          {submitStatus === 'loading' ? 'Enviando…' : submitLabel}
         </Button>
       </div>
 
       {submitStatus === 'success' && (
-        <Alert tone="success" heading="Medidas salvas!" description="Você pode revisar as informações a qualquer momento antes da confirmação." />
+        <Alert tone="success" heading={successMessage} description="Você pode revisar as informações a qualquer momento antes da confirmação." />
+      )}
+
+      {submitStatus === 'error' && (
+        <Alert tone="danger" heading={errorMessage} description="Não se preocupe, nenhuma informação foi perdida." />
       )}
     </form>
   );

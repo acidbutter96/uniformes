@@ -1,0 +1,43 @@
+import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+
+const MOCK_ORDER = {
+  id: 'PED-2025-0914',
+  deliveryEstimate: '12 de dezembro',
+};
+
+export default function SuccessPage() {
+  return (
+    <main className="min-h-screen bg-background text-text">
+      <div className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center gap-xl px-md py-2xl text-center">
+        <Card className="flex flex-col items-center gap-lg text-center">
+          <div className="flex flex-col gap-xs">
+            <span className="text-caption font-medium uppercase tracking-wide text-primary">
+              Pedido confirmado
+            </span>
+            <h1 className="text-h2 font-heading">Sua solicitação foi registrada!</h1>
+            <p className="max-w-xl text-body text-text-muted">
+              Em breve você receberá um e-mail com todos os detalhes. Acompanhe o progresso do pedido
+              pelo painel ou ajuste as informações caso necessário.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-xs rounded-card bg-background px-lg py-md text-body text-text">
+            <span className="text-caption uppercase tracking-wide text-text-muted">
+              Número do pedido
+            </span>
+            <strong className="text-h3 font-heading">{MOCK_ORDER.id}</strong>
+            <span className="text-caption text-text-muted">
+              Previsão de entrega: {MOCK_ORDER.deliveryEstimate}
+            </span>
+          </div>
+
+          <Button asChild size="lg">
+            <Link href="/">Retornar ao início</Link>
+          </Button>
+        </Card>
+      </div>
+    </main>
+  );
+}

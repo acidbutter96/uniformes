@@ -64,4 +64,4 @@ prettier.config.mjs
 
 ## APIs mockadas
 
-Rotas em `/app/api/*` expõem dados mockados para escolas, fornecedores, uniformes e pedidos. As respostas retornam `{ data: [...] }`, facilitando o consumo via fetch/React Query quando for integrar com o front.
+Rotas em `/app/api/*` expõem dados mockados para escolas, fornecedores, uniformes e reservas. As respostas retornam `{ data: [...] }`, facilitando o consumo via fetch/React Query quando for integrar com o front.

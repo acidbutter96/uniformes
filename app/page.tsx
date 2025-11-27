@@ -1,4 +1,6 @@
-import { Button } from '@/components/ui/Button';
+import Link from 'next/link';
+
+import { cn } from '@/app/lib/utils';
 import { Card } from '@/components/ui/Card';
 
 export default function Home() {
@@ -31,9 +33,14 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-sm sm:flex-row sm:items-center">
-              <Button size="lg" type="button">
+              <Link
+                href="/escola"
+                className={cn(
+                  'inline-flex items-center justify-center gap-xs rounded-card bg-primary px-lg py-sm text-body font-semibold text-surface shadow-soft transition-colors hover:bg-primary/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                )}
+              >
                 Começar
-              </Button>
+              </Link>
               <span className="text-caption text-text-muted">
                 Não se preocupe, você poderá alterar as informações depois.
               </span>
@@ -65,7 +72,7 @@ export default function Home() {
                 <span className="mt-[2px] flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-caption font-semibold text-primary">
                   4
                 </span>
-                Confirme o pedido e acompanhe as etapas de entrega.
+                Confirme a reserva e organize a retirada na loja.
               </li>
             </ul>
           </Card>

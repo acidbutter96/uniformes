@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/app/lib/utils';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +23,7 @@ interface ChildMeasurementsFormProps {
   submitLabel?: string;
   successMessage?: string;
   errorMessage?: string;
+  defaultValues?: Partial<MeasurementsData>;
 }
 
 type FieldConfig = {
@@ -53,25 +54,49 @@ const initialValues: Record<MeasurementField, string> = {
   hips: '',
 };
 
+const initialTouched: Record<MeasurementField, boolean> = {
+  age: false,
+  height: false,
+  weight: false,
+  chest: false,
+  waist: false,
+  hips: false,
+};
+
 export function ChildMeasurementsForm({
   onSubmit,
   className,
   submitLabel = 'Salvar medidas',
   successMessage = 'Medidas salvas!',
   errorMessage = 'Não foi possível salvar as medidas. Tente novamente.',
+  defaultValues,
 }: ChildMeasurementsFormProps) {
   const [values, setValues] = useState(initialValues);
-  const [touched, setTouched] = useState<Record<MeasurementField, boolean>>({
-    age: false,
-    height: false,
-    weight: false,
-    chest: false,
-    waist: false,
-    hips: false,
-  });
+  const [touched, setTouched] = useState(initialTouched);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
     'idle',
   );
+
+  useEffect(() => {
+    if (!defaultValues) {
+      return;
+    }
+
+    const nextValues = { ...initialValues };
+
+    for (const field of fields) {
+      const provided = defaultValues[field.name];
+      if (provided === undefined || Number.isNaN(Number(provided))) {
+        continue;
+      }
+
+      nextValues[field.name] = String(provided);
+    }
+
+    setValues(nextValues);
+    setTouched(initialTouched);
+    setSubmitStatus('idle');
+  }, [defaultValues]);
 
   const errors = useMemo(() => {
     const next: Partial<Record<MeasurementField, string>> = {};

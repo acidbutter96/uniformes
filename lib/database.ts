@@ -10,8 +10,16 @@ export const schools: School[] = [
 ];
 
 export const suppliers: Supplier[] = [
-  { id: 'supplier-atelier', name: 'Ateliê Uniformes', schools: [0, 1] },
-  { id: 'supplier-costura', name: 'Costura Brasil', schools: [1, 2] },
+  {
+    id: 'supplier-atelier',
+    name: 'Ateliê Uniformes',
+    schools: ['school-aurora', 'school-horizonte'],
+  },
+  {
+    id: 'supplier-costura',
+    name: 'Costura Brasil',
+    schools: ['school-horizonte', 'school-viver'],
+  },
 ];
 
 export const uniforms: Uniform[] = [
@@ -19,19 +27,31 @@ export const uniforms: Uniform[] = [
     id: 'uniform-shirt',
     name: 'Camiseta Escolar',
     description: 'Malha leve com gola reforçada e manga curta.',
+    supplierId: 'supplier-atelier',
     sizes: ['PP', 'P', 'M', 'G'],
+    imageSrc:
+      'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Camiseta escolar dobrada',
   },
   {
     id: 'uniform-coat',
     name: 'Jaqueta de Inverno',
     description: 'Jaqueta acolchoada com capuz removível.',
+    supplierId: 'supplier-costura',
     sizes: ['P', 'M', 'G', 'GG'],
+    imageSrc:
+      'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Jaqueta escolar azul pendurada',
   },
   {
     id: 'uniform-pants',
     name: 'Calça Moletom',
     description: 'Tecido macio com elástico na cintura e punhos ajustáveis.',
+    supplierId: 'supplier-costura',
     sizes: ['PP', 'P', 'M', 'G', 'GG'],
+    imageSrc:
+      'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80',
+    imageAlt: 'Calça de moletom cinza',
   },
 ];
 

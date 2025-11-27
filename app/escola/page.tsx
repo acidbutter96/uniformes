@@ -1,65 +1,87 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+
 import { StepsHeader } from '@/components/steps/StepsHeader';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/app/lib/utils';
-
-const MOCK_SCHOOLS = [
-  {
-    id: 'escola-aurora',
-    name: 'Escola Aurora do Saber',
-    city: 'São Paulo',
-    state: 'SP',
-    status: 'Parceria ativa',
-  },
-  {
-    id: 'colegio-horizonte',
-    name: 'Colégio Horizonte Azul',
-    city: 'Campinas',
-    state: 'SP',
-    status: 'Parceria ativa',
-  },
-  {
-    id: 'instituto-viver',
-    name: 'Instituto Viver e Aprender',
-    city: 'Rio de Janeiro',
-    state: 'RJ',
-    status: 'Em validação',
-  },
-  {
-    id: 'colegio-monte',
-    name: 'Colégio Monte Verde',
-    city: 'Curitiba',
-    state: 'PR',
-    status: 'Parceria ativa',
-  },
-  {
-    id: 'escola-luz',
-    name: 'Escola Luz do Amanhã',
-    city: 'Salvador',
-    state: 'BA',
-    status: 'Em validação',
-  },
-];
+import type { School } from '@/lib/models/school';
+import type { Supplier } from '@/lib/models/supplier';
+import { clearOrderFlowState, saveOrderFlowState } from '@/lib/storage/order-flow';
 
 export default function SchoolStepPage() {
+  const router = useRouter();
   const [query, setQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
 
   const filteredSchools = useMemo(() => {
     const search = query.trim().toLowerCase();
-    if (!search) return MOCK_SCHOOLS;
+    if (!search) return schools;
 
-    return MOCK_SCHOOLS.filter(({ name, city }) => {
+    return schools.filter(({ name, city }) => {
       const haystack = `${name} ${city}`.toLowerCase();
       return haystack.includes(search);
     });
-  }, [query]);
+  }, [query, schools]);
 
-  const selectedSchool = filteredSchools.find(school => school.id === selectedSchoolId);
+  const selectedSchool = schools.find(school => school.id === selectedSchoolId) ?? null;
+  const selectedSupplier = selectedSchool
+    ? (suppliers.find(supplier => supplier.schools.includes(selectedSchool.id)) ?? null)
+    : null;
+
+  useEffect(() => {
+    clearOrderFlowState();
+
+    const fetchData = async () => {
+      try {
+        const [schoolsResponse, suppliersResponse] = await Promise.all([
+          fetch('/api/schools'),
+          fetch('/api/suppliers'),
+        ]);
+
+        if (!schoolsResponse.ok || !suppliersResponse.ok) {
+          throw new Error('Não foi possível carregar as escolas ou fornecedores.');
+        }
+
+        const schoolsPayload = (await schoolsResponse.json()) as { data: School[] };
+        const suppliersPayload = (await suppliersResponse.json()) as { data: Supplier[] };
+
+        setSchools(schoolsPayload.data ?? []);
+        setSuppliers(suppliersPayload.data ?? []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleContinue = () => {
+    if (!selectedSchool) return;
+
+    const supplierId = selectedSupplier?.id;
+
+    saveOrderFlowState({
+      schoolId: selectedSchool.id,
+      supplierId,
+      uniformId: undefined,
+      measurements: undefined,
+      suggestion: undefined,
+      userName: undefined,
+      orderId: undefined,
+      orderCreatedAt: undefined,
+    });
+
+    router.push(`/uniformes?schoolId=${selectedSchool.id}`);
+  };
 
   return (
     <main className="min-h-screen bg-background text-text">
@@ -95,7 +117,7 @@ export default function SchoolStepPage() {
                   Resultados
                 </h2>
                 <ul className="flex max-h-80 flex-col gap-sm overflow-y-auto" aria-live="polite">
-                  {filteredSchools.length === 0 && (
+                  {!isLoading && filteredSchools.length === 0 && (
                     <li className="rounded-card border border-dashed border-border bg-background px-md py-sm text-caption text-text-muted">
                       Nenhuma escola encontrada. Verifique a grafia ou tente outra cidade.
                     </li>
@@ -114,9 +136,7 @@ export default function SchoolStepPage() {
                           )}
                         >
                           <span className="text-body font-semibold">{school.name}</span>
-                          <span className="text-caption text-text-muted">
-                            {school.city} • {school.state} • {school.status}
-                          </span>
+                          <span className="text-caption text-text-muted">{school.city}</span>
                         </button>
                       </li>
                     );
@@ -139,14 +159,16 @@ export default function SchoolStepPage() {
                     <dt className="text-text-muted">Cidade</dt>
                     <dd className="font-medium">{selectedSchool.city}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <dt className="text-text-muted">Estado</dt>
-                    <dd className="font-medium">{selectedSchool.state}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-text-muted">Status</dt>
-                    <dd className="font-medium">{selectedSchool.status}</dd>
-                  </div>
+                  {selectedSupplier ? (
+                    <div className="flex justify-between">
+                      <dt className="text-text-muted">Fornecedor</dt>
+                      <dd className="font-medium">{selectedSupplier.name}</dd>
+                    </div>
+                  ) : (
+                    <p className="text-caption text-text-muted">
+                      Nenhum fornecedor vinculado para esta escola.
+                    </p>
+                  )}
                 </dl>
               ) : (
                 <p className="text-body text-text-muted">
@@ -156,7 +178,12 @@ export default function SchoolStepPage() {
               )}
             </Card>
 
-            <Button type="button" disabled={!selectedSchool} size="lg">
+            <Button
+              type="button"
+              disabled={!selectedSchool || isLoading}
+              size="lg"
+              onClick={handleContinue}
+            >
               Continuar
             </Button>
             {!selectedSchool && (

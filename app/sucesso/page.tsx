@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/app/lib/utils';
 
-const MOCK_ORDER = {
-  id: 'PED-2025-0914',
-  deliveryEstimate: '12 de dezembro',
+const MOCK_RESERVATION = {
+  id: 'RES-2025-0914',
+  pickupWindow: 'a partir de 12 de dezembro',
 };
 
 export default function SuccessPage() {
@@ -14,22 +14,22 @@ export default function SuccessPage() {
         <Card className="flex flex-col items-center gap-lg text-center">
           <div className="flex flex-col gap-xs">
             <span className="text-caption font-medium uppercase tracking-wide text-primary">
-              Pedido confirmado
+              Reserva confirmada
             </span>
             <h1 className="text-h2 font-heading">Sua solicitação foi registrada!</h1>
             <p className="max-w-xl text-body text-text-muted">
-              Em breve você receberá um e-mail com todos os detalhes. Acompanhe o progresso do
-              pedido pelo painel ou ajuste as informações caso necessário.
+              Em breve você receberá um e-mail com todos os detalhes. Acompanhe o progresso da
+              reserva pelo painel ou ajuste as informações caso necessário.
             </p>
           </div>
 
           <div className="flex flex-col gap-xs rounded-card bg-background px-lg py-md text-body text-text">
             <span className="text-caption uppercase tracking-wide text-text-muted">
-              Número do pedido
+              Número da reserva
             </span>
-            <strong className="text-h3 font-heading">{MOCK_ORDER.id}</strong>
+            <strong className="text-h3 font-heading">{MOCK_RESERVATION.id}</strong>
             <span className="text-caption text-text-muted">
-              Previsão de entrega: {MOCK_ORDER.deliveryEstimate}
+              Retirada disponível {MOCK_RESERVATION.pickupWindow}
             </span>
           </div>
 

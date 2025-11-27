@@ -20,12 +20,12 @@ export default function AdminDashboardPage() {
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-neutral-900">Visão geral</h1>
           <p className="text-sm text-neutral-500">
-            Monitoramento de pedidos, fornecedores e escolas integradas.
+            Monitoramento de reservas, fornecedores e escolas integradas.
           </p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary">Exportar dados</Button>
-          <Button>Criar pedido</Button>
+          <Button>Criar reserva</Button>
         </div>
       </header>
 
@@ -37,7 +37,7 @@ export default function AdminDashboardPage() {
           delta="+18% vs. mês anterior"
         />
         <MetricCard
-          title="Pedidos ativos"
+          title="Reservas ativas"
           value={String(totalOrders)}
           delta={`${awaitingOrders} aguardando ação`}
           tone="warning"
@@ -48,7 +48,7 @@ export default function AdminDashboardPage() {
 
       <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card">
         <header className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-neutral-900">Fluxo de pedidos</h2>
+          <h2 className="text-lg font-semibold text-neutral-900">Fluxo de reservas</h2>
           <Button variant="ghost" className="text-sm font-medium text-brand-600">
             Ver relatório completo
           </Button>
@@ -57,7 +57,7 @@ export default function AdminDashboardPage() {
           <table className="min-w-full divide-y divide-neutral-100 text-sm">
             <thead className="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">
               <tr>
-                <th className="px-4 py-3">Pedido</th>
+                <th className="px-4 py-3">Reserva</th>
                 <th className="px-4 py-3">Escola</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Atualizado em</th>

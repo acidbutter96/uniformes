@@ -43,9 +43,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ data: newOrder }, { status: 201 });
   } catch (error) {
-    console.error('Failed to create order', error);
+    console.error('Failed to create reservation', error);
     return NextResponse.json(
-      { error: 'Não foi possível registrar o pedido. Tente novamente.' },
+      { error: 'Não foi possível registrar a reserva. Tente novamente.' },
       { status: 500 },
     );
   }

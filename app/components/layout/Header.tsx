@@ -6,7 +6,7 @@ const navItems = [
   { href: '/admin/schools', label: 'Escolas' },
   { href: '/admin/suppliers', label: 'Fornecedores' },
   { href: '/admin/uniforms', label: 'Uniformes' },
-  { href: '/admin/orders', label: 'Pedidos' },
+  { href: '/admin/orders', label: 'Reservas' },
 ];
 
 export default function Header() {

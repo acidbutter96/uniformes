@@ -1,48 +1,101 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+
 import { StepsHeader } from '@/components/steps/StepsHeader';
 import { UniformCard } from '@/components/cards/UniformCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-
-const MOCK_UNIFORMS = [
-  {
-    id: 'camiseta-escolar',
-    name: 'Camiseta Escolar',
-    description: 'Malha leve, manga curta, ideal para o dia a dia escolar.',
-    imageSrc:
-      'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
-    imageAlt: 'Camiseta escolar dobrada',
-  },
-
-  {
-    id: 'jaqueta-inverno',
-    name: 'Jaqueta de Inverno',
-    description: 'Jaqueta acolchoada com capuz removível e forro térmico.',
-    imageSrc:
-      'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
-    imageAlt: 'Jaqueta escolar azul pendurada',
-  },
-
-  {
-    id: 'calca-moletom',
-    name: 'Calça Moletom',
-    description: 'Cós ajustável, tecido macio e resistente para maior conforto.',
-    imageSrc:
-      'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80',
-    imageAlt: 'Calça de moletom cinza',
-  },
-
-  {
-    id: 'bermuda-esportiva',
-    name: 'Bermuda Esportiva',
-    description: 'Tecido dry-fit com recortes que permitem mobilidade total.',
-    imageSrc:
-      'https://images.unsplash.com/photo-1587391740164-3465c4b55086?auto=format&fit=crop&w=800&q=80',
-    imageAlt: 'Bermuda esportiva cinza com detalhes',
-  },
-];
+import type { Uniform } from '@/lib/models/uniform';
+import type { Supplier } from '@/lib/models/supplier';
+import { loadOrderFlowState, saveOrderFlowState } from '@/lib/storage/order-flow';
 
 export default function UniformsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const schoolIdFromParams = searchParams.get('schoolId');
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [uniforms, setUniforms] = useState<Uniform[]>([]);
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [selectedUniformId, setSelectedUniformId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const state = loadOrderFlowState();
+
+    if (!state.schoolId) {
+      router.replace('/escola');
+      return;
+    }
+
+    if (schoolIdFromParams && schoolIdFromParams !== state.schoolId) {
+      saveOrderFlowState({ schoolId: schoolIdFromParams });
+    }
+
+    const fetchData = async () => {
+      try {
+        const [uniformsResponse, suppliersResponse] = await Promise.all([
+          fetch('/api/uniforms'),
+          fetch('/api/suppliers'),
+        ]);
+
+        if (!uniformsResponse.ok || !suppliersResponse.ok) {
+          throw new Error('Não foi possível carregar os uniformes.');
+        }
+
+        const uniformsPayload = (await uniformsResponse.json()) as { data: Uniform[] };
+        const suppliersPayload = (await suppliersResponse.json()) as { data: Supplier[] };
+
+        setUniforms(uniformsPayload.data ?? []);
+
+        const currentSchoolId = schoolIdFromParams ?? state.schoolId;
+        let matchedSupplier: Supplier | undefined;
+
+        if (currentSchoolId) {
+          matchedSupplier = suppliersPayload.data?.find(currentSupplier =>
+            currentSupplier.schools.includes(currentSchoolId),
+          );
+        }
+
+        if (matchedSupplier) {
+          setSupplier(matchedSupplier);
+          saveOrderFlowState({ supplierId: matchedSupplier.id });
+        }
+
+        if (state.uniformId) {
+          setSelectedUniformId(state.uniformId);
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [router, schoolIdFromParams]);
+
+  const filteredUniforms = useMemo(() => {
+    if (!supplier) {
+      return uniforms;
+    }
+
+    return uniforms.filter(uniform => uniform.supplierId === supplier.id);
+  }, [supplier, uniforms]);
+
+  const handleSelect = (uniform: Uniform) => {
+    setSelectedUniformId(uniform.id);
+    saveOrderFlowState({ uniformId: uniform.id });
+  };
+
+  const handleContinue = () => {
+    if (!selectedUniformId) return;
+
+    router.push('/medidas');
+  };
+
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-2xl px-md py-2xl">
@@ -62,26 +115,49 @@ export default function UniformsPage() {
             </header>
 
             <div className="grid gap-lg sm:grid-cols-2">
-              {MOCK_UNIFORMS.map(uniform => (
+              {filteredUniforms.map(uniform => (
                 <UniformCard
                   key={uniform.id}
-                  imageSrc={uniform.imageSrc}
-                  imageAlt={uniform.imageAlt}
+                  imageSrc={uniform.imageSrc ?? ''}
+                  imageAlt={uniform.imageAlt ?? uniform.name}
                   name={uniform.name}
                   description={uniform.description}
+                  onSelect={() => handleSelect(uniform)}
+                  buttonLabel={selectedUniformId === uniform.id ? 'Selecionado' : 'Selecionar'}
+                  buttonProps={{
+                    variant: selectedUniformId === uniform.id ? 'primary' : 'secondary',
+                    disabled: isLoading,
+                  }}
+                  className={selectedUniformId === uniform.id ? 'ring-2 ring-primary' : undefined}
                 />
               ))}
+              {!isLoading && filteredUniforms.length === 0 && (
+                <Card
+                  emphasis="muted"
+                  className="items-center justify-center text-center text-body"
+                >
+                  Nenhum uniforme disponível para esta escola.
+                </Card>
+              )}
             </div>
           </div>
 
           <aside className="flex flex-col gap-md">
             <Card emphasis="muted" className="flex flex-col gap-sm">
-              <h2 className="text-h3 font-heading">Dicas rápidas</h2>
-              <ul className="flex flex-col gap-xs text-body text-text-muted">
-                <li>Verifique o clima local para escolher peças adicionais.</li>
-                <li>Consulte o calendário escolar para uniformes especiais.</li>
-                <li>Você poderá revisar as peças escolhidas antes da confirmação.</li>
-              </ul>
+              <h2 className="text-h3 font-heading">Resumo</h2>
+              <dl className="flex flex-col gap-xs text-body text-text">
+                <div className="flex justify-between">
+                  <dt className="text-text-muted">Fornecedor</dt>
+                  <dd className="font-medium">{supplier?.name ?? 'Não identificado'}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-text-muted">Uniformes</dt>
+                  <dd className="font-medium">{filteredUniforms.length}</dd>
+                </div>
+              </dl>
+              <p className="text-caption text-text-muted">
+                Continue para informar as medidas e receber a sugestão de tamanho ideal.
+              </p>
             </Card>
 
             <div className="flex flex-col gap-sm">
@@ -90,10 +166,14 @@ export default function UniformsPage() {
                   Voltar
                 </Button>
               </Link>
-              <Button disabled>Continuar</Button>
-              <span className="text-caption text-text-muted">
-                Escolha um uniforme para continuar com as medidas.
-              </span>
+              <Button onClick={handleContinue} disabled={!selectedUniformId || isLoading}>
+                Continuar
+              </Button>
+              {!selectedUniformId && (
+                <span className="text-caption text-text-muted">
+                  Escolha um uniforme para continuar com as medidas.
+                </span>
+              )}
             </div>
           </aside>
         </section>

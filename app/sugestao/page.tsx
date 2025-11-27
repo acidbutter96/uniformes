@@ -37,10 +37,10 @@ export default function SuggestionPage() {
               <span className="text-caption font-medium uppercase tracking-wide text-primary">
                 Etapa 4 de 4
               </span>
-              <h1 className="text-h2 font-heading">Confirme o pedido</h1>
+              <h1 className="text-h2 font-heading">Confirme a reserva</h1>
               <p className="text-body text-text-muted">
-                Revise o uniforme e o tamanho sugerido antes de finalizar. Você ainda pode ajustar
-                as medidas, se preferir.
+                Revise o uniforme e o tamanho sugerido antes de reservar. Você ainda pode ajustar as
+                medidas, se preferir.
               </p>
             </header>
 
@@ -87,7 +87,7 @@ export default function SuggestionPage() {
             <div className="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
               <div className="flex flex-col gap-sm sm:flex-row sm:items-center md:order-2">
                 <Button size="lg" type="button">
-                  Confirmar pedido
+                  Confirmar reserva
                 </Button>
                 <Link
                   href="/medidas"
@@ -99,7 +99,8 @@ export default function SuggestionPage() {
                 </Link>
               </div>
               <span className="text-caption text-text-muted md:order-1">
-                Ao confirmar, enviaremos o pedido para produção e você poderá acompanhar o status.
+                Ao confirmar, registraremos a reserva e você será orientado sobre a retirada na
+                loja.
               </span>
             </div>
           </Card>

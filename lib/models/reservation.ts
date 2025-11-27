@@ -1,4 +1,4 @@
-export interface Order {
+export interface Reservation {
   id: string;
   userName: string;
   schoolId: string;

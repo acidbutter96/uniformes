@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
-import { orders, uniforms, schools, getById } from '@/lib/database';
+import { reservations, uniforms, schools, getById } from '@/lib/database';
 
 export async function GET() {
-  return NextResponse.json({ data: orders });
+  return NextResponse.json({ data: reservations });
 }
 
 export async function POST(request: Request) {
@@ -29,8 +29,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Uniforme não encontrado.' }, { status: 404 });
     }
 
-    const newOrder = {
-      id: `order-${String(orders.length + 1).padStart(3, '0')}`,
+    const newReservation = {
+      id: `reservation-${String(reservations.length + 1).padStart(3, '0')}`,
       userName,
       schoolId,
       uniformId,
@@ -39,9 +39,9 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
     };
 
-    orders.push(newOrder);
+    reservations.push(newReservation);
 
-    return NextResponse.json({ data: newOrder }, { status: 201 });
+    return NextResponse.json({ data: newReservation }, { status: 201 });
   } catch (error) {
     console.error('Failed to create reservation', error);
     return NextResponse.json(

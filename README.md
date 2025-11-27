@@ -22,12 +22,12 @@ yarn format    # Formata com Prettier
 app/
 	admin/
 		dashboard/
-		orders/
+		reservations/
 		schools/
 		suppliers/
 		uniforms/
 	api/
-		orders/
+		reservations/
 		schools/
 		suppliers/
 		uniforms/

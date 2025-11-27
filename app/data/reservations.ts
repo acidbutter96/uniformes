@@ -1,4 +1,4 @@
-export interface OrderSummary {
+export interface ReservationSummary {
   id: string;
   schoolId: string;
   supplierId: string;
@@ -7,9 +7,9 @@ export interface OrderSummary {
   updatedAt: string;
 }
 
-export const orders: OrderSummary[] = [
+export const reservations: ReservationSummary[] = [
   {
-    id: 'ord-2025-001',
+    id: 'res-2025-001',
     schoolId: 'sc-01',
     supplierId: 'sp-01',
     status: 'em-producao',
@@ -17,7 +17,7 @@ export const orders: OrderSummary[] = [
     updatedAt: '2025-11-12T15:30:00-03:00',
   },
   {
-    id: 'ord-2025-002',
+    id: 'res-2025-002',
     schoolId: 'sc-02',
     supplierId: 'sp-03',
     status: 'aguardando',
@@ -25,7 +25,7 @@ export const orders: OrderSummary[] = [
     updatedAt: '2025-11-18T10:15:00-03:00',
   },
   {
-    id: 'ord-2025-003',
+    id: 'res-2025-003',
     schoolId: 'sc-03',
     supplierId: 'sp-02',
     status: 'enviado',

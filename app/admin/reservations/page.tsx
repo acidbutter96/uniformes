@@ -1,4 +1,4 @@
-import { orders } from '@/app/data/orders';
+import { reservations } from '@/app/data/reservations';
 import { formatCurrency, formatDate } from '@/app/lib/format';
 import SearchField from '@/app/components/forms/SearchField';
 import { Badge } from '@/app/components/ui/Badge';
@@ -9,7 +9,7 @@ const statusTone: Record<string, 'success' | 'warning' | 'accent'> = {
   aguardando: 'warning',
 };
 
-export default function AdminOrdersPage() {
+export default function AdminReservationsPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-2">
@@ -32,17 +32,19 @@ export default function AdminOrdersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100 bg-white">
-            {orders.map(order => (
-              <tr key={order.id} className="hover:bg-brand-50/40">
-                <td className="px-4 py-3 font-medium text-neutral-900">{order.id}</td>
-                <td className="px-4 py-3 text-neutral-600">{order.schoolId}</td>
-                <td className="px-4 py-3 text-neutral-600">{order.supplierId}</td>
+            {reservations.map(reservation => (
+              <tr key={reservation.id} className="hover:bg-brand-50/40">
+                <td className="px-4 py-3 font-medium text-neutral-900">{reservation.id}</td>
+                <td className="px-4 py-3 text-neutral-600">{reservation.schoolId}</td>
+                <td className="px-4 py-3 text-neutral-600">{reservation.supplierId}</td>
                 <td className="px-4 py-3">
-                  <Badge tone={statusTone[order.status]}>{order.status.replaceAll('-', ' ')}</Badge>
+                  <Badge tone={statusTone[reservation.status]}>
+                    {reservation.status.replaceAll('-', ' ')}
+                  </Badge>
                 </td>
-                <td className="px-4 py-3 text-neutral-500">{formatDate(order.updatedAt)}</td>
+                <td className="px-4 py-3 text-neutral-500">{formatDate(reservation.updatedAt)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-neutral-800">
-                  {formatCurrency(order.value)}
+                  {formatCurrency(reservation.value)}
                 </td>
               </tr>
             ))}

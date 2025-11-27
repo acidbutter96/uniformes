@@ -1,13 +1,15 @@
 import MetricCard from '@/app/components/cards/MetricCard';
 import { Button } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
-import { orders } from '@/app/data/orders';
+import { reservations } from '@/app/data/reservations';
 import { schools } from '@/app/data/schools';
 import { formatCurrency, formatDate } from '@/app/lib/format';
 
-const totalOrders = orders.length;
-const awaitingOrders = orders.filter(order => order.status === 'aguardando').length;
-const totalValue = orders.reduce((sum, order) => sum + order.value, 0);
+const totalReservations = reservations.length;
+const awaitingReservations = reservations.filter(
+  reservation => reservation.status === 'aguardando',
+).length;
+const totalValue = reservations.reduce((sum, reservation) => sum + reservation.value, 0);
 const activeSchools = schools.filter(school => school.status === 'ativo').length;
 
 export default function AdminDashboardPage() {
@@ -38,8 +40,8 @@ export default function AdminDashboardPage() {
         />
         <MetricCard
           title="Reservas ativas"
-          value={String(totalOrders)}
-          delta={`${awaitingOrders} aguardando ação`}
+          value={String(totalReservations)}
+          delta={`${awaitingReservations} aguardando ação`}
           tone="warning"
         />
         <MetricCard title="Escolas ativas" value={String(activeSchools)} delta="Meta: 50 escolas" />
@@ -65,26 +67,28 @@ export default function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 bg-white">
-              {orders.map(order => (
-                <tr key={order.id} className="hover:bg-brand-50/40">
-                  <td className="px-4 py-3 font-medium text-neutral-900">{order.id}</td>
-                  <td className="px-4 py-3 text-neutral-600">{order.schoolId}</td>
+              {reservations.map(reservation => (
+                <tr key={reservation.id} className="hover:bg-brand-50/40">
+                  <td className="px-4 py-3 font-medium text-neutral-900">{reservation.id}</td>
+                  <td className="px-4 py-3 text-neutral-600">{reservation.schoolId}</td>
                   <td className="px-4 py-3">
                     <Badge
                       tone={
-                        order.status === 'enviado'
+                        reservation.status === 'enviado'
                           ? 'success'
-                          : order.status === 'aguardando'
+                          : reservation.status === 'aguardando'
                             ? 'warning'
                             : 'accent'
                       }
                     >
-                      {order.status.replaceAll('-', ' ')}
+                      {reservation.status.replaceAll('-', ' ')}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-neutral-500">{formatDate(order.updatedAt)}</td>
+                  <td className="px-4 py-3 text-neutral-500">
+                    {formatDate(reservation.updatedAt)}
+                  </td>
                   <td className="px-4 py-3 text-right font-semibold text-neutral-800">
-                    {formatCurrency(order.value)}
+                    {formatCurrency(reservation.value)}
                   </td>
                 </tr>
               ))}

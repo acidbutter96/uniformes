@@ -1,7 +1,7 @@
 import { School } from './models/school';
 import { Supplier } from './models/supplier';
 import { Uniform } from './models/uniform';
-import { Order } from './models/order';
+import { Reservation } from './models/reservation';
 
 export const schools: School[] = [
   { id: 'school-aurora', name: 'Escola Aurora do Saber', city: 'São Paulo' },
@@ -55,9 +55,9 @@ export const uniforms: Uniform[] = [
   },
 ];
 
-export const orders: Order[] = [
+export const reservations: Reservation[] = [
   {
-    id: 'order-001',
+    id: 'reservation-001',
     userName: 'Mariana Silva',
     schoolId: schools[0].id,
     uniformId: uniforms[0].id,
@@ -66,7 +66,7 @@ export const orders: Order[] = [
     createdAt: new Date('2025-09-15T10:20:00Z').toISOString(),
   },
   {
-    id: 'order-002',
+    id: 'reservation-002',
     userName: 'João Pereira',
     schoolId: schools[1].id,
     uniformId: uniforms[1].id,

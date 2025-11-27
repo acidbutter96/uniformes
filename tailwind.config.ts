@@ -1,5 +1,6 @@
 import type { Config } from 'tailwindcss';
 import defaultTheme from 'tailwindcss/defaultTheme';
+import plugin from 'tailwindcss/plugin';
 
 const config: Config = {
   content: [
@@ -11,100 +12,63 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#f0f7ff',
-          100: '#dcebff',
-          200: '#b3d4ff',
-          300: '#80b8ff',
-          400: '#4d99ff',
-          500: '#1a7aff',
-          600: '#005fdb',
-          700: '#0046a8',
-          800: '#003076',
-          900: '#001d4d',
-          950: '#000f2a',
+        primary: '#F64C6F',
+        success: '#04D361',
+        text: {
+          DEFAULT: '#141628',
+          muted: '#6B6F76',
         },
-        neutral: {
-          50: '#f5f6f8',
-          100: '#e6e8eb',
-          200: '#cbd0d6',
-          300: '#aeb6bf',
-          400: '#8d95a1',
-          500: '#6d7582',
-          600: '#525964',
-          700: '#3a4048',
-          800: '#242931',
-          900: '#12151b',
-          950: '#0b0d11',
-        },
-        accent: {
-          50: '#fff5f3',
-          100: '#ffe0da',
-          200: '#ffc0b5',
-          300: '#ff957f',
-          400: '#ff5f47',
-          500: '#ff3f26',
-          600: '#e02317',
-          700: '#b81813',
-          800: '#85120f',
-          900: '#4f0a08',
-          950: '#320606',
-        },
-        success: {
-          50: '#ebf9f1',
-          100: '#c9efdb',
-          200: '#95e0ba',
-          300: '#56cb93',
-          400: '#2fb176',
-          500: '#1f965c',
-          600: '#1a774a',
-          700: '#185d3b',
-          800: '#12402a',
-          900: '#0b2519',
-          950: '#06150f',
-        },
-        warning: {
-          50: '#fff9eb',
-          100: '#ffeec6',
-          200: '#ffda8d',
-          300: '#ffc054',
-          400: '#ffa524',
-          500: '#f5860d',
-          600: '#d56708',
-          700: '#a5480b',
-          800: '#75360e',
-          900: '#422009',
-          950: '#281405',
-        },
-        danger: {
-          50: '#fef2f3',
-          100: '#fde2e4',
-          200: '#fbc2c8',
-          300: '#f7939d',
-          400: '#f16273',
-          500: '#e83a4c',
-          600: '#cd2031',
-          700: '#a51729',
-          800: '#72101d',
-          900: '#3c070f',
-          950: '#220307',
-        },
+        background: '#F5F6F7',
+        surface: '#ffffff',
+        border: '#D8DCE1',
       },
       fontFamily: {
         sans: ['var(--font-inter)', ...defaultTheme.fontFamily.sans],
         heading: ['var(--font-inter)', ...defaultTheme.fontFamily.sans],
-        mono: ['var(--font-inter)', ...defaultTheme.fontFamily.mono],
+      },
+      fontSize: {
+        h1: ['2rem', { lineHeight: '2.5rem', fontWeight: '700' }],
+        h2: ['1.5rem', { lineHeight: '2rem', fontWeight: '600' }],
+        h3: ['1.25rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+        body: ['1rem', { lineHeight: '1.6rem', fontWeight: '400' }],
+        caption: ['0.75rem', { lineHeight: '1rem', fontWeight: '500' }],
+      },
+      spacing: {
+        xs: '0.25rem', // 4px
+        sm: '0.5rem', // 8px
+        md: '1rem', // 16px
+        lg: '1.5rem', // 24px
+        xl: '2rem', // 32px
+        '2xl': '3rem', // 48px
       },
       borderRadius: {
-        lg: '0.75rem',
-        xl: '1rem',
+        card: '12px',
       },
       boxShadow: {
-        card: '0 20px 45px -20px rgba(0, 28, 61, 0.35)',
+        light: '0 10px 24px -12px rgba(20, 22, 40, 0.15)',
+        card: '0 18px 36px -16px rgba(20, 22, 40, 0.18)',
       },
     },
   },
-  plugins: [],
+  plugins: [
+    plugin(({ addComponents, theme }) => {
+      addComponents({
+        '.card': {
+          borderRadius: theme('borderRadius.card'),
+          backgroundColor: theme('colors.surface'),
+          boxShadow: theme('boxShadow.card'),
+          border: `1px solid ${theme('colors.border')}`,
+          padding: theme('spacing.lg'),
+        },
+        '.shadow-soft': {
+          boxShadow: theme('boxShadow.light'),
+        },
+        '.rounded-card': {
+          borderRadius: theme('borderRadius.card'),
+        },
+      });
+    }),
+  ],
 };
 
 export default config;

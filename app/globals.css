@@ -9,11 +9,11 @@
 }
 
 body {
-  @apply bg-neutral-50 text-neutral-900 antialiased;
+  @apply bg-background text-text antialiased;
 }
 
 a {
-  @apply text-brand-600 transition-colors duration-150 hover:text-brand-500;
+  @apply text-primary transition-colors duration-150 hover:text-primary/80;
 }
 
 button {

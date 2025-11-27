@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Header from '@/app/components/layout/Header';
 import Footer from '@/app/components/layout/Footer';
+import Providers from '@/app/providers';
 import './globals.css';
 
 const inter = Inter({
@@ -28,11 +29,13 @@ export default function RootLayout({
   return (
     <html lang="pt-br" className={`${inter.variable}`}>
       <body className="min-h-screen bg-neutral-50 font-sans text-neutral-900">
-        <div className="flex min-h-screen flex-col">
-          <Header />
-          <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">{children}</main>
-          <Footer />
-        </div>
+        <Providers>
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">{children}</main>
+            <Footer />
+          </div>
+        </Providers>
       </body>
     </html>
   );

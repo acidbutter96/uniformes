@@ -1,0 +1,5 @@
+:root {
+  --radius-card: 16px;
+  --radius-panel: 24px;
+  --shadow-card: 0 20px 45px -20px rgba(0, 28, 61, 0.35);
+}

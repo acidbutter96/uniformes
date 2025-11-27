@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { cn } from '@/app/lib/utils';
 
 const MOCK_ORDER = {
   id: 'PED-2025-0914',
@@ -18,8 +18,8 @@ export default function SuccessPage() {
             </span>
             <h1 className="text-h2 font-heading">Sua solicitação foi registrada!</h1>
             <p className="max-w-xl text-body text-text-muted">
-              Em breve você receberá um e-mail com todos os detalhes. Acompanhe o progresso do pedido
-              pelo painel ou ajuste as informações caso necessário.
+              Em breve você receberá um e-mail com todos os detalhes. Acompanhe o progresso do
+              pedido pelo painel ou ajuste as informações caso necessário.
             </p>
           </div>
 
@@ -33,9 +33,14 @@ export default function SuccessPage() {
             </span>
           </div>
 
-          <Button asChild size="lg">
-            <Link href="/">Retornar ao início</Link>
-          </Button>
+          <Link
+            href="/"
+            className={cn(
+              'inline-flex items-center justify-center gap-xs rounded-card bg-primary px-lg py-sm text-body font-semibold text-surface shadow-soft transition-colors hover:bg-primary/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            )}
+          >
+            Retornar ao início
+          </Link>
         </Card>
       </div>
     </main>

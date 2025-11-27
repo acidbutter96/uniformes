@@ -1,14 +1,16 @@
 import Image from 'next/image';
+import Link from 'next/link';
+
+import { cn } from '@/app/lib/utils';
 import { StepsHeader } from '@/components/steps/StepsHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import Link from 'next/link';
-import { cn } from '@/app/lib/utils';
 
 const MOCK_UNIFORM = {
   name: 'Jaqueta de Inverno',
   description: 'Tecido térmico, forro leve e capuz removível. Ideal para dias frios.',
-  imageSrc: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
+  imageSrc:
+    'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
   imageAlt: 'Jaqueta escolar azul pendurada',
 };
 
@@ -37,8 +39,8 @@ export default function SuggestionPage() {
               </span>
               <h1 className="text-h2 font-heading">Confirme o pedido</h1>
               <p className="text-body text-text-muted">
-                Revise o uniforme e o tamanho sugerido antes de finalizar. Você ainda pode ajustar as
-                medidas, se preferir.
+                Revise o uniforme e o tamanho sugerido antes de finalizar. Você ainda pode ajustar
+                as medidas, se preferir.
               </p>
             </header>
 
@@ -60,7 +62,9 @@ export default function SuggestionPage() {
                     Tamanho sugerido
                   </span>
                   <span className="inline-flex items-center gap-xs rounded-card bg-primary/10 px-md py-xs text-body font-semibold text-primary">
-                    {MOCK_SUGGESTION.size} • Confiança {(MOCK_SUGGESTION.confidence * 100).toFixed(0)}%
+                    {MOCK_SUGGESTION.size}
+                    <span aria-hidden>•</span>
+                    Confiança {(MOCK_SUGGESTION.confidence * 100).toFixed(0)}%
                   </span>
                   <p className="text-body text-text">{MOCK_SUGGESTION.summary}</p>
                 </div>

@@ -38,7 +38,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
 
 Card.displayName = 'Card';
 
-export interface CardSectionProps extends HTMLAttributes<HTMLDivElement> {}
+export type CardSectionProps = HTMLAttributes<HTMLDivElement>;
 
 export const CardHeader = ({ className, ...props }: CardSectionProps) => (
   <div className={cn('mb-sm flex flex-col gap-xs', className)} {...props} />

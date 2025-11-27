@@ -69,7 +69,9 @@ export function ChildMeasurementsForm({
     waist: false,
     hips: false,
   });
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    'idle',
+  );
 
   const errors = useMemo(() => {
     const next: Partial<Record<MeasurementField, string>> = {};
@@ -190,20 +192,26 @@ export function ChildMeasurementsForm({
       </div>
 
       <div className="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
-        <p className="text-caption text-text-muted">
-          Todos os campos são obrigatórios.
-        </p>
+        <p className="text-caption text-text-muted">Todos os campos são obrigatórios.</p>
         <Button type="submit" disabled={!isComplete || hasErrors || submitStatus === 'loading'}>
           {submitStatus === 'loading' ? 'Enviando…' : submitLabel}
         </Button>
       </div>
 
       {submitStatus === 'success' && (
-        <Alert tone="success" heading={successMessage} description="Você pode revisar as informações a qualquer momento antes da confirmação." />
+        <Alert
+          tone="success"
+          heading={successMessage}
+          description="Você pode revisar as informações a qualquer momento antes da confirmação."
+        />
       )}
 
       {submitStatus === 'error' && (
-        <Alert tone="danger" heading={errorMessage} description="Não se preocupe, nenhuma informação foi perdida." />
+        <Alert
+          tone="danger"
+          heading={errorMessage}
+          description="Não se preocupe, nenhuma informação foi perdida."
+        />
       )}
     </form>
   );

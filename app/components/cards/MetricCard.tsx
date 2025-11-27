@@ -26,9 +26,7 @@ export default function MetricCard({
   className,
 }: MetricCardProps) {
   return (
-    <article
-      className={cn('card shadow-soft', className)}
-    >
+    <article className={cn('card shadow-soft', className)}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-caption uppercase tracking-wide text-text-muted">{title}</p>

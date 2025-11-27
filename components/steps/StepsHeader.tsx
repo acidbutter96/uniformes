@@ -27,7 +27,10 @@ export function StepsHeader({ currentStep, className }: StepsHeaderProps) {
           const isCompleted = stepNumber < activeStep;
 
           return (
-            <li key={step.id} className="flex flex-col gap-xs md:flex-row md:items-center md:gap-sm">
+            <li
+              key={step.id}
+              className="flex flex-col gap-xs md:flex-row md:items-center md:gap-sm"
+            >
               <div className="flex items-center gap-sm">
                 <span
                   aria-hidden

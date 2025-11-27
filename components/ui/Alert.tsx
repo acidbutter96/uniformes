@@ -46,12 +46,14 @@ export const Alert = forwardRef<HTMLDivElement, AlertProps>(
         )}
         {...props}
       >
-        {icon && <span className="mt-[2px] text-xl" aria-hidden>{icon}</span>}
+        {icon && (
+          <span className="mt-[2px] text-xl" aria-hidden>
+            {icon}
+          </span>
+        )}
         <div className="flex w-full flex-col gap-xs">
           {heading && <h3 className="text-h3 font-heading leading-snug text-inherit">{heading}</h3>}
-          {description && (
-            <p className="text-body text-inherit text-opacity-90">{description}</p>
-          )}
+          {description && <p className="text-body text-inherit text-opacity-90">{description}</p>}
           {!heading && !description && children}
         </div>
       </div>

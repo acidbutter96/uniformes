@@ -9,28 +9,35 @@ const MOCK_UNIFORMS = [
     id: 'camiseta-escolar',
     name: 'Camiseta Escolar',
     description: 'Malha leve, manga curta, ideal para o dia a dia escolar.',
-    imageSrc: 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
+    imageSrc:
+      'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Camiseta escolar dobrada',
   },
+
   {
     id: 'jaqueta-inverno',
     name: 'Jaqueta de Inverno',
     description: 'Jaqueta acolchoada com capuz removível e forro térmico.',
-    imageSrc: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
+    imageSrc:
+      'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Jaqueta escolar azul pendurada',
   },
+
   {
     id: 'calca-moletom',
     name: 'Calça Moletom',
     description: 'Cós ajustável, tecido macio e resistente para maior conforto.',
-    imageSrc: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80',
+    imageSrc:
+      'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Calça de moletom cinza',
   },
+
   {
     id: 'bermuda-esportiva',
     name: 'Bermuda Esportiva',
     description: 'Tecido dry-fit com recortes que permitem mobilidade total.',
-    imageSrc: 'https://images.unsplash.com/photo-1587391740164-3465c4b55086?auto=format&fit=crop&w=800&q=80',
+    imageSrc:
+      'https://images.unsplash.com/photo-1587391740164-3465c4b55086?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Bermuda esportiva cinza com detalhes',
   },
 ];

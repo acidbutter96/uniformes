@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/app/components/ui/Card';
 import { cn } from '@/app/lib/utils';
 
 const MOCK_RESERVATION = {

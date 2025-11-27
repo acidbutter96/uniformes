@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/app/lib/utils';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
+import { Input } from '@/app/components/ui/Input';
+import { Button } from '@/app/components/ui/Button';
+import { Alert } from '@/app/components/ui/Alert';
 
 type MeasurementField = 'age' | 'height' | 'weight' | 'chest' | 'waist' | 'hips';
 

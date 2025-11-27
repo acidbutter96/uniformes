@@ -3,22 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { StepsHeader } from '@/components/steps/StepsHeader';
-import {
-  ChildMeasurementsForm,
-  type MeasurementsData,
-} from '@/components/forms/ChildMeasurementsForm';
-import { Card } from '@/components/ui/Card';
-import { Alert } from '@/components/ui/Alert';
-import { Button } from '@/components/ui/Button';
-import type { Uniform } from '@/lib/models/uniform';
-import type { School } from '@/lib/models/school';
+import { StepsHeader } from '@/app/components/steps/StepsHeader';
+import { ChildMeasurementsForm, type MeasurementsData } from '@/app/components/forms/ChildMeasurementsForm';
+import { Card } from '@/app/components/ui/Card';
+import { Alert } from '@/app/components/ui/Alert';
+import { Button } from '@/app/components/ui/Button';
+import type { Uniform } from '@/app/lib/models/uniform';
+import type { School } from '@/app/lib/models/school';
 import {
   loadOrderFlowState,
   saveOrderFlowState,
   type MeasurementsMap,
   type SuggestionData,
-} from '@/lib/storage/order-flow';
+} from '@/app/lib/storage/order-flow';
 
 interface SuggestionResult {
   suggestion: string;

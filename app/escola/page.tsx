@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { StepsHeader } from '@/components/steps/StepsHeader';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { StepsHeader } from '@/app/components/steps/StepsHeader';
+import { Input } from '@/app/components/ui/Input';
+import { Button } from '@/app/components/ui/Button';
+import { Card } from '@/app/components/ui/Card';
 import { cn } from '@/app/lib/utils';
-import type { School } from '@/lib/models/school';
-import type { Supplier } from '@/lib/models/supplier';
-import { clearOrderFlowState, saveOrderFlowState } from '@/lib/storage/order-flow';
+import type { School } from '@/app/lib/models/school';
+import type { Supplier } from '@/app/lib/models/supplier';
+import { clearOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
 export default function SchoolStepPage() {
   const router = useRouter();

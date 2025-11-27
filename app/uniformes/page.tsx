@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { StepsHeader } from '@/components/steps/StepsHeader';
-import { UniformCard } from '@/components/cards/UniformCard';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import type { Uniform } from '@/lib/models/uniform';
-import type { Supplier } from '@/lib/models/supplier';
-import { loadOrderFlowState, saveOrderFlowState } from '@/lib/storage/order-flow';
+import { StepsHeader } from '@/app/components/steps/StepsHeader';
+import { UniformCard } from '@/app/components/cards/UniformCard';
+import { Button } from '@/app/components/ui/Button';
+import { Card } from '@/app/components/ui/Card';
+import type { Uniform } from '@/app/lib/models/uniform';
+import type { Supplier } from '@/app/lib/models/supplier';
+import { loadOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
 export default function UniformsPage() {
   const router = useRouter();

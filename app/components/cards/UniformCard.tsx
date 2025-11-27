@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import { cn } from '@/app/lib/utils';
-import { Card } from '@/components/ui/Card';
-import { Button, type ButtonProps } from '@/components/ui/Button';
+import { Card } from '@/app/components/ui/Card';
+import { Button, type ButtonProps } from '@/app/components/ui/Button';
 
 export interface UniformCardProps {
   imageSrc: string;

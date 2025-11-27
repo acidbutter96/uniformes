@@ -2,9 +2,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { cn } from '@/app/lib/utils';
-import { StepsHeader } from '@/components/steps/StepsHeader';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { StepsHeader } from '@/app/components/steps/StepsHeader';
+import { Card } from '@/app/components/ui/Card';
+import { Button } from '@/app/components/ui/Button';
 
 const MOCK_UNIFORM = {
   name: 'Jaqueta de Inverno',

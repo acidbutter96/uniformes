@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { cn } from '@/app/lib/utils';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/app/components/ui/Card';
 
 export default function Home() {
   return (

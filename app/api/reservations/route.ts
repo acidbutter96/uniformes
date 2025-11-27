@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { reservations, uniforms, schools, getById } from '@/lib/database';
+import { reservations, uniforms, schools, getById } from '@/app/lib/database';
 
 export async function GET() {
   return NextResponse.json({ data: reservations });

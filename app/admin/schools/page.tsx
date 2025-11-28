@@ -1,16 +1,26 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import AdminGuard from '@/app/admin/AdminGuard';
-import { schools as initialSchools, type SchoolSummary } from '@/app/data/schools';
+import { Alert } from '@/app/components/ui/Alert';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
+import useAuth from '@/src/hooks/useAuth';
 
-const STATUS_OPTIONS: SchoolSummary['status'][] = ['ativo', 'pendente', 'inativo'];
+const STATUS_OPTIONS = ['ativo', 'pendente', 'inativo'] as const;
+type SchoolStatus = (typeof STATUS_OPTIONS)[number];
 
-const statusTone: Record<SchoolSummary['status'], 'success' | 'warning' | 'danger'> = {
+type SchoolSummary = {
+  id: string;
+  name: string;
+  city: string;
+  students: number;
+  status: SchoolStatus;
+};
+
+const statusTone: Record<SchoolStatus, 'success' | 'warning' | 'danger'> = {
   ativo: 'success',
   pendente: 'warning',
   inativo: 'danger',
@@ -24,13 +34,42 @@ const createEmptyForm = (): Omit<SchoolSummary, 'id'> => ({
 });
 
 export default function AdminSchoolsPage() {
-  const [schools, setSchools] = useState<SchoolSummary[]>(() =>
-    initialSchools.map(item => ({ ...item })),
-  );
+  const { accessToken } = useAuth();
+  const [schools, setSchools] = useState<SchoolSummary[]>([]);
   const [formValues, setFormValues] = useState<Omit<SchoolSummary, 'id'>>(createEmptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
+  const canMutate = Boolean(accessToken);
+
+  const fetchSchools = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/schools', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Não foi possível carregar as escolas.');
+      }
+
+      const data = (payload.data ?? []) as SchoolSummary[];
+      setSchools(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Erro inesperado ao carregar as escolas.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSchools();
+  }, [fetchSchools]);
 
   const handleChange = (field: keyof Omit<SchoolSummary, 'id'>, value: string) => {
     setFormValues(prev => {
@@ -39,7 +78,7 @@ export default function AdminSchoolsPage() {
       }
 
       if (field === 'status') {
-        return { ...prev, status: value as SchoolSummary['status'] };
+        return { ...prev, status: value as SchoolStatus };
       }
 
       return { ...prev, [field]: value };
@@ -51,38 +90,57 @@ export default function AdminSchoolsPage() {
     setFormValues(createEmptyForm());
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (!canMutate) {
+      setError('Você precisa estar autenticado para salvar.');
+      return;
+    }
+
     if (!formValues.name.trim() || !formValues.city.trim()) {
+      setError('Nome e cidade são obrigatórios.');
       return;
     }
 
     if (formValues.students <= 0) {
+      setError('Número de alunos deve ser maior que zero.');
       return;
     }
 
-    if (isEditing && editingId) {
-      setSchools(prev =>
-        prev.map(item =>
-          item.id === editingId
-            ? { ...item, ...formValues, students: Number(formValues.students) }
-            : item,
-        ),
-      );
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const endpoint = isEditing ? `/api/schools/${editingId}` : '/api/schools';
+      const method = isEditing ? 'PATCH' : 'POST';
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          name: formValues.name.trim(),
+          city: formValues.city.trim(),
+          students: Number(formValues.students),
+          status: formValues.status,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Não foi possível salvar a escola.');
+      }
+
+      await fetchSchools();
       resetForm();
-      return;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao salvar a escola.';
+      setError(message);
+    } finally {
+      setSubmitting(false);
     }
-
-    const nextId = `sc-${crypto.randomUUID().slice(0, 6)}`;
-    const newSchool: SchoolSummary = {
-      id: nextId,
-      ...formValues,
-      students: Number(formValues.students),
-    };
-
-    setSchools(prev => [...prev, newSchool]);
-    resetForm();
   };
 
   const handleEdit = (id: string) => {
@@ -94,16 +152,43 @@ export default function AdminSchoolsPage() {
     setFormValues({ name, city, students, status });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!canMutate) {
+      setError('Você precisa estar autenticado para excluir.');
+      return;
+    }
+
     const target = schools.find(item => item.id === id);
     if (!target) return;
 
-    const confirmed = window.confirm(`Remover ${target.name}? Esta ação é apenas mock.`);
+    const confirmed = window.confirm(`Remover ${target.name}? Esta ação não pode ser desfeita.`);
     if (!confirmed) return;
 
-    setSchools(prev => prev.filter(item => item.id !== id));
-    if (editingId === id) {
-      resetForm();
+    setDeletingId(id);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/schools/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Não foi possível excluir a escola.');
+      }
+
+      await fetchSchools();
+      if (editingId === id) {
+        resetForm();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao excluir a escola.';
+      setError(message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -112,8 +197,12 @@ export default function AdminSchoolsPage() {
       <div className="space-y-6">
         <header className="space-y-2">
           <h1 className="text-2xl font-semibold text-neutral-900">Escolas</h1>
-          <p className="text-sm text-neutral-500">Gerencie cadastros e status de integração.</p>
+          <p className="text-sm text-neutral-500">
+            Gerencie cadastros e status de integração em tempo real.
+          </p>
         </header>
+
+        {error && <Alert tone="danger" description={error} />}
 
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-card">
@@ -128,26 +217,52 @@ export default function AdminSchoolsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 bg-white">
-                {schools.map(school => (
-                  <tr key={school.id} className="hover:bg-brand-50/40">
-                    <td className="px-4 py-3 font-medium text-neutral-900">{school.name}</td>
-                    <td className="px-4 py-3 text-neutral-600">{school.city}</td>
-                    <td className="px-4 py-3 text-neutral-600">{school.students}</td>
-                    <td className="px-4 py-3">
-                      <Badge tone={statusTone[school.status]}>{school.status}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-xs">
-                        <Button variant="secondary" size="sm" onClick={() => handleEdit(school.id)}>
-                          Editar
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(school.id)}>
-                          Excluir
-                        </Button>
-                      </div>
+                {loading && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-neutral-500">
+                      Carregando escolas...
                     </td>
                   </tr>
-                ))}
+                )}
+
+                {!loading && schools.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-neutral-500">
+                      Nenhuma escola cadastrada ainda.
+                    </td>
+                  </tr>
+                )}
+
+                {!loading &&
+                  schools.map(school => (
+                    <tr key={school.id} className="hover:bg-brand-50/40">
+                      <td className="px-4 py-3 font-medium text-neutral-900">{school.name}</td>
+                      <td className="px-4 py-3 text-neutral-600">{school.city}</td>
+                      <td className="px-4 py-3 text-neutral-600">{school.students}</td>
+                      <td className="px-4 py-3">
+                        <Badge tone={statusTone[school.status]}>{school.status}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-xs">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleEdit(school.id)}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(school.id)}
+                            disabled={deletingId === school.id || submitting}
+                          >
+                            {deletingId === school.id ? 'Excluindo...' : 'Excluir'}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -157,7 +272,7 @@ export default function AdminSchoolsPage() {
               {isEditing ? 'Editar escola' : 'Cadastrar nova escola'}
             </h2>
             <p className="text-sm text-brand-700">
-              As alterações são locais (mock) e ajudam a validar o fluxo antes da API real.
+              As alterações são aplicadas diretamente no catálogo em MongoDB.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
@@ -220,8 +335,12 @@ export default function AdminSchoolsPage() {
               </div>
 
               <div className="flex items-center gap-sm">
-                <Button type="submit" fullWidth>
-                  {isEditing ? 'Salvar alterações' : 'Adicionar escola'}
+                <Button type="submit" fullWidth disabled={submitting || !canMutate}>
+                  {submitting
+                    ? 'Salvando...'
+                    : isEditing
+                      ? 'Salvar alterações'
+                      : 'Adicionar escola'}
                 </Button>
                 {isEditing && (
                   <Button type="button" variant="secondary" fullWidth onClick={resetForm}>

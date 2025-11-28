@@ -1,13 +1,21 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import AdminGuard from '@/app/admin/AdminGuard';
-import { suppliers as initialSuppliers, type SupplierSummary } from '@/app/data/suppliers';
 import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
+import useAuth from '@/src/hooks/useAuth';
+import { type SupplierDTO } from '@/src/types/supplier';
 
-const createEmptyForm = (): Omit<SupplierSummary, 'id'> => ({
+type SupplierFormValues = {
+  name: string;
+  specialty: string;
+  leadTimeDays: number;
+  rating: number;
+};
+
+const createEmptyForm = (): SupplierFormValues => ({
   name: '',
   specialty: '',
   leadTimeDays: 15,
@@ -15,15 +23,64 @@ const createEmptyForm = (): Omit<SupplierSummary, 'id'> => ({
 });
 
 export default function AdminSuppliersPage() {
-  const [suppliers, setSuppliers] = useState<SupplierSummary[]>(() =>
-    initialSuppliers.map(item => ({ ...item })),
-  );
-  const [formValues, setFormValues] = useState<Omit<SupplierSummary, 'id'>>(createEmptyForm);
+  const { accessToken } = useAuth();
+  const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
+  const [formValues, setFormValues] = useState<SupplierFormValues>(createEmptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
 
-  const handleChange = (field: keyof Omit<SupplierSummary, 'id'>, value: string) => {
+  const fetchSuppliers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/suppliers', { cache: 'no-store' });
+      const payload = (await response.json()) as { data: SupplierDTO[] };
+      setSuppliers(payload.data ?? []);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load suppliers', err);
+      setError('Não foi possível carregar fornecedores.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, [fetchSuppliers]);
+
+  const authorizedRequest = useCallback(
+    async <T,>(path: string, init: RequestInit): Promise<T> => {
+      if (!accessToken) {
+        throw new Error('Token de acesso ausente. Faça login novamente.');
+      }
+
+      const response = await fetch(path, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          ...(init.headers ?? {}),
+        },
+        ...init,
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = typeof (payload as { error?: unknown }).error === 'string'
+          ? (payload as { error: string }).error
+          : 'Falha na requisição.';
+        throw new Error(message);
+      }
+
+      return payload as T;
+    },
+    [accessToken],
+  );
+
+  const handleChange = (field: keyof SupplierFormValues, value: string) => {
     setFormValues(prev => {
       if (field === 'leadTimeDays' || field === 'rating') {
         return { ...prev, [field]: Number(value) };
@@ -31,39 +88,57 @@ export default function AdminSuppliersPage() {
 
       return { ...prev, [field]: value };
     });
+    setError(null);
   };
 
   const resetForm = () => {
     setEditingId(null);
     setFormValues(createEmptyForm());
+    setError(null);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!formValues.name.trim() || !formValues.specialty.trim()) {
+      setError('Preencha nome e especialidade.');
       return;
     }
 
-    if (formValues.leadTimeDays <= 0 || formValues.rating < 0) {
+    if (formValues.leadTimeDays <= 0) {
+      setError('Lead time deve ser maior que zero.');
       return;
     }
 
-    if (isEditing && editingId) {
-      setSuppliers(prev =>
-        prev.map(item => (item.id === editingId ? { ...item, ...formValues } : item)),
-      );
+    if (formValues.rating < 0 || formValues.rating > 5) {
+      setError('Avaliação deve estar entre 0 e 5.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      if (isEditing && editingId) {
+        await authorizedRequest<{ data: SupplierDTO }>(`/api/suppliers/${editingId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(formValues),
+        });
+      } else {
+        await authorizedRequest<{ data: SupplierDTO }>('/api/suppliers', {
+          method: 'POST',
+          body: JSON.stringify(formValues),
+        });
+      }
+
+      await fetchSuppliers();
       resetForm();
-      return;
+    } catch (err) {
+      console.error('Failed to submit supplier', err);
+      setError(err instanceof Error ? err.message : 'Falha ao salvar fornecedor.');
+    } finally {
+      setSubmitting(false);
     }
-
-    const newSupplier: SupplierSummary = {
-      id: `sp-${crypto.randomUUID().slice(0, 6)}`,
-      ...formValues,
-    };
-
-    setSuppliers(prev => [...prev, newSupplier]);
-    resetForm();
   };
 
   const handleEdit = (id: string) => {
@@ -72,21 +147,40 @@ export default function AdminSuppliersPage() {
 
     setEditingId(id);
     const { name, specialty, leadTimeDays, rating } = target;
-    setFormValues({ name, specialty, leadTimeDays, rating });
+    setFormValues({
+      name,
+      specialty: specialty ?? '',
+      leadTimeDays: leadTimeDays ?? 0,
+      rating: rating ?? 0,
+    });
+    setError(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const target = suppliers.find(item => item.id === id);
     if (!target) return;
 
-    const confirmed = window.confirm(`Remover ${target.name}? A exclusão é apenas mock.`);
+    const confirmed = window.confirm(`Remover ${target.name}? Esta ação é definitiva.`);
     if (!confirmed) return;
 
-    setSuppliers(prev => prev.filter(item => item.id !== id));
-    if (editingId === id) {
-      resetForm();
+    try {
+      setSubmitting(true);
+      await authorizedRequest<{ data: SupplierDTO }>(`/api/suppliers/${id}`, {
+        method: 'DELETE',
+      });
+      await fetchSuppliers();
+      if (editingId === id) {
+        resetForm();
+      }
+    } catch (err) {
+      console.error('Failed to delete supplier', err);
+      setError(err instanceof Error ? err.message : 'Falha ao excluir fornecedor.');
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const isFormDisabled = submitting || !accessToken;
 
   return (
     <AdminGuard requiredRole="admin">

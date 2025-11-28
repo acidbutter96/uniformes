@@ -1,7 +1,6 @@
 import mongoose, { Schema, type Document, type Model } from 'mongoose';
 
-export const SCHOOL_STATUSES = ['ativo', 'pendente', 'inativo'] as const;
-export type SchoolStatus = (typeof SCHOOL_STATUSES)[number];
+import { SCHOOL_STATUSES, type SchoolStatus } from '@/src/types/school';
 
 export interface SchoolDocument extends Document {
   name: string;
@@ -42,3 +41,5 @@ const SchoolModel: Model<SchoolDocument> =
   mongoose.models.School || mongoose.model<SchoolDocument>('School', SchoolSchema);
 
 export default SchoolModel;
+export { SCHOOL_STATUSES };
+export type { SchoolStatus };

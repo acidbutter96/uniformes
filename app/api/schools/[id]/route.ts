@@ -1,41 +1,13 @@
 import { NextResponse } from 'next/server';
 
+import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
 import { SCHOOL_STATUSES, type SchoolStatus } from '@/src/lib/models/school';
-import { verifyAccessToken } from '@/src/services/auth.service';
-import { deleteSchool, serializeSchool, updateSchool } from '@/src/services/school.service';
+import { deleteSchool, updateSchool } from '@/src/services/school.service';
 
 const VALID_STATUS = new Set<SchoolStatus>(SCHOOL_STATUSES);
 
 function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
-}
-
-type TokenPayload = {
-  role?: string;
-};
-
-function ensureAdminAccess(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
-  }
-
-  const token = authHeader.slice('Bearer '.length).trim();
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
-  }
-
-  try {
-    const payload = verifyAccessToken<TokenPayload>(token);
-    if (payload.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Schools admin auth error', error);
-    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
-  }
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
@@ -64,14 +36,20 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const updates: Record<string, unknown> = {};
 
-    if (typeof name === 'string' && name.trim()) {
-      updates.name = name.trim();
+    if (typeof name === 'string') {
+      if (!name.trim()) {
+        return badRequest('Nome inválido.');
+      }
+      updates.name = name;
     } else if (name !== undefined) {
       return badRequest('Nome inválido.');
     }
 
-    if (typeof city === 'string' && city.trim()) {
-      updates.city = city.trim();
+    if (typeof city === 'string') {
+      if (!city.trim()) {
+        return badRequest('Cidade inválida.');
+      }
+      updates.city = city;
     } else if (city !== undefined) {
       return badRequest('Cidade inválida.');
     }
@@ -88,7 +66,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (typeof status !== 'string' || !VALID_STATUS.has(status as SchoolStatus)) {
         return badRequest('Status inválido.');
       }
-      updates.status = status;
+      updates.status = status as SchoolStatus;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -100,7 +78,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return NextResponse.json({ error: 'Escola não encontrada.' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: serializeSchool(updated) });
+    return NextResponse.json({ data: updated });
   } catch (error) {
     console.error('Failed to update school', error);
     return NextResponse.json({ error: 'Não foi possível atualizar a escola.' }, { status: 500 });
@@ -124,7 +102,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       return NextResponse.json({ error: 'Escola não encontrada.' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: serializeSchool(deleted) });
+    return NextResponse.json({ data: deleted });
   } catch (error) {
     console.error('Failed to delete school', error);
     return NextResponse.json({ error: 'Não foi possível excluir a escola.' }, { status: 500 });

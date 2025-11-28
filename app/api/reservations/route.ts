@@ -1,49 +1,96 @@
 import { NextResponse } from 'next/server';
 
-import { reservations, uniforms, schools, getById } from '@/app/lib/database';
+import {
+  createReservation,
+  listReservations,
+} from '@/src/services/reservation.service';
+
+function badRequest(message: string) {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
 
 export async function GET() {
-  return NextResponse.json({ data: reservations });
+  try {
+    const data = await listReservations();
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error('Failed to list reservations', error);
+    return NextResponse.json(
+      { error: 'Não foi possível carregar as reservas.' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json();
-    const { userName, schoolId, uniformId, measurements, suggestedSize } = payload ?? {};
-
-    if (!userName || !schoolId || !uniformId || !measurements || !suggestedSize) {
-      return NextResponse.json(
-        { error: 'Preencha userName, schoolId, uniformId, measurements e suggestedSize.' },
-        { status: 400 },
-      );
+    const payload = await request.json().catch(() => null);
+    if (!payload) {
+      return badRequest('Payload inválido.');
     }
 
-    const school = getById(schools, schoolId);
-    const uniform = getById(uniforms, uniformId);
+    const { userName, schoolId, uniformId, measurements, suggestedSize } = payload as {
+      userName?: unknown;
+      schoolId?: unknown;
+      uniformId?: unknown;
+      measurements?: unknown;
+      suggestedSize?: unknown;
+    };
 
-    if (!school) {
-      return NextResponse.json({ error: 'Escola não encontrada.' }, { status: 404 });
+    if (typeof userName !== 'string' || !userName.trim()) {
+      return badRequest('Nome do usuário é obrigatório.');
     }
 
-    if (!uniform) {
-      return NextResponse.json({ error: 'Uniforme não encontrado.' }, { status: 404 });
+    if (typeof schoolId !== 'string' || !schoolId.trim()) {
+      return badRequest('Escola é obrigatória.');
     }
 
-    const newReservation = {
-      id: `reservation-${String(reservations.length + 1).padStart(3, '0')}`,
+    if (typeof uniformId !== 'string' || !uniformId.trim()) {
+      return badRequest('Uniforme é obrigatório.');
+    }
+
+    if (typeof suggestedSize !== 'string' || !suggestedSize.trim()) {
+      return badRequest('Tamanho sugerido é obrigatório.');
+    }
+
+    if (typeof measurements !== 'object' || measurements === null) {
+      return badRequest('Medidas inválidas.');
+    }
+
+    const requiredFields = ['age', 'height', 'weight', 'chest', 'waist', 'hips'] as const;
+    const parsedMeasurements: Record<(typeof requiredFields)[number], number> = {
+      age: 0,
+      height: 0,
+      weight: 0,
+      chest: 0,
+      waist: 0,
+      hips: 0,
+    };
+
+    for (const field of requiredFields) {
+      const value = (measurements as Record<string, unknown>)[field];
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return badRequest(`Medida ${field} inválida.`);
+      }
+      parsedMeasurements[field] = numeric;
+    }
+
+    const created = await createReservation({
       userName,
       schoolId,
       uniformId,
-      measurements,
+      measurements: parsedMeasurements,
       suggestedSize,
-      createdAt: new Date().toISOString(),
-    };
+    });
 
-    reservations.push(newReservation);
-
-    return NextResponse.json({ data: newReservation }, { status: 201 });
+    return NextResponse.json({ data: created }, { status: 201 });
   } catch (error) {
     console.error('Failed to create reservation', error);
+    if (error instanceof Error && error.message.includes('não encontrado')) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+
     return NextResponse.json(
       { error: 'Não foi possível registrar a reserva. Tente novamente.' },
       { status: 500 },

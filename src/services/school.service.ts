@@ -1,5 +1,10 @@
+import type { FilterQuery, LeanDocument, UpdateQuery } from 'mongoose';
+
 import dbConnect from '@/src/lib/database';
-import SchoolModel, { type SchoolDocument, type SchoolStatus } from '@/src/lib/models/school';
+import SchoolModel, {
+  type SchoolDocument,
+  type SchoolStatus,
+} from '@/src/lib/models/school';
 
 export type CreateSchoolInput = {
   name: string;
@@ -10,57 +15,79 @@ export type CreateSchoolInput = {
 
 export type UpdateSchoolInput = Partial<CreateSchoolInput>;
 
-export async function listSchools() {
-  await dbConnect();
-  return SchoolModel.find().sort({ createdAt: -1 }).lean().exec();
+export type SchoolResponse = ReturnType<typeof serializeSchool>;
+
+type SerializableSchool = SchoolDocument | LeanDocument<SchoolDocument>;
+
+export function serializeSchool(doc: SerializableSchool) {
+  const { _id, __v, ...rest } = 'toObject' in doc ? doc.toObject() : doc;
+  return {
+    id: _id.toString(),
+    ...rest,
+  } as {
+    id: string;
+    name: string;
+    city: string;
+    students: number;
+    status: SchoolStatus;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+  };
 }
 
-export async function createSchool(input: CreateSchoolInput) {
+export async function listSchools(filter: FilterQuery<SchoolDocument> = {}) {
   await dbConnect();
-  const document = await SchoolModel.create({
-    ...input,
-    status: input.status ?? 'ativo',
-  });
-  return document.toObject();
-}
-
-export async function updateSchool(id: string, updates: UpdateSchoolInput) {
-  await dbConnect();
-  return SchoolModel.findByIdAndUpdate(id, { ...updates }, { new: true, runValidators: true })
-    .lean()
-    .exec();
-}
-
-export async function deleteSchool(id: string) {
-  await dbConnect();
-  return SchoolModel.findByIdAndDelete(id).lean().exec();
+  const results = await SchoolModel.find(filter).sort({ name: 1 }).lean().exec();
+  return results.map(serializeSchool);
 }
 
 export async function getSchoolById(id: string) {
   await dbConnect();
-  return SchoolModel.findById(id).lean().exec();
+  const result = await SchoolModel.findById(id).exec();
+  return result ? serializeSchool(result) : null;
 }
 
-export function serializeSchool(document: Partial<SchoolDocument> | null | undefined) {
-  if (!document) {
-    return null;
+export async function createSchool(payload: CreateSchoolInput) {
+  await dbConnect();
+  const created = await SchoolModel.create({
+    name: payload.name.trim(),
+    city: payload.city.trim(),
+    students: payload.students,
+    status: payload.status ?? 'ativo',
+  });
+  return serializeSchool(created);
+}
+
+export async function updateSchool(id: string, updates: UpdateSchoolInput) {
+  await dbConnect();
+  const updateQuery: UpdateQuery<SchoolDocument> = {};
+
+  if (updates.name !== undefined) {
+    updateQuery.name = updates.name.trim();
   }
 
-  const { _id, ...rest } = document as Record<string, unknown> & {
-    _id?: unknown;
-    __v?: unknown;
-  };
-
-  if ('__v' in rest) {
-    delete (rest as { __v?: unknown }).__v;
+  if (updates.city !== undefined) {
+    updateQuery.city = updates.city.trim();
   }
 
-  const id =
-    typeof _id === 'object' &&
-    _id !== null &&
-    typeof (_id as { toString?: () => string }).toString === 'function'
-      ? (_id as { toString: () => string }).toString()
-      : ((_id as string | number | undefined)?.toString() ?? '');
+  if (updates.students !== undefined) {
+    updateQuery.students = updates.students;
+  }
 
-  return { id, ...rest };
+  if (updates.status !== undefined) {
+    updateQuery.status = updates.status;
+  }
+
+  const updated = await SchoolModel.findByIdAndUpdate(id, updateQuery, {
+    new: true,
+    runValidators: true,
+  }).exec();
+
+  return updated ? serializeSchool(updated) : null;
+}
+
+export async function deleteSchool(id: string) {
+  await dbConnect();
+  const deleted = await SchoolModel.findByIdAndDelete(id).exec();
+  return deleted ? serializeSchool(deleted) : null;
 }

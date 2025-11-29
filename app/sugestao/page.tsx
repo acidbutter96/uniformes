@@ -13,325 +13,325 @@ import { cn } from '@/app/lib/utils';
 import type { School } from '@/app/lib/models/school';
 import type { Uniform } from '@/app/lib/models/uniform';
 import {
-  clearOrderFlowState,
-  loadOrderFlowState,
-  saveOrderFlowState,
-  type OrderFlowState,
+    clearOrderFlowState,
+    loadOrderFlowState,
+    saveOrderFlowState,
+    type OrderFlowState,
 } from '@/app/lib/storage/order-flow';
 import useAuth from '@/src/hooks/useAuth';
 import type { ReservationDTO } from '@/src/types/reservation';
 
 const FALLBACK_UNIFORM_IMAGE =
-  'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80';
+    'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80';
 
 export default function SuggestionPage() {
-  const router = useRouter();
-  const { user, accessToken, loading } = useAuth();
+    const router = useRouter();
+    const { user, accessToken, loading } = useAuth();
 
-  const [orderState, setOrderState] = useState<OrderFlowState | null>(null);
-  const [uniform, setUniform] = useState<Uniform | null>(null);
-  const [school, setSchool] = useState<School | null>(null);
-  const [loadingDetails, setLoadingDetails] = useState(true);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+    const [orderState, setOrderState] = useState<OrderFlowState | null>(null);
+    const [uniform, setUniform] = useState<Uniform | null>(null);
+    const [school, setSchool] = useState<School | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState(true);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    const state = loadOrderFlowState();
+    useEffect(() => {
+        const state = loadOrderFlowState();
 
-    if (!state.schoolId) {
-      router.replace('/escola');
-      return;
-    }
-
-    if (!state.uniformId) {
-      router.replace('/uniformes');
-      return;
-    }
-
-    if (!state.measurements || !state.suggestion) {
-      router.replace('/medidas');
-      return;
-    }
-
-    setOrderState(state);
-  }, [router]);
-
-  useEffect(() => {
-    if (!orderState) return;
-
-    const snapshot = orderState;
-
-    const controller = new AbortController();
-    setLoadingDetails(true);
-
-    async function loadDetails() {
-      try {
-        const [uniformsResponse, schoolsResponse] = await Promise.all([
-          fetch('/api/uniforms', { signal: controller.signal }),
-          fetch('/api/schools', { signal: controller.signal }),
-        ]);
-
-        if (!uniformsResponse.ok || !schoolsResponse.ok) {
-          throw new Error('Não foi possível carregar os dados do uniforme ou da escola.');
+        if (!state.schoolId) {
+            router.replace('/escola');
+            return;
         }
 
-        const uniformsPayload = (await uniformsResponse.json()) as { data: Uniform[] };
-        const schoolsPayload = (await schoolsResponse.json()) as { data: School[] };
-
-        const matchedUniform = uniformsPayload.data?.find(item => item.id === snapshot.uniformId);
-        const matchedSchool = schoolsPayload.data?.find(item => item.id === snapshot.schoolId);
-
-        if (matchedUniform) {
-          setUniform(matchedUniform);
+        if (!state.uniformId) {
+            router.replace('/uniformes');
+            return;
         }
 
-        if (matchedSchool) {
-          setSchool(matchedSchool);
+        if (!state.measurements || !state.suggestion) {
+            router.replace('/medidas');
+            return;
         }
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          console.error('Failed to load confirmation details', error);
+
+        setOrderState(state);
+    }, [router]);
+
+    useEffect(() => {
+        if (!orderState) return;
+
+        const snapshot = orderState;
+
+        const controller = new AbortController();
+        setLoadingDetails(true);
+
+        async function loadDetails() {
+            try {
+                const [uniformsResponse, schoolsResponse] = await Promise.all([
+                    fetch('/api/uniforms', { signal: controller.signal }),
+                    fetch('/api/schools', { signal: controller.signal }),
+                ]);
+
+                if (!uniformsResponse.ok || !schoolsResponse.ok) {
+                    throw new Error('Não foi possível carregar os dados do uniforme ou da escola.');
+                }
+
+                const uniformsPayload = (await uniformsResponse.json()) as { data: Uniform[] };
+                const schoolsPayload = (await schoolsResponse.json()) as { data: School[] };
+
+                const matchedUniform = uniformsPayload.data?.find(item => item.id === snapshot.uniformId);
+                const matchedSchool = schoolsPayload.data?.find(item => item.id === snapshot.schoolId);
+
+                if (matchedUniform) {
+                    setUniform(matchedUniform);
+                }
+
+                if (matchedSchool) {
+                    setSchool(matchedSchool);
+                }
+            } catch (error) {
+                if (!(error instanceof DOMException && error.name === 'AbortError')) {
+                    console.error('Failed to load confirmation details', error);
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setLoadingDetails(false);
+                }
+            }
         }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoadingDetails(false);
+
+        void loadDetails();
+
+        return () => controller.abort();
+    }, [orderState]);
+
+    useEffect(() => {
+        if (loading) return;
+
+        if (!user) {
+            router.replace(`/login?returnTo=${encodeURIComponent('/sugestao')}`);
+            return;
         }
-      }
-    }
 
-    void loadDetails();
+        const role = typeof user.role === 'string' ? user.role : null;
+        setIsAdmin(role === 'admin');
 
-    return () => controller.abort();
-  }, [orderState]);
+        if (user.name && orderState) {
+            saveOrderFlowState({ userName: String(user.name) });
+        }
+    }, [loading, user, router, orderState]);
 
-  useEffect(() => {
-    if (loading) return;
+    const measurementEntries = useMemo(() => {
+        if (!orderState?.measurements) {
+            return [];
+        }
 
-    if (!user) {
-      router.replace(`/login?returnTo=${encodeURIComponent('/sugestao')}`);
-      return;
-    }
+        const { age, height, weight, chest, waist, hips } = orderState.measurements;
+        return [
+            { label: 'Idade', value: `${age} anos` },
+            { label: 'Altura', value: `${height} cm` },
+            { label: 'Peso', value: `${weight} kg` },
+            { label: 'Tórax', value: `${chest} cm` },
+            { label: 'Cintura', value: `${waist} cm` },
+            { label: 'Quadril', value: `${hips} cm` },
+        ];
+    }, [orderState?.measurements]);
 
-    const role = typeof user.role === 'string' ? user.role : null;
-    setIsAdmin(role === 'admin');
+    const handleConfirm = async () => {
+        if (!orderState) return;
 
-    if (user.name && orderState) {
-      saveOrderFlowState({ userName: String(user.name) });
-    }
-  }, [loading, user, router, orderState]);
+        if (!orderState.suggestion?.suggestion) {
+            setSubmitError('Não encontramos a sugestão de tamanho. Volte e gere novamente.');
+            return;
+        }
 
-  const measurementEntries = useMemo(() => {
-    if (!orderState?.measurements) {
-      return [];
-    }
+        if (!accessToken) {
+            router.replace(`/login?returnTo=${encodeURIComponent('/sugestao')}`);
+            return;
+        }
 
-    const { age, height, weight, chest, waist, hips } = orderState.measurements;
-    return [
-      { label: 'Idade', value: `${age} anos` },
-      { label: 'Altura', value: `${height} cm` },
-      { label: 'Peso', value: `${weight} kg` },
-      { label: 'Tórax', value: `${chest} cm` },
-      { label: 'Cintura', value: `${waist} cm` },
-      { label: 'Quadril', value: `${hips} cm` },
-    ];
-  }, [orderState?.measurements]);
+        setIsSubmitting(true);
+        setSubmitError(null);
 
-  const handleConfirm = async () => {
-    if (!orderState) return;
+        try {
+            const response = await fetch('/api/reservations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify({
+                    userName:
+                        typeof user?.name === 'string' ? user.name : (orderState.userName ?? 'Responsável'),
+                    schoolId: orderState.schoolId,
+                    uniformId: orderState.uniformId,
+                    measurements: orderState.measurements,
+                    suggestedSize: orderState.suggestion.suggestion,
+                }),
+            });
 
-    if (!orderState.suggestion?.suggestion) {
-      setSubmitError('Não encontramos a sugestão de tamanho. Volte e gere novamente.');
-      return;
-    }
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                const message = payload?.error ?? 'Não foi possível registrar a reserva.';
+                throw new Error(message);
+            }
 
-    if (!accessToken) {
-      router.replace(`/login?returnTo=${encodeURIComponent('/sugestao')}`);
-      return;
-    }
+            const payload = (await response.json()) as { data: ReservationDTO };
 
-    setIsSubmitting(true);
-    setSubmitError(null);
+            clearOrderFlowState();
+            saveOrderFlowState({
+                orderId: payload.data.id,
+                orderCreatedAt: payload.data.createdAt,
+            });
 
-    try {
-      const response = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          userName:
-            typeof user?.name === 'string' ? user.name : (orderState.userName ?? 'Responsável'),
-          schoolId: orderState.schoolId,
-          uniformId: orderState.uniformId,
-          measurements: orderState.measurements,
-          suggestedSize: orderState.suggestion.suggestion,
-        }),
-      });
+            router.push('/reservas');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Erro ao registrar a reserva.';
+            setSubmitError(message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        const message = payload?.error ?? 'Não foi possível registrar a reserva.';
-        throw new Error(message);
-      }
+    const suggestion = orderState?.suggestion;
 
-      const payload = (await response.json()) as { data: ReservationDTO };
+    return (
+        <main className="min-h-screen bg-background text-text">
+            <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-2xl px-md py-2xl">
+                <StepsHeader currentStep={4} />
 
-      clearOrderFlowState();
-      saveOrderFlowState({
-        orderId: payload.data.id,
-        orderCreatedAt: payload.data.createdAt,
-      });
+                <section className="grid gap-xl lg:grid-cols-[1.2fr_0.8fr]">
+                    <Card className="flex flex-col gap-lg">
+                        <header className="flex flex-col gap-sm">
+                            <span className="text-caption font-medium uppercase tracking-wide text-primary">
+                                Etapa 4 de 4
+                            </span>
+                            <h1 className="text-h2 font-heading">Confirme a reserva</h1>
+                            <p className="text-body text-text-muted">
+                                Revise as informações e confirme a reserva para concluir o processo.
+                            </p>
+                        </header>
 
-      router.push('/reservas');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erro ao registrar a reserva.';
-      setSubmitError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+                        <div className="grid gap-lg sm:grid-cols-[200px_1fr]">
+                            <div className="relative aspect-[3/4] overflow-hidden rounded-card bg-background">
+                                <Image
+                                    src={uniform?.imageSrc ?? FALLBACK_UNIFORM_IMAGE}
+                                    alt={uniform?.imageAlt ?? uniform?.name ?? 'Uniforme escolar'}
+                                    fill
+                                    className="object-cover"
+                                    sizes="200px"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-sm">
+                                <h2 className="text-h3 font-heading">
+                                    {loadingDetails
+                                        ? 'Carregando uniforme...'
+                                        : (uniform?.name ?? 'Uniforme selecionado')}
+                                </h2>
+                                <p className="text-body text-text-muted">
+                                    {loadingDetails
+                                        ? 'Buscando detalhes do uniforme selecionado.'
+                                        : (uniform?.description ?? 'Uniforme escolhido para esta reserva.')}
+                                </p>
+                                {suggestion && (
+                                    <div className="flex flex-col gap-xs">
+                                        <span className="text-caption uppercase tracking-wide text-text-muted">
+                                            Tamanho sugerido
+                                        </span>
+                                        <span className="inline-flex items-center gap-xs rounded-card bg-primary/10 px-md py-xs text-body font-semibold text-primary">
+                                            {suggestion.suggestion}
+                                            <span aria-hidden>•</span>
+                                            Confiança {(suggestion.confidence * 100).toFixed(0)}%
+                                        </span>
+                                        <p className="text-body text-text">{suggestion.message}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
-  const suggestion = orderState?.suggestion;
+                        <div className="flex flex-col gap-sm">
+                            <h3 className="text-caption font-medium uppercase tracking-wide text-text-muted">
+                                Medidas informadas
+                            </h3>
+                            <ul className="grid gap-xs min-[500px]:grid-cols-2">
+                                {measurementEntries.map(entry => (
+                                    <li
+                                        key={entry.label}
+                                        className="rounded-card bg-background px-md py-xs text-body"
+                                    >
+                                        <span className="text-text-muted">{entry.label}</span>
+                                        <span className="ml-2 font-semibold text-text">{entry.value}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
 
-  return (
-    <main className="min-h-screen bg-background text-text">
-      <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-2xl px-md py-2xl">
-        <StepsHeader currentStep={4} />
+                        {submitError && <Alert tone="danger" description={submitError} />}
+                        {isAdmin && (
+                            <Alert
+                                tone="warning"
+                                description="Contas administrativas não podem concluir reservas. Acesse com um perfil de responsável."
+                            />
+                        )}
 
-        <section className="grid gap-xl lg:grid-cols-[1.2fr_0.8fr]">
-          <Card className="flex flex-col gap-lg">
-            <header className="flex flex-col gap-sm">
-              <span className="text-caption font-medium uppercase tracking-wide text-primary">
-                Etapa 4 de 4
-              </span>
-              <h1 className="text-h2 font-heading">Confirme a reserva</h1>
-              <p className="text-body text-text-muted">
-                Revise as informações e confirme a reserva para concluir o processo.
-              </p>
-            </header>
+                        <div className="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
+                            <div className="flex flex-col gap-sm sm:flex-row sm:items-center md:order-2">
+                                <Button
+                                    size="lg"
+                                    type="button"
+                                    onClick={handleConfirm}
+                                    disabled={isSubmitting || isAdmin}
+                                >
+                                    {isSubmitting ? 'Confirmando...' : 'Confirmar reserva'}
+                                </Button>
+                                <Link
+                                    href="/medidas"
+                                    className={cn(
+                                        'inline-flex items-center justify-center gap-xs rounded-card border border-border bg-surface px-lg py-sm text-body font-semibold text-text transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                    )}
+                                >
+                                    Ajustar medidas
+                                </Link>
+                            </div>
+                            <span className="text-caption text-text-muted md:order-1">
+                                Ao confirmar, sua reserva ficará disponível na página “Minhas Reservas”.
+                            </span>
+                        </div>
+                    </Card>
 
-            <div className="grid gap-lg sm:grid-cols-[200px_1fr]">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-card bg-background">
-                <Image
-                  src={uniform?.imageSrc ?? FALLBACK_UNIFORM_IMAGE}
-                  alt={uniform?.imageAlt ?? uniform?.name ?? 'Uniforme escolar'}
-                  fill
-                  className="object-cover"
-                  sizes="200px"
-                />
-              </div>
-              <div className="flex flex-col gap-sm">
-                <h2 className="text-h3 font-heading">
-                  {loadingDetails
-                    ? 'Carregando uniforme...'
-                    : (uniform?.name ?? 'Uniforme selecionado')}
-                </h2>
-                <p className="text-body text-text-muted">
-                  {loadingDetails
-                    ? 'Buscando detalhes do uniforme selecionado.'
-                    : (uniform?.description ?? 'Uniforme escolhido para esta reserva.')}
-                </p>
-                {suggestion && (
-                  <div className="flex flex-col gap-xs">
-                    <span className="text-caption uppercase tracking-wide text-text-muted">
-                      Tamanho sugerido
-                    </span>
-                    <span className="inline-flex items-center gap-xs rounded-card bg-primary/10 px-md py-xs text-body font-semibold text-primary">
-                      {suggestion.suggestion}
-                      <span aria-hidden>•</span>
-                      Confiança {(suggestion.confidence * 100).toFixed(0)}%
-                    </span>
-                    <p className="text-body text-text">{suggestion.message}</p>
-                  </div>
-                )}
-              </div>
+                    <aside className="flex flex-col gap-md">
+                        <Card emphasis="muted" className="flex flex-col gap-sm">
+                            <h2 className="text-h3 font-heading">Resumo rápido</h2>
+                            <dl className="flex flex-col gap-xs text-body text-text">
+                                <div className="flex justify-between">
+                                    <dt className="text-text-muted">Escola</dt>
+                                    <dd className="font-medium">
+                                        {loadingDetails ? 'Carregando...' : (school?.name ?? 'Não identificada')}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between">
+                                    <dt className="text-text-muted">Cidade</dt>
+                                    <dd className="font-medium">
+                                        {loadingDetails ? 'Carregando...' : (school?.city ?? '—')}
+                                    </dd>
+                                </div>
+                                <div className="flex justify-between">
+                                    <dt className="text-text-muted">Uniforme</dt>
+                                    <dd className="font-medium">
+                                        {loadingDetails ? 'Carregando...' : (uniform?.name ?? '—')}
+                                    </dd>
+                                </div>
+                                {suggestion && (
+                                    <div className="flex justify-between">
+                                        <dt className="text-text-muted">Tamanho sugerido</dt>
+                                        <dd className="font-medium">{suggestion.suggestion}</dd>
+                                    </div>
+                                )}
+                            </dl>
+                        </Card>
+                    </aside>
+                </section>
             </div>
-
-            <div className="flex flex-col gap-sm">
-              <h3 className="text-caption font-medium uppercase tracking-wide text-text-muted">
-                Medidas informadas
-              </h3>
-              <ul className="grid gap-xs min-[500px]:grid-cols-2">
-                {measurementEntries.map(entry => (
-                  <li
-                    key={entry.label}
-                    className="rounded-card bg-background px-md py-xs text-body"
-                  >
-                    <span className="text-text-muted">{entry.label}</span>
-                    <span className="ml-2 font-semibold text-text">{entry.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {submitError && <Alert tone="danger" description={submitError} />}
-            {isAdmin && (
-              <Alert
-                tone="warning"
-                description="Contas administrativas não podem concluir reservas. Acesse com um perfil de responsável."
-              />
-            )}
-
-            <div className="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-col gap-sm sm:flex-row sm:items-center md:order-2">
-                <Button
-                  size="lg"
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={isSubmitting || isAdmin}
-                >
-                  {isSubmitting ? 'Confirmando...' : 'Confirmar reserva'}
-                </Button>
-                <Link
-                  href="/medidas"
-                  className={cn(
-                    'inline-flex items-center justify-center gap-xs rounded-card border border-border bg-surface px-lg py-sm text-body font-semibold text-text transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                  )}
-                >
-                  Ajustar medidas
-                </Link>
-              </div>
-              <span className="text-caption text-text-muted md:order-1">
-                Ao confirmar, sua reserva ficará disponível na página “Minhas Reservas”.
-              </span>
-            </div>
-          </Card>
-
-          <aside className="flex flex-col gap-md">
-            <Card emphasis="muted" className="flex flex-col gap-sm">
-              <h2 className="text-h3 font-heading">Resumo rápido</h2>
-              <dl className="flex flex-col gap-xs text-body text-text">
-                <div className="flex justify-between">
-                  <dt className="text-text-muted">Escola</dt>
-                  <dd className="font-medium">
-                    {loadingDetails ? 'Carregando...' : (school?.name ?? 'Não identificada')}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-text-muted">Cidade</dt>
-                  <dd className="font-medium">
-                    {loadingDetails ? 'Carregando...' : (school?.city ?? '—')}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-text-muted">Uniforme</dt>
-                  <dd className="font-medium">
-                    {loadingDetails ? 'Carregando...' : (uniform?.name ?? '—')}
-                  </dd>
-                </div>
-                {suggestion && (
-                  <div className="flex justify-between">
-                    <dt className="text-text-muted">Tamanho sugerido</dt>
-                    <dd className="font-medium">{suggestion.suggestion}</dd>
-                  </div>
-                )}
-              </dl>
-            </Card>
-          </aside>
-        </section>
-      </div>
-    </main>
-  );
+        </main>
+    );
 }

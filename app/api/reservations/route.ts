@@ -1,11 +1,41 @@
+import { NextRequest } from 'next/server';
+import { Types } from 'mongoose';
+
 import { createReservation, listReservations } from '@/src/services/reservation.service';
 import { badRequest, notFound, ok, serverError } from '@/app/api/utils/responses';
 import { RESERVATION_STATUSES, type ReservationStatus } from '@/src/types/reservation';
+import { ensureUserAccess } from '@/app/api/utils/user-auth';
 
 const VALID_RESERVATION_STATUS = new Set<ReservationStatus>(RESERVATION_STATUSES);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const scope = request.nextUrl.searchParams.get('scope');
+    const userIdParam = request.nextUrl.searchParams.get('userId');
+
+    if (scope === 'me') {
+      const authResult = ensureUserAccess(request);
+      if ('response' in authResult) {
+        return authResult.response;
+      }
+
+      if (!Types.ObjectId.isValid(authResult.payload.sub)) {
+        return badRequest('Usuário inválido.');
+      }
+
+      const data = await listReservations({ userId: new Types.ObjectId(authResult.payload.sub) });
+      return ok(data);
+    }
+
+    if (userIdParam) {
+      if (!Types.ObjectId.isValid(userIdParam)) {
+        return badRequest('Parâmetro userId inválido.');
+      }
+
+      const data = await listReservations({ userId: new Types.ObjectId(userIdParam) });
+      return ok(data);
+    }
+
     const data = await listReservations();
     return ok(data);
   } catch (error) {
@@ -14,8 +44,13 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const authResult = ensureUserAccess(request);
   try {
+    if ('response' in authResult) {
+      return authResult.response;
+    }
+
     const payload = await request.json().catch(() => null);
     if (!payload) {
       return badRequest('Payload inválido.');
@@ -43,6 +78,12 @@ export async function POST(request: Request) {
     if (typeof uniformId !== 'string' || !uniformId.trim()) {
       return badRequest('Uniforme é obrigatório.');
     }
+
+    if (!Types.ObjectId.isValid(authResult.payload.sub)) {
+      return badRequest('Usuário inválido.');
+    }
+
+    const userObjectId = new Types.ObjectId(authResult.payload.sub);
 
     if (typeof suggestedSize !== 'string' || !suggestedSize.trim()) {
       return badRequest('Tamanho sugerido é obrigatório.');
@@ -93,6 +134,7 @@ export async function POST(request: Request) {
 
     const created = await createReservation({
       userName,
+      userId: userObjectId.toString(),
       schoolId,
       uniformId,
       measurements: parsedMeasurements,

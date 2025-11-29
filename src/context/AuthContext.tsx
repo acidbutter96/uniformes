@@ -2,8 +2,15 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer } from 'react';
 
+export interface AuthUser extends Record<string, unknown> {
+  _id?: string;
+  role?: 'user' | 'admin';
+  name?: string;
+  email?: string;
+}
+
 interface AuthState {
-  user: Record<string, unknown> | null;
+  user: AuthUser | null;
   loading: boolean;
   accessToken: string | null;
   refreshToken: string | null;
@@ -17,7 +24,7 @@ const initialState: AuthState = {
 };
 
 type AuthAction =
-  | { type: 'SET_USER'; payload: Record<string, unknown> | null }
+  | { type: 'SET_USER'; payload: AuthUser | null }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_TOKENS'; payload: { accessToken: string | null; refreshToken: string | null } }
   | { type: 'RESET' };
@@ -42,9 +49,9 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: (googleToken: string) => Promise<void>;
-  register: (data: Record<string, unknown>) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  loginWithGoogle: (googleToken: string) => Promise<AuthUser>;
+  register: (data: Record<string, unknown>) => Promise<AuthUser>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
 }
@@ -103,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const me = await request<{ data: Record<string, unknown> }>('/api/auth/me', {
+      const me = await request<{ data: AuthUser }>('/api/auth/me', {
         headers: {
           Authorization: `Bearer ${tokens.accessToken}`,
         },
@@ -126,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const payload = await request<{
           token: string;
           refreshToken?: string;
-          user: Record<string, unknown>;
+          user: AuthUser;
         }>('/api/auth/login', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
@@ -138,6 +145,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           payload: { accessToken: payload.token, refreshToken: payload.refreshToken ?? null },
         });
         dispatch({ type: 'SET_USER', payload: payload.user });
+
+        return payload.user;
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
@@ -152,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const payload = await request<{
           token: string;
           refreshToken?: string;
-          user: Record<string, unknown>;
+          user: AuthUser;
         }>('/api/auth/google', {
           method: 'POST',
           body: JSON.stringify({ token: googleToken }),
@@ -164,6 +173,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           payload: { accessToken: payload.token, refreshToken: payload.refreshToken ?? null },
         });
         dispatch({ type: 'SET_USER', payload: payload.user });
+
+        return payload.user;
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
@@ -178,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const payload = await request<{
           token: string;
           refreshToken?: string;
-          user: Record<string, unknown>;
+          user: AuthUser;
         }>('/api/auth/register', {
           method: 'POST',
           body: JSON.stringify(data),
@@ -190,6 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           payload: { accessToken: payload.token, refreshToken: payload.refreshToken ?? null },
         });
         dispatch({ type: 'SET_USER', payload: payload.user });
+
+        return payload.user;
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }

@@ -51,6 +51,7 @@ interface SeedUniform {
 
 interface SeedReservation {
   userName: string;
+  userEmail: string;
   schoolKey: string;
   uniformKey: string;
   suggestedSize: string;
@@ -184,6 +185,7 @@ const seedUniforms: SeedUniform[] = [
 const reservationSeeds: SeedReservation[] = [
   {
     userName: 'Mariana Silva',
+    userEmail: 'coordenadora@uniformes.com',
     schoolKey: 'col-horizonte-azul',
     uniformKey: 'camiseta-escolar-basica',
     suggestedSize: 'M',
@@ -198,6 +200,7 @@ const reservationSeeds: SeedReservation[] = [
   },
   {
     userName: 'João Pereira',
+    userEmail: 'diretor@uniformes.com',
     schoolKey: 'esc-municipal-aurora',
     uniformKey: 'jaqueta-inverno',
     suggestedSize: 'M',
@@ -335,19 +338,22 @@ async function seedReservationRecords(
   reservations: SeedReservation[],
   schoolMap: Map<string, Types.ObjectId>,
   uniformMap: Map<string, Types.ObjectId>,
+  userMap: Map<string, Types.ObjectId>,
 ) {
   for (const reservation of reservations) {
     const schoolId = schoolMap.get(reservation.schoolKey);
     const uniformId = uniformMap.get(reservation.uniformKey);
+    const userId = userMap.get(reservation.userEmail);
 
-    if (!schoolId || !uniformId) {
+    if (!schoolId || !uniformId || !userId) {
       console.warn(
-        `Skipping reservation ${reservation.userName}: missing school or uniform reference`,
+        `Skipping reservation ${reservation.userName}: missing school, uniform or user reference`,
       );
       continue;
     }
 
     const existing = await ReservationModel.findOne({
+      userId,
       userName: reservation.userName,
       schoolId,
       uniformId,
@@ -360,6 +366,7 @@ async function seedReservationRecords(
 
     await ReservationModel.create({
       userName: reservation.userName,
+      userId,
       schoolId,
       uniformId,
       suggestedSize: reservation.suggestedSize,
@@ -376,8 +383,10 @@ async function seed() {
 
   await dbConnect();
 
+  const userMap = new Map<string, Types.ObjectId>();
   for (const user of seedUsers) {
-    await upsertUser(user);
+    const id = await upsertUser(user);
+    userMap.set(user.email, id as Types.ObjectId);
   }
 
   const schoolMap = new Map<string, Types.ObjectId>();
@@ -398,7 +407,7 @@ async function seed() {
     uniformMap.set(uniform.key, id);
   }
 
-  await seedReservationRecords(reservationSeeds, schoolMap, uniformMap);
+  await seedReservationRecords(reservationSeeds, schoolMap, uniformMap, userMap);
 }
 
 seed()

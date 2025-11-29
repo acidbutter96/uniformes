@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
 
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
@@ -11,20 +11,41 @@ import { Input } from '@/app/components/ui/Input';
 import useAuth from '@/src/hooks/useAuth';
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterView />
+    </Suspense>
+  );
+}
+
+function RegisterView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { register, loading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const returnToParam = searchParams.get('returnTo');
+
+  const resolveDestination = (role?: string | null) => {
+    const sanitizedReturnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : null;
+    if (sanitizedReturnTo) {
+      return sanitizedReturnTo;
+    }
+
+    return role === 'admin' ? '/admin/dashboard' : '/sugestao';
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
     try {
-      await register({ name, email, password });
-      router.push('/medidas');
+      const createdUser = await register({ name, email, password });
+      const role = typeof createdUser?.role === 'string' ? createdUser.role : null;
+      router.push(resolveDestination(role));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Não foi possível criar a conta.';
       setError(message);
@@ -100,7 +121,9 @@ export default function RegisterPage() {
           <p className="mt-6 text-center text-sm text-text-muted">
             Já possui cadastro?{' '}
             <Link
-              href="/login"
+              href={
+                returnToParam ? `/login?returnTo=${encodeURIComponent(returnToParam)}` : '/login'
+              }
               className="font-semibold text-primary underline-offset-2 hover:underline"
             >
               Entrar

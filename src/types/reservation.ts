@@ -13,6 +13,7 @@ export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 export type ReservationDTO = {
   id: string;
   userName: string;
+  userId: string;
   schoolId: string;
   uniformId: string;
   measurements: ReservationMeasurementsDTO;

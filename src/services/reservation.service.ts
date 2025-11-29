@@ -15,6 +15,7 @@ import {
 
 export type CreateReservationInput = {
   userName: string;
+  userId: string;
   schoolId: string;
   uniformId: string;
   measurements: ReservationMeasurements;
@@ -39,14 +40,16 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
   const plain = doc.toObject() as ReservationDocument & {
     _id: Types.ObjectId;
     __v?: unknown;
+    userId: Types.ObjectId;
     schoolId: Types.ObjectId;
     uniformId: Types.ObjectId;
   };
 
-  const { _id, schoolId, uniformId, createdAt, updatedAt, ...rest } = plain;
+  const { _id, userId, schoolId, uniformId, createdAt, updatedAt, ...rest } = plain;
 
   return {
     id: _id.toString(),
+    userId: userId.toString(),
     schoolId: schoolId.toString(),
     uniformId: uniformId.toString(),
     ...rest,
@@ -89,6 +92,7 @@ export async function createReservation(input: CreateReservationInput) {
 
   const created = await ReservationModel.create({
     userName: input.userName.trim(),
+    userId: new Types.ObjectId(input.userId),
     schoolId: new Types.ObjectId(input.schoolId),
     uniformId: new Types.ObjectId(input.uniformId),
     measurements: input.measurements,

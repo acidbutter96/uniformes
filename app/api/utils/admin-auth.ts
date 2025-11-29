@@ -1,7 +1,7 @@
 import { verifyAccessToken } from '@/src/services/auth.service';
 import { forbidden, unauthorized } from './responses';
 
-export type TokenPayload = {
+type TokenPayload = {
   role?: string;
   sub?: string;
 };

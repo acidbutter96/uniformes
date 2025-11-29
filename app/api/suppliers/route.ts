@@ -1,19 +1,14 @@
-import { NextResponse } from 'next/server';
-
 import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
+import { badRequest, ok, serverError } from '@/app/api/utils/responses';
 import { createSupplier, listSuppliers } from '@/src/services/supplier.service';
-
-function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
-}
 
 export async function GET() {
   try {
     const data = await listSuppliers();
-    return NextResponse.json({ data });
+    return ok(data);
   } catch (error) {
     console.error('Failed to list suppliers', error);
-    return NextResponse.json({ error: 'Não foi possível carregar fornecedores.' }, { status: 500 });
+    return serverError('Não foi possível carregar fornecedores.');
   }
 }
 
@@ -91,13 +86,13 @@ export async function POST(request: Request) {
       schoolIds: resolvedSchoolIds,
     });
 
-    return NextResponse.json({ data: created }, { status: 201 });
+    return ok(created, { status: 201 });
   } catch (error) {
     console.error('Failed to create supplier', error);
-    const message =
-      error instanceof Error && error.message.includes('não existem')
-        ? error.message
-        : 'Não foi possível criar o fornecedor.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (error instanceof Error && error.message.includes('não existem')) {
+      return badRequest(error.message);
+    }
+
+    return serverError('Não foi possível criar o fornecedor.');
   }
 }

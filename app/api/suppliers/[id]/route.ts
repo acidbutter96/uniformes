@@ -1,14 +1,30 @@
-import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
+import { badRequest, notFound, ok, serverError } from '@/app/api/utils/responses';
 import { deleteSupplier, updateSupplier } from '@/src/services/supplier.service';
 
-function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
+type ParamsPromise = Promise<Record<string, string | string[] | undefined>>;
+
+async function resolveSupplierId(paramsPromise: ParamsPromise) {
+  let params: Record<string, string | string[] | undefined>;
+  try {
+    params = await paramsPromise;
+  } catch (error) {
+    console.error('Failed to resolve supplier params', error);
+    return undefined;
+  }
+
+  const id = params?.id;
+  if (!id) {
+    return undefined;
+  }
+
+  return Array.isArray(id) ? id[0] : id;
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const supplierId = params?.id;
+export async function PATCH(request: NextRequest, { params }: { params: ParamsPromise }) {
+  const supplierId = await resolveSupplierId(params);
   if (!supplierId) {
     return badRequest('ID do fornecedor é obrigatório.');
   }
@@ -93,23 +109,26 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const updated = await updateSupplier(supplierId, updates);
     if (!updated) {
-      return NextResponse.json({ error: 'Fornecedor não encontrado.' }, { status: 404 });
+      return notFound('Fornecedor não encontrado.');
     }
 
-    return NextResponse.json({ data: updated });
+    return ok(updated);
   } catch (error) {
     console.error('Failed to update supplier', error);
     const message =
       error instanceof Error && error.message.includes('não existem')
         ? error.message
         : 'Não foi possível atualizar o fornecedor.';
-    const status = error instanceof Error && error.message.includes('não existem') ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    if (error instanceof Error && error.message.includes('não existem')) {
+      return badRequest(message);
+    }
+
+    return serverError(message);
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  const supplierId = params?.id;
+export async function DELETE(request: NextRequest, { params }: { params: ParamsPromise }) {
+  const supplierId = await resolveSupplierId(params);
   if (!supplierId) {
     return badRequest('ID do fornecedor é obrigatório.');
   }
@@ -122,12 +141,12 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   try {
     const deleted = await deleteSupplier(supplierId);
     if (!deleted) {
-      return NextResponse.json({ error: 'Fornecedor não encontrado.' }, { status: 404 });
+      return notFound('Fornecedor não encontrado.');
     }
 
-    return NextResponse.json({ data: deleted });
+    return ok(deleted);
   } catch (error) {
     console.error('Failed to delete supplier', error);
-    return NextResponse.json({ error: 'Não foi possível excluir o fornecedor.' }, { status: 500 });
+    return serverError('Não foi possível excluir o fornecedor.');
   }
 }

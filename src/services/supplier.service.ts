@@ -1,8 +1,10 @@
-import { Types, type FilterQuery, type LeanDocument, type UpdateQuery } from 'mongoose';
+import { Types } from 'mongoose';
+import type { UpdateQuery } from 'mongoose';
 
 import dbConnect from '@/src/lib/database';
 import SchoolModel from '@/src/lib/models/school';
 import SupplierModel, { type SupplierDocument } from '@/src/lib/models/supplier';
+import type { SupplierDTO } from '@/src/types/supplier';
 
 export type CreateSupplierInput = {
   name: string;
@@ -16,36 +18,35 @@ export type CreateSupplierInput = {
 
 export type UpdateSupplierInput = Partial<CreateSupplierInput>;
 
-type SerializableSupplier = SupplierDocument | LeanDocument<SupplierDocument>;
+type SerializableSupplier = SupplierDocument;
+type SupplierFilter = Parameters<(typeof SupplierModel)['find']>[0];
 
-function serializeSupplier(doc: SerializableSupplier) {
-  const plain = ('toObject' in doc ? doc.toObject() : doc) as SupplierDocument & {
+function toISOString(value: Date | string) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+export function serializeSupplier(doc: SerializableSupplier): SupplierDTO {
+  const plain = doc.toObject() as SupplierDocument & {
     _id: Types.ObjectId;
     __v?: unknown;
     schoolIds?: Types.ObjectId[];
   };
 
-  const { _id, __v, schoolIds = [], ...rest } = plain;
-  const linkedSchoolIds = Array.isArray(schoolIds)
-    ? schoolIds.map(item => item.toString())
-    : [];
+  const { _id, schoolIds = [], createdAt, updatedAt, ...rest } = plain;
+  const linkedSchoolIds = Array.isArray(schoolIds) ? schoolIds.map(item => item.toString()) : [];
 
   return {
     id: _id.toString(),
     schoolIds: linkedSchoolIds,
     ...rest,
-  } as {
-    id: string;
-    name: string;
-    specialty?: string;
-    leadTimeDays?: number;
-    rating?: number;
-    contactEmail?: string;
-    phone?: string;
-    schoolIds: string[];
-    createdAt: Date | string;
-    updatedAt: Date | string;
-  };
+    createdAt: toISOString(createdAt),
+    updatedAt: toISOString(updatedAt),
+  } satisfies SupplierDTO;
 }
 
 async function resolveSchoolIds(ids: string[] = []) {
@@ -62,9 +63,9 @@ async function resolveSchoolIds(ids: string[] = []) {
   return objectIds;
 }
 
-export async function listSuppliers(filter: FilterQuery<SupplierDocument> = {}) {
+export async function listSuppliers(filter: SupplierFilter = {}) {
   await dbConnect();
-  const results = await SupplierModel.find(filter).sort({ name: 1 }).lean().exec();
+  const results = await SupplierModel.find(filter).sort({ name: 1 }).exec();
   return results.map(serializeSupplier);
 }
 
@@ -98,7 +99,9 @@ export async function updateSupplier(id: string, updates: UpdateSupplierInput) {
   }
 
   if (updates.contactEmail !== undefined) {
-    updateQuery.contactEmail = updates.contactEmail ? updates.contactEmail.trim().toLowerCase() : null;
+    updateQuery.contactEmail = updates.contactEmail
+      ? updates.contactEmail.trim().toLowerCase()
+      : null;
   }
 
   if (updates.phone !== undefined) {
@@ -134,5 +137,3 @@ export async function deleteSupplier(id: string) {
   const deleted = await SupplierModel.findByIdAndDelete(id).exec();
   return deleted ? serializeSupplier(deleted) : null;
 }
-
-export { serializeSupplier };

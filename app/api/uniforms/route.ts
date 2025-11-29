@@ -1,19 +1,16 @@
-import { NextResponse } from 'next/server';
-
 import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
+import { badRequest, notFound, ok, serverError } from '@/app/api/utils/responses';
+import { UNIFORM_CATEGORIES, UNIFORM_GENDERS } from '@/src/lib/models/uniform';
 import { createUniform, listUniforms } from '@/src/services/uniform.service';
-
-function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
-}
+import type { UniformCategory, UniformGender } from '@/src/types/uniform';
 
 export async function GET() {
   try {
     const data = await listUniforms();
-    return NextResponse.json({ data });
+    return ok(data);
   } catch (error) {
     console.error('Failed to list uniforms', error);
-    return NextResponse.json({ error: 'Não foi possível carregar os uniformes.' }, { status: 500 });
+    return serverError('Não foi possível carregar os uniformes.');
   }
 }
 
@@ -29,14 +26,18 @@ export async function POST(request: Request) {
       return badRequest('Payload inválido.');
     }
 
-    const { name, description, supplierId, sizes, imageSrc, imageAlt } = payload as {
-      name?: unknown;
-      description?: unknown;
-      supplierId?: unknown;
-      sizes?: unknown;
-      imageSrc?: unknown;
-      imageAlt?: unknown;
-    };
+    const { name, description, supplierId, category, gender, price, sizes, imageSrc, imageAlt } =
+      payload as {
+        name?: unknown;
+        description?: unknown;
+        supplierId?: unknown;
+        category?: unknown;
+        gender?: unknown;
+        price?: unknown;
+        sizes?: unknown;
+        imageSrc?: unknown;
+        imageAlt?: unknown;
+      };
 
     if (typeof name !== 'string' || !name.trim()) {
       return badRequest('Nome do uniforme é obrigatório.');
@@ -44,6 +45,19 @@ export async function POST(request: Request) {
 
     if (typeof supplierId !== 'string' || !supplierId.trim()) {
       return badRequest('Fornecedor é obrigatório.');
+    }
+
+    if (typeof category !== 'string' || !UNIFORM_CATEGORIES.includes(category as UniformCategory)) {
+      return badRequest('Categoria inválida.');
+    }
+
+    if (typeof gender !== 'string' || !UNIFORM_GENDERS.includes(gender as UniformGender)) {
+      return badRequest('Gênero inválido.');
+    }
+
+    const numericPrice = Number(price);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      return badRequest('Preço deve ser maior que zero.');
     }
 
     if (description !== undefined && typeof description !== 'string') {
@@ -70,18 +84,21 @@ export async function POST(request: Request) {
       name,
       description: description as string | undefined,
       supplierId,
+      category: category as UniformCategory,
+      gender: gender as UniformGender,
+      price: numericPrice,
       sizes: resolvedSizes,
       imageSrc: imageSrc as string | undefined,
       imageAlt: imageAlt as string | undefined,
     });
 
-    return NextResponse.json({ data: created }, { status: 201 });
+    return ok(created, { status: 201 });
   } catch (error) {
     console.error('Failed to create uniform', error);
     if (error instanceof Error && error.message.includes('Fornecedor não encontrado')) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      return notFound(error.message);
     }
 
-    return NextResponse.json({ error: 'Não foi possível criar o uniforme.' }, { status: 500 });
+    return serverError('Não foi possível criar o uniforme.');
   }
 }

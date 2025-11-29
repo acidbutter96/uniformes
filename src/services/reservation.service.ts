@@ -1,4 +1,4 @@
-import { Types, type FilterQuery, type LeanDocument } from 'mongoose';
+import { Types } from 'mongoose';
 
 import dbConnect from '@/src/lib/database';
 import ReservationModel, {
@@ -7,6 +7,11 @@ import ReservationModel, {
 } from '@/src/lib/models/reservation';
 import SchoolModel from '@/src/lib/models/school';
 import UniformModel from '@/src/lib/models/uniform';
+import {
+  type ReservationDTO,
+  type ReservationStatus,
+  RESERVATION_STATUSES,
+} from '@/src/types/reservation';
 
 export type CreateReservationInput = {
   userName: string;
@@ -14,28 +19,40 @@ export type CreateReservationInput = {
   uniformId: string;
   measurements: ReservationMeasurements;
   suggestedSize: string;
+  status?: ReservationStatus;
+  value?: number;
 };
 
-type SerializableReservation = ReservationDocument | LeanDocument<ReservationDocument>;
+type SerializableReservation = ReservationDocument;
+type ReservationFilter = Parameters<(typeof ReservationModel)['find']>[0];
 
-export function serializeReservation(doc: SerializableReservation) {
-  const { _id, __v, schoolId, uniformId, ...rest } = 'toObject' in doc ? doc.toObject() : doc;
+function toISOString(value: Date | string) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+export function serializeReservation(doc: SerializableReservation): ReservationDTO {
+  const plain = doc.toObject() as ReservationDocument & {
+    _id: Types.ObjectId;
+    __v?: unknown;
+    schoolId: Types.ObjectId;
+    uniformId: Types.ObjectId;
+  };
+
+  const { _id, schoolId, uniformId, createdAt, updatedAt, ...rest } = plain;
 
   return {
     id: _id.toString(),
     schoolId: schoolId.toString(),
     uniformId: uniformId.toString(),
     ...rest,
-  } as {
-    id: string;
-    userName: string;
-    schoolId: string;
-    uniformId: string;
-    measurements: ReservationMeasurements;
-    suggestedSize: string;
-    createdAt: Date | string;
-    updatedAt: Date | string;
-  };
+    createdAt: toISOString(createdAt),
+    updatedAt: toISOString(updatedAt),
+  } satisfies ReservationDTO;
 }
 
 async function ensureReferencesExists(schoolId: string, uniformId: string) {
@@ -50,9 +67,9 @@ async function ensureReferencesExists(schoolId: string, uniformId: string) {
   }
 }
 
-export async function listReservations(filter: FilterQuery<ReservationDocument> = {}) {
+export async function listReservations(filter: ReservationFilter = {}) {
   await dbConnect();
-  const results = await ReservationModel.find(filter).sort({ createdAt: -1 }).lean().exec();
+  const results = await ReservationModel.find(filter).sort({ createdAt: -1 }).exec();
   return results.map(serializeReservation);
 }
 
@@ -60,12 +77,24 @@ export async function createReservation(input: CreateReservationInput) {
   await dbConnect();
   await ensureReferencesExists(input.schoolId, input.uniformId);
 
+  const status = input.status ?? 'aguardando';
+  if (!RESERVATION_STATUSES.includes(status)) {
+    throw new Error('Status de reserva inválido.');
+  }
+
+  const value = input.value ?? 0;
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error('Valor da reserva inválido.');
+  }
+
   const created = await ReservationModel.create({
     userName: input.userName.trim(),
     schoolId: new Types.ObjectId(input.schoolId),
     uniformId: new Types.ObjectId(input.uniformId),
     measurements: input.measurements,
     suggestedSize: input.suggestedSize.trim(),
+    status,
+    value,
   });
 
   return serializeReservation(created);
@@ -82,5 +111,3 @@ export async function deleteReservation(id: string) {
   const deleted = await ReservationModel.findByIdAndDelete(id).exec();
   return deleted ? serializeReservation(deleted) : null;
 }
-
-export { serializeReservation };

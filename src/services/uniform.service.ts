@@ -1,13 +1,22 @@
-import { Types, type FilterQuery, type LeanDocument, type UpdateQuery } from 'mongoose';
+import { Types } from 'mongoose';
+import type { UpdateQuery } from 'mongoose';
 
 import dbConnect from '@/src/lib/database';
 import SupplierModel from '@/src/lib/models/supplier';
-import UniformModel, { type UniformDocument } from '@/src/lib/models/uniform';
+import UniformModel, {
+  type UniformDocument,
+  UNIFORM_CATEGORIES,
+  UNIFORM_GENDERS,
+} from '@/src/lib/models/uniform';
+import type { UniformDTO, UniformCategory, UniformGender } from '@/src/types/uniform';
 
 export type CreateUniformInput = {
   name: string;
   description?: string;
   supplierId: string;
+  category: UniformCategory;
+  gender: UniformGender;
+  price: number;
   sizes?: string[];
   imageSrc?: string;
   imageAlt?: string;
@@ -15,25 +24,34 @@ export type CreateUniformInput = {
 
 export type UpdateUniformInput = Partial<CreateUniformInput>;
 
-type SerializableUniform = UniformDocument | LeanDocument<UniformDocument>;
+type SerializableUniform = UniformDocument;
+type UniformFilter = Parameters<(typeof UniformModel)['find']>[0];
 
-function serializeUniform(doc: SerializableUniform) {
-  const { _id, __v, supplierId, ...rest } = 'toObject' in doc ? doc.toObject() : doc;
+function toISOString(value: Date | string) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+export function serializeUniform(doc: SerializableUniform): UniformDTO {
+  const plain = doc.toObject() as UniformDocument & {
+    _id: Types.ObjectId;
+    __v?: unknown;
+    supplierId: Types.ObjectId;
+  };
+
+  const { _id, supplierId, createdAt, updatedAt, ...rest } = plain;
+
   return {
     id: _id.toString(),
     supplierId: supplierId.toString(),
     ...rest,
-  } as {
-    id: string;
-    name: string;
-    description?: string;
-    supplierId: string;
-    sizes: string[];
-    imageSrc?: string;
-    imageAlt?: string;
-    createdAt: Date | string;
-    updatedAt: Date | string;
-  };
+    createdAt: toISOString(createdAt),
+    updatedAt: toISOString(updatedAt),
+  } satisfies UniformDTO;
 }
 
 async function ensureSupplierExists(supplierId: string) {
@@ -43,9 +61,9 @@ async function ensureSupplierExists(supplierId: string) {
   }
 }
 
-export async function listUniforms(filter: FilterQuery<UniformDocument> = {}) {
+export async function listUniforms(filter: UniformFilter = {}) {
   await dbConnect();
-  const results = await UniformModel.find(filter).sort({ createdAt: -1 }).lean().exec();
+  const results = await UniformModel.find(filter).sort({ createdAt: -1 }).exec();
   return results.map(serializeUniform);
 }
 
@@ -61,8 +79,11 @@ export async function createUniform(input: CreateUniformInput) {
   const created = await UniformModel.create({
     name: input.name.trim(),
     description: input.description?.trim(),
+    category: input.category,
+    gender: input.gender,
     supplierId: new Types.ObjectId(input.supplierId),
     sizes: input.sizes ?? [],
+    price: input.price,
     imageSrc: input.imageSrc?.trim(),
     imageAlt: input.imageAlt?.trim(),
   });
@@ -82,6 +103,20 @@ export async function updateUniform(id: string, updates: UpdateUniformInput) {
     updateQuery.description = updates.description?.trim() ?? null;
   }
 
+  if (updates.category !== undefined) {
+    if (!UNIFORM_CATEGORIES.includes(updates.category)) {
+      throw new Error('Categoria de uniforme inválida.');
+    }
+    updateQuery.category = updates.category;
+  }
+
+  if (updates.gender !== undefined) {
+    if (!UNIFORM_GENDERS.includes(updates.gender)) {
+      throw new Error('Gênero de uniforme inválido.');
+    }
+    updateQuery.gender = updates.gender;
+  }
+
   if (updates.supplierId !== undefined) {
     await ensureSupplierExists(updates.supplierId);
     updateQuery.supplierId = new Types.ObjectId(updates.supplierId);
@@ -89,6 +124,10 @@ export async function updateUniform(id: string, updates: UpdateUniformInput) {
 
   if (updates.sizes !== undefined) {
     updateQuery.sizes = updates.sizes;
+  }
+
+  if (updates.price !== undefined) {
+    updateQuery.price = updates.price;
   }
 
   if (updates.imageSrc !== undefined) {
@@ -112,5 +151,3 @@ export async function deleteUniform(id: string) {
   const deleted = await UniformModel.findByIdAndDelete(id).exec();
   return deleted ? serializeUniform(deleted) : null;
 }
-
-export { serializeUniform };

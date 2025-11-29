@@ -1,10 +1,9 @@
-import type { FilterQuery, LeanDocument, UpdateQuery } from 'mongoose';
+import type { UpdateQuery } from 'mongoose';
+import { Types } from 'mongoose';
 
 import dbConnect from '@/src/lib/database';
-import SchoolModel, {
-  type SchoolDocument,
-  type SchoolStatus,
-} from '@/src/lib/models/school';
+import SchoolModel, { type SchoolDocument, type SchoolStatus } from '@/src/lib/models/school';
+import type { SchoolDTO } from '@/src/types/school';
 
 export type CreateSchoolInput = {
   name: string;
@@ -15,29 +14,39 @@ export type CreateSchoolInput = {
 
 export type UpdateSchoolInput = Partial<CreateSchoolInput>;
 
-export type SchoolResponse = ReturnType<typeof serializeSchool>;
+export type SchoolResponse = SchoolDTO;
 
-type SerializableSchool = SchoolDocument | LeanDocument<SchoolDocument>;
+type SerializableSchool = SchoolDocument;
+type SchoolFilter = Parameters<(typeof SchoolModel)['find']>[0];
 
-export function serializeSchool(doc: SerializableSchool) {
-  const { _id, __v, ...rest } = 'toObject' in doc ? doc.toObject() : doc;
+function toISOString(value: Date | string) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+export function serializeSchool(doc: SerializableSchool): SchoolDTO {
+  const plain = doc.toObject() as SchoolDocument & {
+    _id: Types.ObjectId;
+    __v?: unknown;
+  };
+
+  const { _id, createdAt, updatedAt, ...rest } = plain;
+
   return {
     id: _id.toString(),
     ...rest,
-  } as {
-    id: string;
-    name: string;
-    city: string;
-    students: number;
-    status: SchoolStatus;
-    createdAt: Date | string;
-    updatedAt: Date | string;
-  };
+    createdAt: toISOString(createdAt),
+    updatedAt: toISOString(updatedAt),
+  } satisfies SchoolDTO;
 }
 
-export async function listSchools(filter: FilterQuery<SchoolDocument> = {}) {
+export async function listSchools(filter: SchoolFilter = {}) {
   await dbConnect();
-  const results = await SchoolModel.find(filter).sort({ name: 1 }).lean().exec();
+  const results = await SchoolModel.find(filter).sort({ name: 1 }).exec();
   return results.map(serializeSchool);
 }
 

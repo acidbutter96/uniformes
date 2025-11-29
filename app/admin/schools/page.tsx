@@ -78,9 +78,10 @@ export default function AdminSchoolsPage() {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const message = typeof (payload as { error?: unknown }).error === 'string'
-          ? (payload as { error: string }).error
-          : 'Falha na requisição.';
+        const message =
+          typeof (payload as { error?: unknown }).error === 'string'
+            ? (payload as { error: string }).error
+            : 'Falha na requisição.';
         throw new Error(message);
       }
 

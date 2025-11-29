@@ -69,9 +69,10 @@ export default function AdminSuppliersPage() {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const message = typeof (payload as { error?: unknown }).error === 'string'
-          ? (payload as { error: string }).error
-          : 'Falha na requisição.';
+        const message =
+          typeof (payload as { error?: unknown }).error === 'string'
+            ? (payload as { error: string }).error
+            : 'Falha na requisição.';
         throw new Error(message);
       }
 
@@ -180,7 +181,12 @@ export default function AdminSuppliersPage() {
     }
   };
 
-  const isFormDisabled = submitting || !accessToken;
+  const isFormDisabled = submitting || !accessToken || loading;
+  const submitButtonLabel = submitting
+    ? 'Salvando...'
+    : isEditing
+      ? 'Salvar alterações'
+      : 'Adicionar fornecedor';
 
   return (
     <AdminGuard requiredRole="admin">
@@ -191,6 +197,12 @@ export default function AdminSuppliersPage() {
             Gerencie os parceiros responsáveis pela produção e logística.
           </p>
         </header>
+
+        {error && (
+          <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-card">
@@ -205,28 +217,51 @@ export default function AdminSuppliersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 bg-white">
-                {suppliers.map(supplier => (
-                  <tr key={supplier.id} className="hover:bg-brand-50/40">
-                    <td className="px-4 py-3 font-medium text-neutral-900">{supplier.name}</td>
-                    <td className="px-4 py-3 text-neutral-600">{supplier.specialty}</td>
-                    <td className="px-4 py-3 text-neutral-600">{supplier.leadTimeDays}</td>
-                    <td className="px-4 py-3 text-neutral-600">{supplier.rating.toFixed(1)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-xs">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleEdit(supplier.id)}
-                        >
-                          Editar
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(supplier.id)}>
-                          Excluir
-                        </Button>
-                      </div>
+                {loading && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-neutral-500">
+                      Carregando fornecedores...
                     </td>
                   </tr>
-                ))}
+                )}
+                {!loading &&
+                  suppliers.map(supplier => (
+                    <tr key={supplier.id} className="hover:bg-brand-50/40">
+                      <td className="px-4 py-3 font-medium text-neutral-900">{supplier.name}</td>
+                      <td className="px-4 py-3 text-neutral-600">{supplier.specialty}</td>
+                      <td className="px-4 py-3 text-neutral-600">{supplier.leadTimeDays}</td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {supplier.rating != null ? supplier.rating.toFixed(1) : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-xs">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleEdit(supplier.id)}
+                            disabled={isFormDisabled}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(supplier.id)}
+                            disabled={isFormDisabled}
+                          >
+                            Excluir
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                {!loading && suppliers.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-neutral-500">
+                      Nenhum fornecedor cadastrado até o momento.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -250,6 +285,7 @@ export default function AdminSuppliersPage() {
                   onChange={event => handleChange('name', event.target.value)}
                   placeholder="Ex: Tecelagem Brasil"
                   required
+                  disabled={isFormDisabled}
                 />
               </div>
 
@@ -266,6 +302,7 @@ export default function AdminSuppliersPage() {
                   onChange={event => handleChange('specialty', event.target.value)}
                   placeholder="Ex: Malharia premium"
                   required
+                  disabled={isFormDisabled}
                 />
               </div>
 
@@ -280,6 +317,7 @@ export default function AdminSuppliersPage() {
                   value={formValues.leadTimeDays}
                   onChange={event => handleChange('leadTimeDays', event.target.value)}
                   required
+                  disabled={isFormDisabled}
                 />
               </div>
 
@@ -296,15 +334,22 @@ export default function AdminSuppliersPage() {
                   value={formValues.rating}
                   onChange={event => handleChange('rating', event.target.value)}
                   required
+                  disabled={isFormDisabled}
                 />
               </div>
 
               <div className="flex items-center gap-sm">
-                <Button type="submit" fullWidth>
-                  {isEditing ? 'Salvar alterações' : 'Adicionar fornecedor'}
+                <Button type="submit" fullWidth disabled={isFormDisabled}>
+                  {submitButtonLabel}
                 </Button>
                 {isEditing && (
-                  <Button type="button" variant="secondary" fullWidth onClick={resetForm}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    fullWidth
+                    onClick={resetForm}
+                    disabled={isFormDisabled}
+                  >
                     Cancelar
                   </Button>
                 )}

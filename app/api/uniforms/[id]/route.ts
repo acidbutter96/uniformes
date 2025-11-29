@@ -1,14 +1,32 @@
-import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
+import { badRequest, notFound, ok, serverError } from '@/app/api/utils/responses';
+import { UNIFORM_CATEGORIES, UNIFORM_GENDERS } from '@/src/lib/models/uniform';
 import { deleteUniform, updateUniform } from '@/src/services/uniform.service';
+import type { UniformCategory, UniformGender } from '@/src/types/uniform';
 
-function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
+type ParamsPromise = Promise<Record<string, string | string[] | undefined>>;
+
+async function resolveUniformId(paramsPromise: ParamsPromise) {
+  let params: Record<string, string | string[] | undefined>;
+  try {
+    params = await paramsPromise;
+  } catch (error) {
+    console.error('Failed to resolve uniform params', error);
+    return undefined;
+  }
+
+  const id = params?.id;
+  if (!id) {
+    return undefined;
+  }
+
+  return Array.isArray(id) ? id[0] : id;
 }
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const uniformId = params?.id;
+export async function PATCH(request: NextRequest, { params }: { params: ParamsPromise }) {
+  const uniformId = await resolveUniformId(params);
   if (!uniformId) {
     return badRequest('ID do uniforme é obrigatório.');
   }
@@ -24,14 +42,18 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return badRequest('Payload inválido.');
     }
 
-    const { name, description, supplierId, sizes, imageSrc, imageAlt } = payload as {
-      name?: unknown;
-      description?: unknown;
-      supplierId?: unknown;
-      sizes?: unknown;
-      imageSrc?: unknown;
-      imageAlt?: unknown;
-    };
+    const { name, description, supplierId, category, gender, price, sizes, imageSrc, imageAlt } =
+      payload as {
+        name?: unknown;
+        description?: unknown;
+        supplierId?: unknown;
+        category?: unknown;
+        gender?: unknown;
+        price?: unknown;
+        sizes?: unknown;
+        imageSrc?: unknown;
+        imageAlt?: unknown;
+      };
 
     const updates: Record<string, unknown> = {};
 
@@ -54,6 +76,31 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         return badRequest('Fornecedor inválido.');
       }
       updates.supplierId = supplierId;
+    }
+
+    if (category !== undefined) {
+      if (
+        typeof category !== 'string' ||
+        !UNIFORM_CATEGORIES.includes(category as UniformCategory)
+      ) {
+        return badRequest('Categoria inválida.');
+      }
+      updates.category = category as UniformCategory;
+    }
+
+    if (gender !== undefined) {
+      if (typeof gender !== 'string' || !UNIFORM_GENDERS.includes(gender as UniformGender)) {
+        return badRequest('Gênero inválido.');
+      }
+      updates.gender = gender as UniformGender;
+    }
+
+    if (price !== undefined) {
+      const numericPrice = Number(price);
+      if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+        return badRequest('Preço deve ser maior que zero.');
+      }
+      updates.price = numericPrice;
     }
 
     if (sizes !== undefined) {
@@ -83,22 +130,22 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const updated = await updateUniform(uniformId, updates);
     if (!updated) {
-      return NextResponse.json({ error: 'Uniforme não encontrado.' }, { status: 404 });
+      return notFound('Uniforme não encontrado.');
     }
 
-    return NextResponse.json({ data: updated });
+    return ok(updated);
   } catch (error) {
     console.error('Failed to update uniform', error);
     if (error instanceof Error && error.message.includes('Fornecedor não encontrado')) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+      return notFound(error.message);
     }
 
-    return NextResponse.json({ error: 'Não foi possível atualizar o uniforme.' }, { status: 500 });
+    return serverError('Não foi possível atualizar o uniforme.');
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  const uniformId = params?.id;
+export async function DELETE(request: NextRequest, { params }: { params: ParamsPromise }) {
+  const uniformId = await resolveUniformId(params);
   if (!uniformId) {
     return badRequest('ID do uniforme é obrigatório.');
   }
@@ -111,12 +158,12 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   try {
     const deleted = await deleteUniform(uniformId);
     if (!deleted) {
-      return NextResponse.json({ error: 'Uniforme não encontrado.' }, { status: 404 });
+      return notFound('Uniforme não encontrado.');
     }
 
-    return NextResponse.json({ data: deleted });
+    return ok(deleted);
   } catch (error) {
     console.error('Failed to delete uniform', error);
-    return NextResponse.json({ error: 'Não foi possível excluir o uniforme.' }, { status: 500 });
+    return serverError('Não foi possível excluir o uniforme.');
   }
 }

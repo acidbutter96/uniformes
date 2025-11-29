@@ -7,7 +7,6 @@ type RouteParamsContext = {
   params: Promise<unknown>;
 };
 
-
 export async function PATCH(request: Request, context: RouteParamsContext) {
   const authError = ensureAdminAccess(request);
   if (authError) {

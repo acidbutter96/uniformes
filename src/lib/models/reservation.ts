@@ -1,5 +1,7 @@
 import mongoose, { Schema, Types, type Document, type Model } from 'mongoose';
 
+import { type ReservationStatus, RESERVATION_STATUSES } from '@/src/types/reservation';
+
 export interface ReservationMeasurements {
   age: number;
   height: number;
@@ -15,6 +17,8 @@ export interface ReservationDocument extends Document {
   uniformId: Types.ObjectId;
   measurements: ReservationMeasurements;
   suggestedSize: string;
+  status: ReservationStatus;
+  value: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +91,16 @@ const ReservationSchema = new Schema<ReservationDocument>(
       required: true,
       trim: true,
     },
+    status: {
+      type: String,
+      enum: RESERVATION_STATUSES,
+      default: 'aguardando',
+    },
+    value: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true },
 );
@@ -96,3 +110,4 @@ const ReservationModel: Model<ReservationDocument> =
   mongoose.model<ReservationDocument>('Reservation', ReservationSchema);
 
 export default ReservationModel;
+export { RESERVATION_STATUSES };

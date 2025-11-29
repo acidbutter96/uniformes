@@ -2,18 +2,36 @@ import AdminGuard from '@/app/admin/AdminGuard';
 import MetricCard from '@/app/components/cards/MetricCard';
 import { Button } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
-import { reservations } from '@/app/data/reservations';
-import { schools } from '@/app/data/schools';
 import { formatCurrency, formatDate } from '@/app/lib/format';
+import { listReservations } from '@/src/services/reservation.service';
+import { listSchools } from '@/src/services/school.service';
+import type { ReservationStatus } from '@/src/types/reservation';
 
-const totalReservations = reservations.length;
-const awaitingReservations = reservations.filter(
-  reservation => reservation.status === 'aguardando',
-).length;
-const totalValue = reservations.reduce((sum, reservation) => sum + reservation.value, 0);
-const activeSchools = schools.filter(school => school.status === 'ativo').length;
+const STATUS_TONE: Record<ReservationStatus, 'success' | 'warning' | 'accent'> = {
+  enviado: 'success',
+  aguardando: 'warning',
+  'em-producao': 'accent',
+};
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const [reservations, schools] = await Promise.all([listReservations(), listSchools()]);
+
+  const totalReservations = reservations.length;
+  const awaitingReservations = reservations.filter(
+    reservation => reservation.status === 'aguardando',
+  ).length;
+  const totalValue = reservations.reduce((sum, reservation) => sum + (reservation.value ?? 0), 0);
+  const activeSchools = schools.filter(school => school.status === 'ativo').length;
+  const schoolLookup = new Map(schools.map(school => [school.id, school]));
+
+  const resolveSchoolLabel = (id: string) => {
+    const school = schoolLookup.get(id);
+    if (!school) {
+      return id;
+    }
+    return `${school.name} — ${school.city}`;
+  };
+
   return (
     <AdminGuard requiredRole="admin">
       <div className="space-y-8">
@@ -76,17 +94,11 @@ export default function AdminDashboardPage() {
                 {reservations.map(reservation => (
                   <tr key={reservation.id} className="hover:bg-brand-50/40">
                     <td className="px-4 py-3 font-medium text-neutral-900">{reservation.id}</td>
-                    <td className="px-4 py-3 text-neutral-600">{reservation.schoolId}</td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {resolveSchoolLabel(reservation.schoolId)}
+                    </td>
                     <td className="px-4 py-3">
-                      <Badge
-                        tone={
-                          reservation.status === 'enviado'
-                            ? 'success'
-                            : reservation.status === 'aguardando'
-                              ? 'warning'
-                              : 'accent'
-                        }
-                      >
+                      <Badge tone={STATUS_TONE[reservation.status] ?? 'accent'}>
                         {reservation.status.replaceAll('-', ' ')}
                       </Badge>
                     </td>
@@ -94,7 +106,7 @@ export default function AdminDashboardPage() {
                       {formatDate(reservation.updatedAt)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-neutral-800">
-                      {formatCurrency(reservation.value)}
+                      {formatCurrency(reservation.value ?? 0)}
                     </td>
                   </tr>
                 ))}

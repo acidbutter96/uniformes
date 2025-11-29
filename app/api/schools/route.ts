@@ -1,22 +1,17 @@
-import { NextResponse } from 'next/server';
-
 import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
+import { badRequest, ok, serverError } from '@/app/api/utils/responses';
 import { SCHOOL_STATUSES, type SchoolStatus } from '@/src/lib/models/school';
 import { createSchool, listSchools } from '@/src/services/school.service';
 
 const VALID_STATUS = new Set<SchoolStatus>(SCHOOL_STATUSES);
 
-function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
-}
-
 export async function GET() {
   try {
     const data = await listSchools();
-    return NextResponse.json({ data });
+    return ok(data);
   } catch (error) {
     console.error('Failed to list schools', error);
-    return NextResponse.json({ error: 'Não foi possível carregar as escolas.' }, { status: 500 });
+    return serverError('Não foi possível carregar as escolas.');
   }
 }
 
@@ -67,9 +62,9 @@ export async function POST(request: Request) {
       status: resolvedStatus,
     });
 
-    return NextResponse.json({ data: created }, { status: 201 });
+    return ok(created, { status: 201 });
   } catch (error) {
     console.error('Failed to create school', error);
-    return NextResponse.json({ error: 'Não foi possível criar a escola.' }, { status: 500 });
+    return serverError('Não foi possível criar a escola.');
   }
 }

@@ -67,12 +67,20 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
   });
 
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.error || 'Request failed');
+  let payload: any = {};
+  try {
+    payload = await response.json();
+  } catch {
+    payload = {};
   }
 
-  return response.json();
+  if (!response.ok) {
+    const error = new Error(payload.error || 'Request failed') as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+
+  return payload as T;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -118,9 +126,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       dispatch({ type: 'SET_USER', payload: me.data });
-    } catch (error) {
-      console.error('Failed to load user', error);
-      dispatch({ type: 'RESET' });
+    } catch (error: any) {
+      // 401 significa apenas que o usuário não está autenticado; não precisamos logar erro
+      if (error?.status === 401 || error?.message === 'Unauthorized.') {
+        dispatch({ type: 'RESET' });
+      } else {
+        console.error('Failed to load user', error);
+        dispatch({ type: 'RESET' });
+      }
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }

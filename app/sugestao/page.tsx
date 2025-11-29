@@ -35,6 +35,7 @@ export default function SuggestionPage() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
     useEffect(() => {
         const state = loadOrderFlowState();
@@ -54,6 +55,7 @@ export default function SuggestionPage() {
             return;
         }
 
+        setSelectedSize(state.selectedSize ?? state.suggestion?.suggestion ?? null);
         setOrderState(state);
     }, [router]);
 
@@ -106,6 +108,34 @@ export default function SuggestionPage() {
     }, [orderState]);
 
     useEffect(() => {
+        if (!uniform) return;
+
+        const availableSizes = Array.isArray(uniform.sizes) ? uniform.sizes : [];
+
+        setSelectedSize(current => {
+            const candidate =
+                current ?? orderState?.selectedSize ?? orderState?.suggestion?.suggestion ?? null;
+
+            if (candidate && availableSizes.includes(candidate)) {
+                return candidate;
+            }
+
+            const fallback =
+                (orderState?.suggestion?.suggestion &&
+                availableSizes.includes(orderState.suggestion.suggestion)
+                    ? orderState.suggestion.suggestion
+                    : availableSizes[0]) ?? null;
+
+            if (fallback && fallback !== orderState?.selectedSize) {
+                saveOrderFlowState({ selectedSize: fallback });
+                setOrderState(prev => (prev ? { ...prev, selectedSize: fallback } : prev));
+            }
+
+            return fallback;
+        });
+    }, [uniform, orderState?.selectedSize, orderState?.suggestion?.suggestion]);
+
+    useEffect(() => {
         if (loading) return;
 
         if (!user) {
@@ -137,11 +167,25 @@ export default function SuggestionPage() {
         ];
     }, [orderState?.measurements]);
 
+    const handleSizeSelect = (size: string) => {
+        setSelectedSize(size);
+        saveOrderFlowState({ selectedSize: size });
+        setOrderState(prev => (prev ? { ...prev, selectedSize: size } : prev));
+        setSubmitError(null);
+    };
+
     const handleConfirm = async () => {
         if (!orderState) return;
 
         if (!orderState.suggestion?.suggestion) {
             setSubmitError('Não encontramos a sugestão de tamanho. Volte e gere novamente.');
+            return;
+        }
+
+        const sizeToSubmit = finalSize;
+
+        if (!sizeToSubmit) {
+            setSubmitError('Selecione um tamanho para concluir a reserva.');
             return;
         }
 
@@ -152,6 +196,8 @@ export default function SuggestionPage() {
 
         setIsSubmitting(true);
         setSubmitError(null);
+        saveOrderFlowState({ selectedSize: sizeToSubmit });
+        setOrderState(current => (current ? { ...current, selectedSize: sizeToSubmit } : current));
 
         try {
             const response = await fetch('/api/reservations', {
@@ -166,7 +212,7 @@ export default function SuggestionPage() {
                     schoolId: orderState.schoolId,
                     uniformId: orderState.uniformId,
                     measurements: orderState.measurements,
-                    suggestedSize: orderState.suggestion.suggestion,
+                    suggestedSize: sizeToSubmit,
                 }),
             });
 
@@ -194,6 +240,8 @@ export default function SuggestionPage() {
     };
 
     const suggestion = orderState?.suggestion;
+    const finalSize = selectedSize ?? orderState?.selectedSize ?? suggestion?.suggestion ?? null;
+    const sizeOptions = uniform?.sizes ?? [];
 
     return (
         <main className="min-h-screen bg-background text-text">
@@ -248,6 +296,47 @@ export default function SuggestionPage() {
                                 )}
                             </div>
                         </div>
+
+                        {sizeOptions.length > 0 && (
+                            <div className="flex flex-col gap-xs">
+                                <div className="flex flex-col gap-xxs">
+                                    <h3 className="text-caption font-medium uppercase tracking-wide text-text-muted">
+                                        Escolha o tamanho para reservar
+                                    </h3>
+                                    <p className="text-body text-text-muted">
+                                        A sugestão é apenas um guia. Se preferir, selecione outro tamanho abaixo antes de confirmar.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-sm">
+                                    {sizeOptions.map(size => {
+                                        const isActive = finalSize === size;
+                                        const isSuggested = suggestion?.suggestion === size;
+
+                                        return (
+                                            <button
+                                                key={size}
+                                                type="button"
+                                                onClick={() => handleSizeSelect(size)}
+                                                disabled={isSubmitting}
+                                                aria-pressed={isActive}
+                                                className={cn(
+                                                    'min-w-[64px] rounded-card border px-md py-xs text-body font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                                    isActive
+                                                        ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                                                        : 'border-border bg-surface text-text hover:border-primary/50',
+                                                    isSubmitting && 'opacity-60'
+                                                )}
+                                            >
+                                                <span>{size}</span>
+                                                {isSuggested && (
+                                                    <span className="ml-1 text-caption text-text-muted">(sugerido)</span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex flex-col gap-sm">
                             <h3 className="text-caption font-medium uppercase tracking-wide text-text-muted">
@@ -320,6 +409,10 @@ export default function SuggestionPage() {
                                     <dd className="font-medium">
                                         {loadingDetails ? 'Carregando...' : (uniform?.name ?? '—')}
                                     </dd>
+                                </div>
+                                <div className="flex justify-between">
+                                    <dt className="text-text-muted">Tamanho escolhido</dt>
+                                    <dd className="font-medium">{finalSize ?? '—'}</dd>
                                 </div>
                                 {suggestion && (
                                     <div className="flex justify-between">

@@ -23,6 +23,7 @@ export interface OrderFlowState {
   uniformId?: string;
   measurements?: MeasurementsMap;
   suggestion?: SuggestionData;
+  selectedSize?: string;
   userName?: string;
   orderId?: string;
   orderCreatedAt?: string;

@@ -18,7 +18,12 @@ export const metadata: Metadata = {
     template: '%s | Uniforma',
   },
   description: 'Uniforma — Plataforma oficial para a gestão inteligente de uniformes escolares.',
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'),
+  icons: {
+    icon: '/images/logo.png',
+    shortcut: '/images/logo.png',
+    apple: '/images/logo.png',
+  },
 };
 
 export default function RootLayout({

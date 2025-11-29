@@ -12,6 +12,16 @@ import type { Uniform } from '@/app/lib/models/uniform';
 import type { Supplier } from '@/app/lib/models/supplier';
 import { loadOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
+const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
+  const ids = Array.isArray(supplier.schoolIds)
+    ? supplier.schoolIds
+    : Array.isArray(supplier.schools)
+      ? supplier.schools
+      : [];
+
+  return ids.includes(schoolId);
+};
+
 export default function UniformsPage() {
   return (
     <Suspense
@@ -65,7 +75,7 @@ function UniformsPageContent() {
 
         if (currentSchoolId) {
           matchedSupplier = suppliersPayload.data?.find(currentSupplier =>
-            currentSupplier.schools.includes(currentSchoolId),
+            supplierSupportsSchool(currentSupplier, currentSchoolId),
           );
         }
 

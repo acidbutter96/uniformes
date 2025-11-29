@@ -12,6 +12,16 @@ import type { School } from '@/app/lib/models/school';
 import type { Supplier } from '@/app/lib/models/supplier';
 import { clearOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
+const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
+  const ids = Array.isArray(supplier.schoolIds)
+    ? supplier.schoolIds
+    : Array.isArray(supplier.schools)
+      ? supplier.schools
+      : [];
+
+  return ids.includes(schoolId);
+};
+
 export default function SchoolStepPage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -32,7 +42,7 @@ export default function SchoolStepPage() {
 
   const selectedSchool = schools.find(school => school.id === selectedSchoolId) ?? null;
   const selectedSupplier = selectedSchool
-    ? (suppliers.find(supplier => supplier.schools.includes(selectedSchool.id)) ?? null)
+    ? (suppliers.find(supplier => supplierSupportsSchool(supplier, selectedSchool.id)) ?? null)
     : null;
 
   useEffect(() => {

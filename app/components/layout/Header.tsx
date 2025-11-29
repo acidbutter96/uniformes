@@ -17,9 +17,7 @@ const adminNav = [
   { href: '/admin/reservations', label: 'Reservas' },
 ];
 
-const userNav = [
-  { href: '/sobre', label: 'Como funciona' },
-];
+const userNav = [{ href: '/sobre', label: 'Como funciona' }];
 
 const guestNav = [
   { href: '/sobre', label: 'Como funciona' },

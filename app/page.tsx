@@ -66,9 +66,9 @@ export default function Home() {
               </p>
             </div>
             <div className="flex flex-col gap-sm sm:flex-row sm:items-center">
-        <Link href="/reservas" className={buttonClasses({ className: 'px-lg py-sm' })}>
-          Reservar uniforme
-        </Link>
+              <Link href="/reservas" className={buttonClasses({ className: 'px-lg py-sm' })}>
+                Reservar uniforme
+              </Link>
               <Link
                 href="/sobre"
                 className="inline-flex items-center justify-center gap-xs px-lg py-sm text-body font-semibold text-primary transition-colors hover:text-primary/80"

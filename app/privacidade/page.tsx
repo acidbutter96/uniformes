@@ -15,9 +15,8 @@ export default function PrivacidadePage() {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">1. Coleta de dados</h2>
           <p className="text-muted-foreground">
-            Coletamos apenas as informações necessárias para o funcionamento do sistema, como
-            dados de contato, informações de responsáveis, estudantes, escolas e reservas de
-            uniformes.
+            Coletamos apenas as informações necessárias para o funcionamento do sistema, como dados
+            de contato, informações de responsáveis, estudantes, escolas e reservas de uniformes.
           </p>
         </section>
 
@@ -25,25 +24,25 @@ export default function PrivacidadePage() {
           <h2 className="text-lg font-semibold">2. Uso das informações</h2>
           <p className="text-muted-foreground">
             Utilizamos os dados exclusivamente para gerenciamento de pedidos, comunicação com
-            responsáveis e escolas, e melhoria dos nossos serviços, nunca para fins comerciais
-            não relacionados.
+            responsáveis e escolas, e melhoria dos nossos serviços, nunca para fins comerciais não
+            relacionados.
           </p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">3. Compartilhamento de dados</h2>
           <p className="text-muted-foreground">
-            Os dados podem ser compartilhados apenas com escolas, fornecedores e órgãos
-            responsáveis diretamente envolvidos no processo de fornecimento de uniformes, sempre
-            seguindo as normas aplicáveis de proteção de dados.
+            Os dados podem ser compartilhados apenas com escolas, fornecedores e órgãos responsáveis
+            diretamente envolvidos no processo de fornecimento de uniformes, sempre seguindo as
+            normas aplicáveis de proteção de dados.
           </p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">4. Segurança</h2>
           <p className="text-muted-foreground">
-            Adotamos medidas técnicas e organizacionais para proteger suas informações contra
-            acesso não autorizado, alteração, divulgação ou destruição.
+            Adotamos medidas técnicas e organizacionais para proteger suas informações contra acesso
+            não autorizado, alteração, divulgação ou destruição.
           </p>
         </section>
 
@@ -51,8 +50,8 @@ export default function PrivacidadePage() {
           <h2 className="text-lg font-semibold">5. Seus direitos</h2>
           <p className="text-muted-foreground">
             Você pode solicitar a atualização, correção ou exclusão dos seus dados, bem como
-            esclarecimentos sobre o seu uso, entrando em contato pelos canais de suporte
-            indicados na plataforma.
+            esclarecimentos sobre o seu uso, entrando em contato pelos canais de suporte indicados
+            na plataforma.
           </p>
         </section>
       </div>

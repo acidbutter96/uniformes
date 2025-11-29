@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FormEvent, Suspense, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useState } from 'react';
 
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
@@ -22,12 +22,34 @@ export default function LoginPage() {
 function LoginView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, loading, loginWithGoogle } = useAuth();
+  const { login, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false);
 
   const returnToParam = searchParams?.get('returnTo') ?? null;
+  const oauthError = searchParams?.get('error');
+
+  useEffect(() => {
+    if (!oauthError) {
+      return;
+    }
+
+    const oauthErrorMessages: Record<string, string> = {
+      google_access_denied: 'Permissão negada no Google. Tente novamente.',
+      google_oauth_error: 'O Google retornou um erro. Tente novamente mais tarde.',
+      google_missing_code: 'Não foi possível validar o retorno do Google.',
+      google_state_mismatch: 'Sessão expirada. Tente fazer login novamente.',
+      google_state_expired: 'Sessão expirada. Inicie novamente o login com Google.',
+      google_exchange_failed: 'Falha ao trocar o código do Google por token.',
+      google_missing_access_token: 'O Google não retornou um token válido.',
+      google_profile_failed: 'Não foi possível recuperar seu perfil Google.',
+      google_unexpected_error: 'Erro inesperado ao autenticar com Google.',
+    };
+
+    setError(oauthErrorMessages[oauthError] ?? 'Falha ao autenticar com Google.');
+  }, [oauthError]);
 
   const resolveDestination = (role?: string | null) => {
     const sanitizedReturnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : null;
@@ -52,25 +74,13 @@ function LoginView() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     setError(null);
-
-    try {
-      const googleToken = (window as typeof window & { googleOAuthToken?: string })
-        .googleOAuthToken;
-
-      if (!googleToken) {
-        window.location.href = '/api/auth/google';
-        return;
-      }
-
-      const authenticatedUser = await loginWithGoogle(googleToken);
-      const role = typeof authenticatedUser?.role === 'string' ? authenticatedUser.role : null;
-      router.push(resolveDestination(role));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Falha ao conectar com Google.';
-      setError(message);
-    }
+    setIsGoogleRedirecting(true);
+    const googleStartUrl = returnToParam
+      ? `/api/auth/google/start?returnTo=${encodeURIComponent(returnToParam)}`
+      : '/api/auth/google/start';
+    window.location.href = googleStartUrl;
   };
 
   return (
@@ -131,16 +141,11 @@ function LoginView() {
               variant="secondary"
               fullWidth
               onClick={handleGoogleLogin}
-              disabled={loading}
+              disabled={loading || isGoogleRedirecting}
               className="flex items-center justify-center gap-2"
             >
-              <Image
-                src="/images/google-svgrepo-com.svg"
-                alt="Google"
-                width={20}
-                height={20}
-              />
-              <span>Entrar com Google</span>
+              <Image src="/images/google-svgrepo-com.svg" alt="Google" width={20} height={20} />
+              <span>{isGoogleRedirecting ? 'Redirecionando…' : 'Entrar com Google'}</span>
             </Button>
           </div>
 

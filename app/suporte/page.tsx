@@ -7,15 +7,15 @@ export default function SuportePage() {
         <SectionTitle title="Suporte" />
 
         <p className="text-muted-foreground">
-          Precisa de ajuda com o sistema de gestão de uniformes? Veja abaixo como entrar em
-          contato e encontrar respostas para as principais dúvidas.
+          Precisa de ajuda com o sistema de gestão de uniformes? Veja abaixo como entrar em contato
+          e encontrar respostas para as principais dúvidas.
         </p>
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Contato</h2>
           <p className="text-muted-foreground">
-            Entre em contato com a equipe de suporte pelos canais definidos pela sua secretaria
-            de educação ou administração responsável pelo programa de uniformes.
+            Entre em contato com a equipe de suporte pelos canais definidos pela sua secretaria de
+            educação ou administração responsável pelo programa de uniformes.
           </p>
         </section>
 

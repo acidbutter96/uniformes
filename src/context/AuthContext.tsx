@@ -50,7 +50,6 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<AuthUser>;
-  loginWithGoogle: (googleToken: string) => Promise<AuthUser>;
   register: (data: Record<string, unknown>) => Promise<AuthUser>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
@@ -67,7 +66,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
   });
 
-  let payload: any = {};
+  let payload: unknown = {};
   try {
     payload = await response.json();
   } catch {
@@ -75,7 +74,12 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const error = new Error(payload.error || 'Request failed') as Error & { status?: number };
+    const hasErrorField = typeof payload === 'object' && payload !== null && 'error' in payload;
+    const message =
+      hasErrorField && typeof (payload as { error?: unknown }).error === 'string'
+        ? (payload as { error?: string }).error
+        : 'Request failed';
+    const error = new Error(message) as Error & { status?: number };
     error.status = response.status;
     throw error;
   }
@@ -126,9 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       dispatch({ type: 'SET_USER', payload: me.data });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 401 significa apenas que o usuário não está autenticado; não precisamos logar erro
-      if (error?.status === 401 || error?.message === 'Unauthorized.') {
+      const status =
+        typeof error === 'object' && error !== null && 'status' in error
+          ? (error as { status?: number }).status
+          : undefined;
+      const message = error instanceof Error ? error.message : undefined;
+      if (status === 401 || message === 'Unauthorized.') {
         dispatch({ type: 'RESET' });
       } else {
         console.error('Failed to load user', error);
@@ -150,34 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }>('/api/auth/login', {
           method: 'POST',
           body: JSON.stringify({ email, password }),
-        });
-
-        persistTokens(payload.token, payload.refreshToken ?? null);
-        dispatch({
-          type: 'SET_TOKENS',
-          payload: { accessToken: payload.token, refreshToken: payload.refreshToken ?? null },
-        });
-        dispatch({ type: 'SET_USER', payload: payload.user });
-
-        return payload.user;
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    },
-    [persistTokens],
-  );
-
-  const loginWithGoogle = useCallback(
-    async (googleToken: string) => {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      try {
-        const payload = await request<{
-          token: string;
-          refreshToken?: string;
-          user: AuthUser;
-        }>('/api/auth/google', {
-          method: 'POST',
-          body: JSON.stringify({ token: googleToken }),
         });
 
         persistTokens(payload.token, payload.refreshToken ?? null);
@@ -243,12 +224,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...state,
       login,
-      loginWithGoogle,
       register,
       logout,
       loadUser,
     }),
-    [state, login, loginWithGoogle, register, logout, loadUser],
+    [state, login, register, logout, loadUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

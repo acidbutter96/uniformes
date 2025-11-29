@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-2xl px-md py-2xl">
-        <header className="flex items-center justify-between gap-md">
+        <header className="flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between sm:gap-md">
           <div className="flex items-center gap-sm">
             <span className="flex h-12 w-12 items-center justify-center rounded-card bg-primary text-h3 font-heading text-surface shadow-soft">
               U
@@ -17,9 +17,12 @@ export default function Home() {
               <span className="text-caption text-text-muted">Organize, reserve e acompanhe</span>
             </div>
           </div>
+          <p className="max-w-md text-body text-text-muted sm:text-right">
+            A plataforma completa para acompanhar o processo de uniformes em qualquer dispositivo.
+          </p>
         </header>
 
-        <section className="grid flex-1 items-center gap-2xl py-2xl md:grid-cols-[1.05fr_0.95fr]">
+        <section className="grid flex-1 items-start gap-2xl py-2xl md:grid-cols-[1.05fr_0.95fr]">
           <div className="flex flex-col gap-lg">
             <div className="flex flex-col gap-xs">
               <span className="text-caption font-medium uppercase tracking-wide text-primary">

@@ -19,21 +19,15 @@ const adminNav = [
 
 const userNav = [
   { href: '/sobre', label: 'Como funciona' },
-  { href: '/escola', label: 'Escolas' },
-  { href: '/uniformes', label: 'Uniformes' },
-  { href: '/reservas', label: 'Minhas Reservas' },
 ];
 
 const guestNav = [
   { href: '/sobre', label: 'Como funciona' },
-  { href: '/escola', label: 'Escolas' },
-  { href: '/uniformes', label: 'Uniformes' },
   { href: '/login', label: 'Entrar' },
-  { href: '/register', label: 'Criar conta' },
 ];
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -114,6 +108,16 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
+
+            {role && (
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="rounded-card border border-border bg-surface px-3 py-1 text-xs font-medium text-text-muted shadow-soft transition-colors hover:bg-background hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              >
+                Sair
+              </button>
+            )}
           </nav>
         </div>
 
@@ -132,6 +136,19 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
+
+            {role && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  void logout();
+                }}
+                className="mt-1 rounded-card border border-border bg-surface px-sm py-xs text-sm font-medium text-text-muted shadow-soft transition-colors hover:bg-background hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+              >
+                Sair
+              </button>
+            )}
           </nav>
         )}
       </div>

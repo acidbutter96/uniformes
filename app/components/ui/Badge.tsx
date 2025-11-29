@@ -10,9 +10,9 @@ type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
 const toneClasses: Record<BadgeTone, string> = {
   neutral: 'bg-background text-text-muted ring-border',
   success: 'bg-success/10 text-success ring-success/20',
-  warning: 'bg-primary/10 text-primary ring-primary/20',
+  warning: 'bg-accent/20 text-accent ring-accent/30',
   danger: 'bg-primary text-white ring-primary/30',
-  accent: 'bg-primary/15 text-primary ring-primary/20',
+  accent: 'bg-accent/15 text-primary ring-accent/30',
 };
 
 export function Badge({ tone = 'neutral', className, ...props }: BadgeProps) {

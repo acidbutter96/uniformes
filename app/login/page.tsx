@@ -26,7 +26,7 @@ function LoginView() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const returnToParam = searchParams.get('returnTo');
+  const returnToParam = searchParams?.get('returnTo') ?? null;
 
   const resolveDestination = (role?: string | null) => {
     const sanitizedReturnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : null;

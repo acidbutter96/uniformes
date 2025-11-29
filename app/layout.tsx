@@ -14,10 +14,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Uniformes',
-    template: '%s | Uniformes',
+    default: 'Uniforma',
+    template: '%s | Uniforma',
   },
-  description: 'Painel de gestão de uniformes escolares.',
+  description: 'Uniforma — Plataforma oficial para a gestão inteligente de uniformes escolares.',
   metadataBase: new URL('http://localhost:3000'),
 };
 
@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-br" className={`${inter.variable}`}>
-      <body className="min-h-screen bg-neutral-50 font-sans text-neutral-900">
+      <body className="min-h-screen bg-background font-sans text-text">
         <Providers>
           <div className="flex min-h-screen flex-col">
             <Header />

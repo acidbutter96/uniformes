@@ -35,7 +35,7 @@ export default function UniformsPage() {
 function UniformsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const schoolIdFromParams = searchParams.get('schoolId');
+  const schoolIdFromParams = searchParams?.get('schoolId') ?? null;
 
   const [isLoading, setIsLoading] = useState(true);
   const [uniforms, setUniforms] = useState<Uniform[]>([]);

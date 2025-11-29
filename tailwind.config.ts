@@ -12,15 +12,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: '#F64C6F',
+        primary: '#557A95',
+        accent: '#FFB48A',
         success: '#04D361',
         text: {
-          DEFAULT: '#141628',
-          muted: '#6B6F76',
+          DEFAULT: '#1F232A',
+          muted: '#5F6670',
         },
-        background: '#F5F6F7',
-        surface: '#ffffff',
-        border: '#D8DCE1',
+        background: '#EEE9E5',
+        surface: '#FFFFFF',
+        border: '#D9D5D2',
       },
       fontFamily: {
         sans: ['var(--font-inter)', ...defaultTheme.fontFamily.sans],

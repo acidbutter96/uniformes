@@ -17,12 +17,14 @@ const adminNav = [
 ];
 
 const userNav = [
+  { href: '/sobre', label: 'Como funciona' },
   { href: '/escola', label: 'Escolas' },
   { href: '/uniformes', label: 'Uniformes' },
   { href: '/reservas', label: 'Minhas Reservas' },
 ];
 
 const guestNav = [
+  { href: '/sobre', label: 'Como funciona' },
   { href: '/escola', label: 'Escolas' },
   { href: '/uniformes', label: 'Uniformes' },
   { href: '/login', label: 'Entrar' },
@@ -53,12 +55,12 @@ export default function Header() {
   }, [pathname, role]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-border bg-surface/90 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-3 sm:px-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-lg font-semibold tracking-tight text-neutral-900">
-              Uniformes
+            <Link href="/" className="text-lg font-semibold tracking-tight text-text">
+              Uniforma
             </Link>
             {role && <Badge tone="accent">{role === 'admin' ? 'Admin' : 'Responsável'}</Badge>}
           </div>
@@ -69,7 +71,7 @@ export default function Header() {
               onClick={() => setIsMenuOpen(previous => !previous)}
               aria-label={isMenuOpen ? 'Fechar menu' : 'Abrir menu'}
               aria-expanded={isMenuOpen}
-              className="flex h-10 w-10 items-center justify-center rounded-card border border-neutral-200 bg-white text-neutral-700 shadow-soft transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="flex h-10 w-10 items-center justify-center rounded-card border border-border bg-surface text-text-muted shadow-soft transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -94,14 +96,14 @@ export default function Header() {
             </button>
           </div>
 
-          <nav className="hidden items-center gap-6 text-sm font-medium text-neutral-600 md:flex">
+          <nav className="hidden items-center gap-6 text-sm font-medium text-text-muted md:flex">
             {navItems.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'transition-colors hover:text-neutral-900',
-                  pathname === item.href ? 'text-neutral-900' : undefined,
+                  'transition-colors hover:text-text',
+                  pathname === item.href ? 'text-text' : undefined,
                 )}
               >
                 {item.label}
@@ -111,15 +113,15 @@ export default function Header() {
         </div>
 
         {isMenuOpen && (
-          <nav className="mt-3 flex flex-col gap-2 rounded-card border border-neutral-200 bg-white p-md text-sm font-medium text-neutral-600 shadow-soft md:hidden">
+          <nav className="mt-3 flex flex-col gap-2 rounded-card border border-border bg-surface p-md text-sm font-medium text-text-muted shadow-soft md:hidden">
             {navItems.map(item => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setIsMenuOpen(false)}
                 className={cn(
-                  'rounded-card px-sm py-xs transition-colors hover:bg-neutral-100 hover:text-neutral-900',
-                  pathname === item.href ? 'bg-neutral-100 text-neutral-900' : undefined,
+                  'rounded-card px-sm py-xs transition-colors hover:bg-background hover:text-text',
+                  pathname === item.href ? 'bg-background text-text' : undefined,
                 )}
               >
                 {item.label}

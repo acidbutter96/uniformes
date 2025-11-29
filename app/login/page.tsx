@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
 
@@ -131,8 +132,15 @@ function LoginView() {
               fullWidth
               onClick={handleGoogleLogin}
               disabled={loading}
+              className="flex items-center justify-center gap-2"
             >
-              Entrar com Google
+              <Image
+                src="/images/google-svgrepo-com.svg"
+                alt="Google"
+                width={20}
+                height={20}
+              />
+              <span>Entrar com Google</span>
             </Button>
           </div>
 

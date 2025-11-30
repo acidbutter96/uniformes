@@ -24,21 +24,35 @@ function sanitizeNumber(value: unknown): number | undefined {
   return undefined;
 }
 
+function averageCircumference(values: Array<number | undefined>) {
+  const filtered = values.filter((value): value is number => typeof value === 'number');
+  if (!filtered.length) {
+    return undefined;
+  }
+  return filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
+}
+
 function suggestSize({ height, weight, chest, waist, hips }: MeasurementsPayload) {
   if (!height || !weight) {
     return 'M';
   }
 
-  if (height < 120 || weight < 25 || (chest ?? 0) < 55) {
-    return 'PP';
-  }
+  const circumference = averageCircumference([chest, waist, hips]) ?? height * 0.6;
 
-  if (height < 140 || weight < 40 || (hips ?? 0) < 70) {
-    return 'P';
-  }
+  const thresholds = [
+    { size: 'PP', height: 155, weight: 50, circumference: 85 },
+    { size: 'P', height: 170, weight: 65, circumference: 100 },
+    { size: 'M', height: 185, weight: 85, circumference: 115 },
+  ];
 
-  if (height < 160 || weight < 55 || (waist ?? 0) < 80) {
-    return 'M';
+  for (const threshold of thresholds) {
+    if (
+      height <= threshold.height ||
+      weight <= threshold.weight ||
+      circumference <= threshold.circumference
+    ) {
+      return threshold.size;
+    }
   }
 
   return 'G';

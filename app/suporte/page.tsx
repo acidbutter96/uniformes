@@ -25,7 +25,7 @@ export default function SuportePage() {
             <li>Como faço o pré-cadastro e registro no sistema.</li>
             <li>Como reservar uniformes para um ou mais estudantes.</li>
             <li>O que fazer em caso de erro de acesso ou senha.</li>
-            <li>Como atualizar dados cadastrais ou medidas da criança.</li>
+            <li>Como atualizar dados cadastrais ou medidas de quem vai usar o uniforme.</li>
           </ul>
         </section>
 

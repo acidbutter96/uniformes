@@ -4,10 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { StepsHeader } from '@/app/components/steps/StepsHeader';
-import {
-  ChildMeasurementsForm,
-  type MeasurementsData,
-} from '@/app/components/forms/ChildMeasurementsForm';
+import { MeasurementsForm, type MeasurementsData } from '@/app/components/forms/MeasurementsForm';
 import { Card } from '@/app/components/ui/Card';
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
@@ -140,7 +137,7 @@ export default function MeasurementsPage() {
         <StepsHeader currentStep={3} />
 
         <section className="grid gap-xl lg:grid-cols-[1.2fr_0.8fr]">
-          <ChildMeasurementsForm
+          <MeasurementsForm
             onSubmit={handleSubmit}
             submitLabel="Sugerir tamanho"
             successMessage="Sugestão enviada!"

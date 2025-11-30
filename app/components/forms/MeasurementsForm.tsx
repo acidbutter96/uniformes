@@ -1,0 +1,299 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { cn } from '@/app/lib/utils';
+import { Input } from '@/app/components/ui/Input';
+import { Button } from '@/app/components/ui/Button';
+import { Alert } from '@/app/components/ui/Alert';
+
+type MeasurementField = 'age' | 'height' | 'weight' | 'chest' | 'waist' | 'hips';
+
+export interface MeasurementsData {
+  age: number;
+  height: number;
+  weight: number;
+  chest: number;
+  waist: number;
+  hips: number;
+}
+
+interface MeasurementsFormProps {
+  onSubmit?: (data: MeasurementsData) => Promise<void> | void;
+  className?: string;
+  submitLabel?: string;
+  successMessage?: string;
+  errorMessage?: string;
+  defaultValues?: Partial<MeasurementsData>;
+}
+
+type FieldConfig = {
+  name: MeasurementField;
+  label: string;
+  placeholder: string;
+  unit: string;
+  example: string;
+  min: number;
+  max: number;
+  step?: number;
+};
+
+const fields: FieldConfig[] = [
+  {
+    name: 'age',
+    label: 'Idade',
+    placeholder: 'Ex: 25',
+    unit: 'anos',
+    example: 'Ex.: 25 anos',
+    min: 1,
+    max: 120,
+    step: 1,
+  },
+  {
+    name: 'height',
+    label: 'Altura',
+    placeholder: 'Ex: 170',
+    unit: 'cm',
+    example: 'Ex.: 170 cm',
+    min: 50,
+    max: 230,
+  },
+  {
+    name: 'weight',
+    label: 'Peso',
+    placeholder: 'Ex: 68',
+    unit: 'kg',
+    example: 'Ex.: 68 kg',
+    min: 10,
+    max: 250,
+  },
+  {
+    name: 'chest',
+    label: 'Tórax',
+    placeholder: 'Ex: 95',
+    unit: 'cm',
+    example: 'Ex.: 95 cm',
+    min: 30,
+    max: 220,
+  },
+  {
+    name: 'waist',
+    label: 'Cintura',
+    placeholder: 'Ex: 80',
+    unit: 'cm',
+    example: 'Ex.: 80 cm',
+    min: 30,
+    max: 220,
+  },
+  {
+    name: 'hips',
+    label: 'Quadril',
+    placeholder: 'Ex: 100',
+    unit: 'cm',
+    example: 'Ex.: 100 cm',
+    min: 30,
+    max: 220,
+  },
+];
+
+const initialValues: Record<MeasurementField, string> = {
+  age: '',
+  height: '',
+  weight: '',
+  chest: '',
+  waist: '',
+  hips: '',
+};
+
+const initialTouched: Record<MeasurementField, boolean> = {
+  age: false,
+  height: false,
+  weight: false,
+  chest: false,
+  waist: false,
+  hips: false,
+};
+
+export function MeasurementsForm({
+  onSubmit,
+  className,
+  submitLabel = 'Salvar medidas',
+  successMessage = 'Medidas salvas!',
+  errorMessage = 'Não foi possível salvar as medidas. Tente novamente.',
+  defaultValues,
+}: MeasurementsFormProps) {
+  const [values, setValues] = useState(initialValues);
+  const [touched, setTouched] = useState(initialTouched);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    'idle',
+  );
+
+  useEffect(() => {
+    if (!defaultValues) {
+      return;
+    }
+
+    const nextValues = { ...initialValues };
+
+    for (const field of fields) {
+      const provided = defaultValues[field.name];
+      if (provided === undefined || Number.isNaN(Number(provided))) {
+        continue;
+      }
+
+      nextValues[field.name] = String(provided);
+    }
+
+    setValues(nextValues);
+    setTouched(initialTouched);
+    setSubmitStatus('idle');
+  }, [defaultValues]);
+
+  const errors = useMemo(() => {
+    const next: Partial<Record<MeasurementField, string>> = {};
+
+    for (const field of fields) {
+      const raw = values[field.name].trim();
+      if (!raw) {
+        next[field.name] = 'Preencha este campo';
+        continue;
+      }
+
+      const numeric = Number(raw);
+      if (Number.isNaN(numeric)) {
+        next[field.name] = 'Use apenas números';
+        continue;
+      }
+
+      if (numeric < field.min || numeric > field.max) {
+        next[field.name] = `Valor entre ${field.min} e ${field.max}`;
+      }
+    }
+
+    return next;
+  }, [values]);
+
+  const hasErrors = Object.values(errors).some(Boolean);
+  const isComplete = Object.values(values).every(value => value.trim() !== '');
+
+  function handleChange(field: MeasurementField, nextValue: string) {
+    setValues(prev => ({ ...prev, [field]: nextValue }));
+    setSubmitStatus('idle');
+  }
+
+  function handleBlur(field: MeasurementField) {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const allTouched = fields.reduce<Record<MeasurementField, boolean>>(
+      (acc, { name }) => ({ ...acc, [name]: true }),
+      {} as Record<MeasurementField, boolean>,
+    );
+    setTouched(allTouched);
+
+    if (hasErrors) {
+      return;
+    }
+
+    const payload = fields.reduce<MeasurementsData>((acc, field) => {
+      acc[field.name] = Number(values[field.name]);
+      return acc;
+    }, {} as MeasurementsData);
+
+    setSubmitStatus('loading');
+
+    try {
+      if (onSubmit) {
+        await onSubmit(payload);
+      }
+
+      setSubmitStatus('success');
+    } catch (error) {
+      console.error('Failed to submit measurements', error);
+      setSubmitStatus('error');
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className={cn('flex flex-col gap-md rounded-card bg-surface p-md shadow-soft', className)}
+    >
+      <div className="flex flex-col gap-xs">
+        <h2 className="text-h3 font-heading text-text">Medidas da Pessoa</h2>
+        <p className="text-body text-text-muted">
+          Use medidas reais de quem vai vestir o uniforme — infantil, EJA ou adulto.
+        </p>
+      </div>
+
+      <div className="grid gap-md md:grid-cols-2">
+        {fields.map(field => {
+          const isInvalid = Boolean(errors[field.name]);
+          const showError = isInvalid && touched[field.name];
+
+          return (
+            <label key={field.name} className="flex flex-col gap-xs text-body text-text">
+              <span className="font-medium text-text">{field.label}</span>
+              <div className="flex items-center gap-sm">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder={field.placeholder}
+                  value={values[field.name]}
+                  min={field.min}
+                  max={field.max}
+                  step={field.step ?? 0.1}
+                  onChange={event => handleChange(field.name, event.target.value)}
+                  onBlur={() => handleBlur(field.name)}
+                  aria-invalid={isInvalid}
+                  aria-describedby={`${field.name}-example ${field.name}-error`}
+                  className="flex-1"
+                />
+                <span className="shrink-0 rounded-card bg-background px-sm py-xxs text-body text-text-muted">
+                  {field.unit}
+                </span>
+              </div>
+              <span id={`${field.name}-example`} className="text-caption text-text-muted">
+                {field.example}
+              </span>
+              {showError && (
+                <span
+                  id={`${field.name}-error`}
+                  role="alert"
+                  className="text-caption font-medium text-primary"
+                >
+                  {errors[field.name]}
+                </span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
+        <p className="text-caption text-text-muted">Todos os campos são obrigatórios.</p>
+        <Button type="submit" disabled={!isComplete || hasErrors || submitStatus === 'loading'}>
+          {submitStatus === 'loading' ? 'Enviando…' : submitLabel}
+        </Button>
+      </div>
+
+      {submitStatus === 'success' && (
+        <Alert
+          tone="success"
+          heading={successMessage}
+          description="Você pode revisar as informações a qualquer momento antes da confirmação."
+        />
+      )}
+
+      {submitStatus === 'error' && (
+        <Alert
+          tone="danger"
+          heading={errorMessage}
+          description="Não se preocupe, nenhuma informação foi perdida."
+        />
+      )}
+    </form>
+  );
+}

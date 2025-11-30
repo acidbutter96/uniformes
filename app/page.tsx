@@ -207,7 +207,7 @@ export default function Home() {
               {[
                 'Valide a escola participante do programa.',
                 'Escolha o uniforme e confira as opções disponíveis.',
-                'Informe as medidas da criança para ajustar os tamanhos.',
+                'Informe as medidas de quem vai usar o uniforme para ajustar os tamanhos.',
                 'Confirme a reserva e organize a retirada na loja.',
               ].map((item, index) => (
                 <li key={item} className="flex items-start gap-sm">

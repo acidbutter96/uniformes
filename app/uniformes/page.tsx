@@ -129,8 +129,8 @@ function UniformsPageContent() {
               </span>
               <h1 className="text-h2 font-heading">Selecione o uniforme</h1>
               <p className="max-w-2xl text-body text-text-muted">
-                Escolha o uniforme adequado para a criança. Você poderá ajustar quantidades e
-                medidas na próxima etapa.
+                Escolha o uniforme adequado para quem vai utilizar. Você poderá ajustar quantidades
+                e medidas na próxima etapa.
               </p>
             </header>
 

@@ -271,7 +271,7 @@ async function upsertUser(user: SeedUser, supplierMap: Map<string, Types.ObjectI
 
   const hashedPassword = await hashPassword(user.password);
   const supplierId = user.supplierKey ? supplierMap.get(user.supplierKey) : undefined;
-  
+
   const created = await UserModel.create({
     name: user.name,
     email: user.email,

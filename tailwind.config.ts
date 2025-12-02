@@ -15,6 +15,7 @@ const config: Config = {
                 primary: '#496276',
                 accent: '#FFB48A',
                 success: '#04D361',
+                danger: '#DC2626',
                 text: {
                     DEFAULT: '#1F232A',
                     muted: '#5F6670',

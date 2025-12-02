@@ -55,6 +55,7 @@ type RegisterField =
   | 'name'
   | 'email'
   | 'password'
+  | 'confirmPassword'
   | 'cpf'
   | 'birthDate'
   | 'cep'
@@ -81,6 +82,7 @@ function RegisterView() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [cpf, setCpf] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [cep, setCep] = useState('');
@@ -227,6 +229,53 @@ function RegisterView() {
     }
   }, [cep, resetAddressFields, setFieldError]);
 
+  const validateEmailField = (value: string) => {
+    const emailValue = value.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailValue) {
+      setFieldError('email', 'Informe um email.');
+      return;
+    }
+
+    if (!emailPattern.test(emailValue)) {
+      setFieldError('email', 'Informe um email válido.');
+      return;
+    }
+
+    setFieldError('email');
+  };
+
+  const validateBirthDateField = (value: string) => {
+    const birthDateValue = value.trim();
+
+    if (!birthDateValue) {
+      setFieldError('birthDate', 'Informe a data de nascimento.');
+      return;
+    }
+
+    const birth = new Date(birthDateValue);
+    const now = new Date();
+    const year1900 = new Date(1900, 0, 1);
+
+    if (Number.isNaN(birth.getTime())) {
+      setFieldError('birthDate', 'Data de nascimento inválida.');
+      return;
+    }
+
+    if (birth > now) {
+      setFieldError('birthDate', 'Data de nascimento não pode ser no futuro.');
+      return;
+    }
+
+    if (birth < year1900) {
+      setFieldError('birthDate', 'Data de nascimento muito antiga.');
+      return;
+    }
+
+    setFieldError('birthDate');
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -240,11 +289,22 @@ function RegisterView() {
       }
 
       if (!email.trim()) {
-        nextErrors.email = 'Informe um email válido.';
+        nextErrors.email = 'Informe um email.';
+      } else {
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email.trim())) {
+          nextErrors.email = 'Informe um email válido.';
+        }
       }
 
       if (password.length < 6) {
         nextErrors.password = 'A senha precisa ter ao menos 6 caracteres.';
+      }
+
+      if (!confirmPassword) {
+        nextErrors.confirmPassword = 'Repita a senha.';
+      } else if (confirmPassword !== password) {
+        nextErrors.confirmPassword = 'As senhas não coincidem.';
       }
 
       const cpfDigits = digitsOnly(cpf);
@@ -254,6 +314,17 @@ function RegisterView() {
 
       if (!birthDate) {
         nextErrors.birthDate = 'Informe a data de nascimento.';
+      } else {
+        const birth = new Date(birthDate);
+        const now = new Date();
+        const year1900 = new Date(1900, 0, 1);
+        if (Number.isNaN(birth.getTime())) {
+          nextErrors.birthDate = 'Data de nascimento inválida.';
+        } else if (birth > now) {
+          nextErrors.birthDate = 'Data de nascimento não pode ser no futuro.';
+        } else if (birth < year1900) {
+          nextErrors.birthDate = 'Data de nascimento muito antiga.';
+        }
       }
 
       const cepDigits = digitsOnly(cep);
@@ -347,8 +418,8 @@ function RegisterView() {
                 value={email}
                 onChange={event => {
                   setEmail(event.target.value);
-                  setFieldError('email');
                 }}
+                onBlur={event => validateEmailField(event.target.value)}
                 required
                 aria-invalid={Boolean(fieldErrors.email)}
               />
@@ -369,6 +440,22 @@ function RegisterView() {
               required
               aria-invalid={Boolean(fieldErrors.password)}
               errorMessage={fieldErrors.password}
+            />
+
+            <PasswordField
+              id="register-confirm-password"
+              label="Repita a senha"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              minLength={6}
+              onChange={event => {
+                setConfirmPassword(event.target.value);
+                setFieldError('confirmPassword');
+              }}
+              required
+              aria-invalid={Boolean(fieldErrors.confirmPassword)}
+              errorMessage={fieldErrors.confirmPassword}
             />
 
             <div className="space-y-1">
@@ -402,8 +489,8 @@ function RegisterView() {
                 value={birthDate}
                 onChange={event => {
                   setBirthDate(event.target.value);
-                  setFieldError('birthDate');
                 }}
+                onBlur={event => validateBirthDateField(event.target.value)}
                 required
                 aria-invalid={Boolean(fieldErrors.birthDate)}
               />

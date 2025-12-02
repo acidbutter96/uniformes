@@ -121,6 +121,18 @@ export default function Header() {
             ))}
 
             {role && (
+              <Link
+                href="/conta"
+                className={cn(
+                  'transition-colors hover:text-text',
+                  pathname === '/conta' ? 'text-text' : undefined,
+                )}
+              >
+                Minha conta
+              </Link>
+            )}
+
+            {role && (
               <button
                 type="button"
                 onClick={() => logout()}
@@ -147,6 +159,19 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
+
+            {role && (
+              <Link
+                href="/conta"
+                onClick={() => setIsMenuOpen(false)}
+                className={cn(
+                  'rounded-card px-sm py-xs transition-colors hover:bg-background hover:text-text',
+                  pathname === '/conta' ? 'bg-background text-text' : undefined,
+                )}
+              >
+                Minha conta
+              </Link>
+            )}
 
             {role && (
               <button

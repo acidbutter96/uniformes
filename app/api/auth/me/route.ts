@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { verifyAccessToken } from '@/src/services/auth.service';
-import { getById } from '@/src/services/user.service';
+import { getById, updateUser } from '@/src/services/user.service';
 
 export async function GET(request: Request) {
   try {
@@ -30,5 +30,75 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Auth me error', error);
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const payload = verifyAccessToken<{ sub?: string }>(token);
+    if (!payload?.sub) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+
+    const allowed: Record<string, unknown> = {};
+    if (typeof body?.name === 'string') allowed.name = body.name;
+    if (typeof body?.email === 'string') allowed.email = body.email.toLowerCase().trim();
+    if (body?.birthDate) {
+      const d = new Date(body.birthDate);
+      if (!Number.isNaN(d.valueOf())) allowed.birthDate = d;
+    }
+    if (body?.address && typeof body.address === 'object') {
+      const a = body.address as Record<string, unknown>;
+      allowed.address = {
+        cep: typeof a.cep === 'string' ? a.cep : undefined,
+        street: typeof a.street === 'string' ? a.street : undefined,
+        number: typeof a.number === 'string' ? a.number : undefined,
+        complement: typeof a.complement === 'string' ? a.complement : undefined,
+        district: typeof a.district === 'string' ? a.district : undefined,
+        city: typeof a.city === 'string' ? a.city : undefined,
+        state: typeof a.state === 'string' ? a.state : undefined,
+      };
+    }
+
+    // Permitir definir CPF apenas se ainda não existir
+    if (typeof body?.cpf === 'string') {
+      const current = await getById(payload.sub);
+      if (!current) {
+        return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+      }
+      const existingCpf = (current.cpf ?? '').trim();
+      const incomingCpf = body.cpf.trim();
+
+      if (!existingCpf && incomingCpf) {
+        // sanitize: keep only digits
+        const sanitized = incomingCpf.replace(/\D/g, '');
+        if (sanitized.length !== 11) {
+          return NextResponse.json({ error: 'CPF inválido. Use 11 dígitos.' }, { status: 400 });
+        }
+        allowed.cpf = sanitized;
+      }
+      // If CPF already set, ignore any attempts to change it
+    }
+
+    const updated = await updateUser(payload.sub, allowed);
+    if (!updated) {
+      return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+    }
+
+    const { password: removedPassword, ...safeUser } = updated.toObject();
+    void removedPassword;
+    return NextResponse.json({ data: safeUser });
+  } catch (error) {
+    console.error('Auth me patch error', error);
+    return NextResponse.json({ error: 'Bad Request.' }, { status: 400 });
   }
 }

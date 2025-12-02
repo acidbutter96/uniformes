@@ -4,7 +4,7 @@ import SupplierInviteModel from '@/src/lib/models/supplierInvite';
 import SupplierModel from '@/src/lib/models/supplier';
 import UserModel from '@/src/lib/models/user';
 import { createUser } from '@/src/services/user.service';
-import { hashPassword } from '@/src/services/auth.service';
+import { hashPassword, isValidCpf, normalizeCpf } from '@/src/services/auth.service';
 
 export async function POST(request: Request) {
   try {
@@ -16,13 +16,17 @@ export async function POST(request: Request) {
       cnpj?: unknown;
       specialty?: unknown;
       phone?: unknown;
+      cpf?: unknown;
+      birthDate?: unknown;
+      address?: unknown;
     } | null;
 
     if (!payload) {
       return badRequest('Payload inválido.');
     }
 
-    const { token, name, email, password, cnpj, specialty, phone } = payload;
+    const { token, name, email, password, cnpj, specialty, phone, cpf, birthDate, address } =
+      payload;
 
     if (typeof token !== 'string' || !token.trim()) {
       return badRequest('Token é obrigatório.');
@@ -50,6 +54,18 @@ export async function POST(request: Request) {
 
     if (phone !== undefined && typeof phone !== 'string') {
       return badRequest('Telefone inválido.');
+    }
+
+    if (cpf !== undefined && typeof cpf !== 'string') {
+      return badRequest('CPF inválido.');
+    }
+
+    if (birthDate !== undefined && typeof birthDate !== 'string') {
+      return badRequest('Data de nascimento inválida.');
+    }
+
+    if (address !== undefined && typeof address !== 'object') {
+      return badRequest('Endereço inválido.');
     }
 
     await dbConnect();
@@ -81,11 +97,67 @@ export async function POST(request: Request) {
       phone: typeof phone === 'string' ? phone.trim() : undefined,
     });
 
+    // Optional user identity fields copied from user registration
+    let normalizedCpf: string | undefined;
+    if (typeof cpf === 'string' && cpf.trim()) {
+      const cpfDigits = normalizeCpf(cpf.trim());
+      if (!isValidCpf(cpfDigits)) {
+        return badRequest('CPF inválido.');
+      }
+      normalizedCpf = cpfDigits;
+    }
+
+    let parsedBirthDate: Date | undefined;
+    if (typeof birthDate === 'string' && birthDate.trim()) {
+      const bd = new Date(birthDate);
+      if (Number.isNaN(bd.getTime())) {
+        return badRequest('Data de nascimento inválida.');
+      }
+      const today = new Date();
+      if (bd > today) {
+        return badRequest('Data de nascimento no futuro não é permitida.');
+      }
+      parsedBirthDate = bd;
+    }
+
+    let userAddress:
+      | {
+          cep: string;
+          street: string;
+          number?: string;
+          complement?: string;
+          district: string;
+          city: string;
+          state: string;
+        }
+      | undefined;
+    if (address && typeof address === 'object' && address !== null) {
+      const addr = address as Record<string, unknown>;
+      const cep = typeof addr.cep === 'string' ? addr.cep.replace(/\D/g, '') : '';
+      const street = typeof addr.street === 'string' ? addr.street.trim() : '';
+      const number = typeof addr.number === 'string' ? addr.number.trim() : undefined;
+      const complement = typeof addr.complement === 'string' ? addr.complement.trim() : undefined;
+      const district = typeof addr.district === 'string' ? addr.district.trim() : '';
+      const city = typeof addr.city === 'string' ? addr.city.trim() : '';
+      const state = typeof addr.state === 'string' ? addr.state.trim().toUpperCase() : '';
+
+      if (cep && cep.length !== 8) {
+        return badRequest('CEP inválido.');
+      }
+      if (street && district && city && state) {
+        userAddress = { cep, street, number, complement, district, city, state };
+      } else if (cep || street || district || city || state) {
+        return badRequest('Endereço incompleto.');
+      }
+    }
     const user = await createUser({
       name: name.trim(),
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       role: 'supplier',
+      cpf: normalizedCpf,
+      birthDate: parsedBirthDate,
+      address: userAddress,
     });
 
     await UserModel.updateOne({ _id: user._id }, { $set: { supplierId: supplier._id } }).exec();

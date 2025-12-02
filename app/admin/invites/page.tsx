@@ -6,10 +6,12 @@ import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
 import { Alert } from '@/app/components/ui/Alert';
+import useAuth from '@/src/hooks/useAuth';
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_URL ?? '';
 
 export default function SupplierInvitesPage() {
+  const { accessToken, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [expiresInMinutes, setExpiresInMinutes] = useState(60);
@@ -24,6 +26,11 @@ export default function SupplierInvitesPage() {
     setSuccess(null);
     setInviteLink(null);
 
+    if (!accessToken || authLoading) {
+      setError('Aguardando autenticação. Faça login novamente.');
+      return;
+    }
+
     if (!email && !supplierId) {
       setError('Informe pelo menos e-mail ou supplierId.');
       return;
@@ -33,7 +40,10 @@ export default function SupplierInvitesPage() {
     try {
       const res = await fetch('/api/admin/suppliers/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({
           email: email || undefined,
           supplierId: supplierId || undefined,
@@ -48,7 +58,7 @@ export default function SupplierInvitesPage() {
         return;
       }
 
-      const token: string | undefined = data?.token;
+      const token: string | undefined = (data?.data?.token ?? data?.token) as string | undefined;
       if (!token) {
         setError('Resposta sem token de convite.');
         return;

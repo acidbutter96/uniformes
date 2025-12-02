@@ -1,4 +1,6 @@
 'use client';
+/* eslint-disable prettier/prettier */
+'use client';
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -388,6 +390,7 @@ function RegisterView() {
           {error && <Alert tone="danger" description={error} className="mb-4" />}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-1">
               <label htmlFor="register-name" className="text-sm font-medium text-text">
                 Nome completo
@@ -426,7 +429,8 @@ function RegisterView() {
               {fieldErrors.email && <p className="text-xs text-danger">{fieldErrors.email}</p>}
             </div>
 
-            <PasswordField
+            <div>
+              <PasswordField
               id="register-password"
               label="Senha"
               autoComplete="new-password"
@@ -440,9 +444,11 @@ function RegisterView() {
               required
               aria-invalid={Boolean(fieldErrors.password)}
               errorMessage={fieldErrors.password}
-            />
+              />
+            </div>
 
-            <PasswordField
+            <div>
+              <PasswordField
               id="register-confirm-password"
               label="Repita a senha"
               autoComplete="new-password"
@@ -456,7 +462,8 @@ function RegisterView() {
               required
               aria-invalid={Boolean(fieldErrors.confirmPassword)}
               errorMessage={fieldErrors.confirmPassword}
-            />
+              />
+            </div>
 
             <div className="space-y-1">
               <label htmlFor="register-cpf" className="text-sm font-medium text-text">
@@ -497,6 +504,7 @@ function RegisterView() {
               {fieldErrors.birthDate && (
                 <p className="text-xs text-danger">{fieldErrors.birthDate}</p>
               )}
+            </div>
             </div>
 
             <div className="space-y-1">
@@ -540,7 +548,7 @@ function RegisterView() {
               {fieldErrors.street && <p className="text-xs text-danger">{fieldErrors.street}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-1">
                 <label htmlFor="register-number" className="text-sm font-medium text-text">
                   Número
@@ -590,7 +598,7 @@ function RegisterView() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-1">
                 <label htmlFor="register-city" className="text-sm font-medium text-text">
                   Cidade

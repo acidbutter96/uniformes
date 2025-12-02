@@ -1,6 +1,7 @@
 import AdminGuard from '@/app/admin/AdminGuard';
 import MetricCard from '@/app/components/cards/MetricCard';
-import { Button } from '@/app/components/ui/Button';
+import Link from 'next/link';
+import { Button, buttonClasses } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/app/lib/format';
 import { listReservations } from '@/src/services/reservation.service';
@@ -45,9 +46,15 @@ export default async function AdminDashboardPage() {
               Monitoramento de reservas, fornecedores e escolas integradas.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button variant="secondary">Exportar dados</Button>
             <Button>Criar reserva</Button>
+            <Link
+              href="/admin/invites"
+              className={buttonClasses({ variant: 'secondary', size: 'md' })}
+            >
+              Convites fornecedores
+            </Link>
           </div>
         </header>
 

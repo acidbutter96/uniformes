@@ -19,6 +19,16 @@ interface SeedUser {
   verified?: boolean;
   resetPassword?: boolean;
   supplierKey?: string;
+  cpf?: string;
+  address?: {
+    cep: string;
+    street: string;
+    number?: string;
+    complement?: string;
+    district: string;
+    city: string;
+    state: string;
+  };
 }
 
 interface SeedSchool {
@@ -75,6 +85,15 @@ const seedUsers: SeedUser[] = [
     provider: 'credentials',
     verified: true,
     resetPassword: true,
+    cpf: '11111111111',
+    address: {
+      cep: '01001-000',
+      street: 'Praça da Sé',
+      number: '100',
+      district: 'Sé',
+      city: 'São Paulo',
+      state: 'SP',
+    },
   },
   {
     name: 'Coordenadora Pedagógica',
@@ -84,6 +103,15 @@ const seedUsers: SeedUser[] = [
     provider: 'credentials',
     verified: true,
     resetPassword: true,
+    cpf: '22222222222',
+    address: {
+      cep: '30110-012',
+      street: 'Avenida Afonso Pena',
+      number: '500',
+      district: 'Centro',
+      city: 'Belo Horizonte',
+      state: 'MG',
+    },
   },
   {
     name: 'Diretor de Escola',
@@ -93,6 +121,15 @@ const seedUsers: SeedUser[] = [
     provider: 'google',
     verified: true,
     resetPassword: false,
+    cpf: '33333333333',
+    address: {
+      cep: '80010-000',
+      street: 'Rua XV de Novembro',
+      number: '1200',
+      district: 'Centro',
+      city: 'Curitiba',
+      state: 'PR',
+    },
   },
   {
     name: 'Fornecedor Demo',
@@ -103,6 +140,15 @@ const seedUsers: SeedUser[] = [
     verified: true,
     resetPassword: true,
     supplierKey: 'atelier-uniformes',
+    cpf: '44444444444',
+    address: {
+      cep: '90010-320',
+      street: 'Rua dos Andradas',
+      number: '50',
+      district: 'Centro Histórico',
+      city: 'Porto Alegre',
+      state: 'RS',
+    },
   },
 ];
 
@@ -259,6 +305,28 @@ async function upsertUser(user: SeedUser, supplierMap: Map<string, Types.ObjectI
       }
     }
 
+    // Atualiza CPF e endereço
+    if (user.cpf && existing.cpf !== user.cpf) {
+      existing.cpf = user.cpf;
+      changed = true;
+    }
+    if (user.address) {
+      const current = existing.address;
+      const target = user.address;
+      const addressChanged =
+        current?.cep !== target.cep ||
+        current?.street !== target.street ||
+        current?.number !== target.number ||
+        current?.complement !== target.complement ||
+        current?.district !== target.district ||
+        current?.city !== target.city ||
+        current?.state !== target.state;
+      if (addressChanged) {
+        existing.address = { ...target } as any;
+        changed = true;
+      }
+    }
+
     if (changed) {
       await existing.save();
       console.log(`Updated user ${user.email}`);
@@ -280,6 +348,8 @@ async function upsertUser(user: SeedUser, supplierMap: Map<string, Types.ObjectI
     provider: user.provider ?? 'credentials',
     verified: user.verified ?? false,
     supplierId,
+    cpf: user.cpf,
+    address: user.address,
   });
   console.log(`Created user ${user.email}`);
   return created._id;

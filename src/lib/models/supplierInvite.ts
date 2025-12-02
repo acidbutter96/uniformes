@@ -39,7 +39,6 @@ const SupplierInviteSchema = new Schema<SupplierInviteDocument>(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
     usedAt: {
       type: Date,

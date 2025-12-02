@@ -14,10 +14,11 @@ interface SeedUser {
   name: string;
   email: string;
   password: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'supplier';
   provider?: 'credentials' | 'google';
   verified?: boolean;
   resetPassword?: boolean;
+  supplierKey?: string;
 }
 
 interface SeedSchool {
@@ -92,6 +93,16 @@ const seedUsers: SeedUser[] = [
     provider: 'google',
     verified: true,
     resetPassword: false,
+  },
+  {
+    name: 'Fornecedor Demo',
+    email: 'fornecedor@uniformes.com',
+    password: 'Supplier@123',
+    role: 'supplier',
+    provider: 'credentials',
+    verified: true,
+    resetPassword: true,
+    supplierKey: 'atelier-uniformes',
   },
 ];
 
@@ -215,7 +226,7 @@ const reservationSeeds: SeedReservation[] = [
   },
 ];
 
-async function upsertUser(user: SeedUser) {
+async function upsertUser(user: SeedUser, supplierMap: Map<string, Types.ObjectId>) {
   const existing = await UserModel.findOne({ email: user.email }).exec();
   if (existing) {
     let changed = false;
@@ -240,6 +251,14 @@ async function upsertUser(user: SeedUser) {
       changed = true;
     }
 
+    if (user.supplierKey) {
+      const supplierId = supplierMap.get(user.supplierKey);
+      if (!existing.supplierId || existing.supplierId.toString() !== supplierId?.toString()) {
+        existing.supplierId = supplierId ?? null;
+        changed = true;
+      }
+    }
+
     if (changed) {
       await existing.save();
       console.log(`Updated user ${user.email}`);
@@ -251,6 +270,8 @@ async function upsertUser(user: SeedUser) {
   }
 
   const hashedPassword = await hashPassword(user.password);
+  const supplierId = user.supplierKey ? supplierMap.get(user.supplierKey) : undefined;
+  
   const created = await UserModel.create({
     name: user.name,
     email: user.email,
@@ -258,6 +279,7 @@ async function upsertUser(user: SeedUser) {
     role: user.role,
     provider: user.provider ?? 'credentials',
     verified: user.verified ?? false,
+    supplierId,
   });
   console.log(`Created user ${user.email}`);
   return created._id;
@@ -383,12 +405,6 @@ async function seed() {
 
   await dbConnect();
 
-  const userMap = new Map<string, Types.ObjectId>();
-  for (const user of seedUsers) {
-    const id = await upsertUser(user);
-    userMap.set(user.email, id as Types.ObjectId);
-  }
-
   const schoolMap = new Map<string, Types.ObjectId>();
   for (const school of seedSchools) {
     const id = await upsertSchool(school);
@@ -399,6 +415,12 @@ async function seed() {
   for (const supplier of seedSuppliers) {
     const id = await upsertSupplier(supplier, schoolMap);
     supplierMap.set(supplier.key, id);
+  }
+
+  const userMap = new Map<string, Types.ObjectId>();
+  for (const user of seedUsers) {
+    const id = await upsertUser(user, supplierMap);
+    userMap.set(user.email, id as Types.ObjectId);
   }
 
   const uniformMap = new Map<string, Types.ObjectId>();

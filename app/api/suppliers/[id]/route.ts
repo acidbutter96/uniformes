@@ -40,15 +40,17 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
       return badRequest('Payload inválido.');
     }
 
-    const { name, specialty, leadTimeDays, rating, contactEmail, phone, schoolIds } = payload as {
-      name?: unknown;
-      specialty?: unknown;
-      leadTimeDays?: unknown;
-      rating?: unknown;
-      contactEmail?: unknown;
-      phone?: unknown;
-      schoolIds?: unknown;
-    };
+    const { name, cnpj, specialty, leadTimeDays, rating, contactEmail, phone, schoolIds } =
+      payload as {
+        name?: unknown;
+        cnpj?: unknown;
+        specialty?: unknown;
+        leadTimeDays?: unknown;
+        rating?: unknown;
+        contactEmail?: unknown;
+        phone?: unknown;
+        schoolIds?: unknown;
+      };
 
     const updates: Record<string, unknown> = {};
 
@@ -57,6 +59,13 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
         return badRequest('Nome inválido.');
       }
       updates.name = name;
+    }
+
+    if (cnpj !== undefined) {
+      if (typeof cnpj !== 'string') {
+        return badRequest('CNPJ inválido.');
+      }
+      updates.cnpj = cnpj;
     }
 
     if (specialty !== undefined) {

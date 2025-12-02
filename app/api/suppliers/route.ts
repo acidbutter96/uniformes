@@ -24,15 +24,17 @@ export async function POST(request: Request) {
       return badRequest('Payload inválido.');
     }
 
-    const { name, specialty, leadTimeDays, rating, contactEmail, phone, schoolIds } = payload as {
-      name?: unknown;
-      specialty?: unknown;
-      leadTimeDays?: unknown;
-      rating?: unknown;
-      contactEmail?: unknown;
-      phone?: unknown;
-      schoolIds?: unknown;
-    };
+    const { name, cnpj, specialty, leadTimeDays, rating, contactEmail, phone, schoolIds } =
+      payload as {
+        name?: unknown;
+        cnpj?: unknown;
+        specialty?: unknown;
+        leadTimeDays?: unknown;
+        rating?: unknown;
+        contactEmail?: unknown;
+        phone?: unknown;
+        schoolIds?: unknown;
+      };
 
     if (typeof name !== 'string' || !name.trim()) {
       return badRequest('Nome do fornecedor é obrigatório.');
@@ -40,6 +42,10 @@ export async function POST(request: Request) {
 
     if (specialty !== undefined && typeof specialty !== 'string') {
       return badRequest('Especialidade inválida.');
+    }
+
+    if (cnpj !== undefined && typeof cnpj !== 'string') {
+      return badRequest('CNPJ inválido.');
     }
 
     let resolvedLeadTime: number | undefined;
@@ -78,6 +84,7 @@ export async function POST(request: Request) {
 
     const created = await createSupplier({
       name,
+      cnpj: cnpj as string | undefined,
       specialty: specialty as string | undefined,
       leadTimeDays: resolvedLeadTime,
       rating: resolvedRating,

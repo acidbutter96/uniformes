@@ -33,7 +33,7 @@ export default async function AdminDashboardPage() {
   };
 
   return (
-    <AdminGuard requiredRole="admin">
+    <AdminGuard requiredRole={['admin', 'supplier']}>
       <div className="space-y-8">
         <header className="flex flex-col gap-4 border-b border-neutral-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>

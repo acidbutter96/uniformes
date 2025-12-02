@@ -17,6 +17,11 @@ const adminNav = [
   { href: '/admin/reservations', label: 'Reservas' },
 ];
 
+const supplierNav = [
+  { href: '/admin/dashboard', label: 'Dashboard' },
+  { href: '/admin/escolas-atendidas', label: 'Escolas atendidas' },
+];
+
 const userNav = [{ href: '/sobre', label: 'Como funciona' }];
 
 const guestNav = [
@@ -29,11 +34,15 @@ export default function Header() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const role = typeof user?.role === 'string' ? (user.role as 'admin' | 'user') : null;
+  const role = typeof user?.role === 'string' ? (user.role as 'admin' | 'user' | 'supplier') : null;
 
   const navItems = useMemo(() => {
     if (role === 'admin') {
       return adminNav;
+    }
+
+    if (role === 'supplier') {
+      return supplierNav;
     }
 
     if (role === 'user') {
@@ -59,7 +68,11 @@ export default function Header() {
             >
               <Image src="/images/logo.png" alt="Uniforma" width={48} height={60} priority />
             </Link>
-            {role && <Badge tone="accent">{role === 'admin' ? 'Admin' : 'Responsável'}</Badge>}
+            {role && (
+              <Badge tone="accent">
+                {role === 'admin' ? 'Admin' : role === 'supplier' ? 'Fornecedor' : 'Responsável'}
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center gap-3 md:hidden">

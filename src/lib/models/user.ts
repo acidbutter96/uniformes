@@ -1,4 +1,4 @@
-import mongoose, { Schema, type Document, type Model } from 'mongoose';
+import mongoose, { Schema, type Document, type Model, type Types } from 'mongoose';
 
 export interface UserAddress {
   cep: string;
@@ -10,13 +10,16 @@ export interface UserAddress {
   state: string;
 }
 
+export type UserRole = 'user' | 'admin' | 'supplier';
+
 export interface UserDocument extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'user' | 'admin';
+  role: UserRole;
   provider: 'credentials' | 'google';
   verified: boolean;
+  supplierId?: Types.ObjectId | null;
   cpf?: string;
   birthDate?: Date;
   address?: UserAddress;
@@ -44,7 +47,7 @@ const UserSchema = new Schema<UserDocument>(
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
+      enum: ['user', 'admin', 'supplier'],
       default: 'user',
     },
     provider: {
@@ -55,6 +58,11 @@ const UserSchema = new Schema<UserDocument>(
     verified: {
       type: Boolean,
       default: false,
+    },
+    supplierId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Supplier',
+      required: false,
     },
     cpf: {
       type: String,

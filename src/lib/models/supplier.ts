@@ -2,6 +2,7 @@ import mongoose, { Schema, Types, type Document, type Model } from 'mongoose';
 
 export interface SupplierDocument extends Document {
   name: string;
+  cnpj?: string;
   specialty?: string;
   leadTimeDays?: number;
   rating?: number;
@@ -18,6 +19,12 @@ const SupplierSchema = new Schema<SupplierDocument>(
       type: String,
       required: true,
       trim: true,
+    },
+    cnpj: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
     },
     specialty: {
       type: String,

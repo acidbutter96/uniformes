@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer 
 
 export interface AuthUser extends Record<string, unknown> {
   _id?: string;
-  role?: 'user' | 'admin';
+  role?: 'user' | 'admin' | 'supplier';
   name?: string;
   email?: string;
   cpf?: string;

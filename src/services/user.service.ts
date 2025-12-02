@@ -1,5 +1,9 @@
 import dbConnect from '@/src/lib/database';
-import UserModel, { type UserAddress, type UserDocument } from '@/src/lib/models/user';
+import UserModel, {
+  type UserAddress,
+  type UserDocument,
+  type UserRole,
+} from '@/src/lib/models/user';
 
 export async function findByEmail(email: string) {
   await dbConnect();
@@ -10,7 +14,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
-  role?: 'user' | 'admin';
+  role?: UserRole;
   provider?: 'credentials' | 'google';
   verified?: boolean;
   cpf?: string;

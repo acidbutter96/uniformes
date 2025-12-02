@@ -1,0 +1,60 @@
+import { randomBytes } from 'crypto';
+
+import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
+import { badRequest, ok, serverError } from '@/app/api/utils/responses';
+import dbConnect from '@/src/lib/database';
+import SupplierInviteModel from '@/src/lib/models/supplierInvite';
+
+export async function POST(request: Request) {
+  const authError = ensureAdminAccess(request);
+  if (authError) {
+    return authError;
+  }
+
+  try {
+    const payload = (await request.json().catch(() => null)) as {
+      supplierId?: unknown;
+      email?: unknown;
+      expiresInMinutes?: unknown;
+    } | null;
+
+    const supplierId = payload?.supplierId;
+    const email = payload?.email;
+    const expiresInMinutes = Number(payload?.expiresInMinutes ?? 60);
+
+    if (supplierId !== undefined && typeof supplierId !== 'string') {
+      return badRequest('supplierId inválido.');
+    }
+
+    if (email !== undefined && typeof email !== 'string') {
+      return badRequest('Email inválido.');
+    }
+
+    if (!Number.isFinite(expiresInMinutes) || expiresInMinutes <= 0) {
+      return badRequest('Duração do token inválida.');
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + expiresInMinutes * 60 * 1000);
+
+    await dbConnect();
+
+    const token = randomBytes(24).toString('hex');
+
+    const created = await SupplierInviteModel.create({
+      token,
+      supplierId: supplierId ?? null,
+      email,
+      role: 'supplier',
+      expiresAt,
+    });
+
+    return ok({
+      token: created.token,
+      expiresAt: created.expiresAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to create supplier invite', error);
+    return serverError('Não foi possível criar convite para fornecedor.');
+  }
+}

@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
 import useRequireAuth from '@/src/hooks/useRequireAuth';
+
+type AdminAllowedRole = 'admin' | 'user' | 'supplier' | (string & {});
 
 interface AdminGuardProps {
   children: ReactNode;
   loadingMessage?: string;
   redirectTo?: string;
-  requiredRole?: string;
+  requiredRole?: AdminAllowedRole | AdminAllowedRole[];
 }
 
 export default function AdminGuard({
@@ -21,14 +23,22 @@ export default function AdminGuard({
   const router = useRouter();
   const { user, loading } = useRequireAuth({ redirectTo });
 
-  let role: string | undefined;
+  let role: AdminAllowedRole | undefined;
   if (typeof user === 'object' && user !== null) {
     const candidate = (user as { role?: unknown }).role;
     if (typeof candidate === 'string') {
       role = candidate;
     }
   }
-  const shouldRedirectForRole = !loading && !!requiredRole && role !== requiredRole;
+  const shouldRedirectForRole = useMemo(() => {
+    if (loading || !requiredRole) return false;
+
+    if (Array.isArray(requiredRole)) {
+      return !requiredRole.includes(role ?? '');
+    }
+
+    return role !== requiredRole;
+  }, [loading, requiredRole, role]);
 
   useEffect(() => {
     if (shouldRedirectForRole) {

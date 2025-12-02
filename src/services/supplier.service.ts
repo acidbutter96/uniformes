@@ -8,6 +8,7 @@ import type { SupplierDTO } from '@/src/types/supplier';
 
 export type CreateSupplierInput = {
   name: string;
+  cnpj?: string;
   specialty?: string;
   leadTimeDays?: number;
   rating?: number;
@@ -80,6 +81,7 @@ export async function createSupplier(input: CreateSupplierInput) {
   const schoolIds = await resolveSchoolIds(input.schoolIds ?? []);
   const created = await SupplierModel.create({
     name: input.name.trim(),
+    cnpj: input.cnpj?.trim(),
     specialty: input.specialty?.trim(),
     leadTimeDays: input.leadTimeDays,
     rating: input.rating,
@@ -96,6 +98,10 @@ export async function updateSupplier(id: string, updates: UpdateSupplierInput) {
 
   if (updates.name !== undefined) {
     updateQuery.name = updates.name.trim();
+  }
+
+  if (updates.cnpj !== undefined) {
+    updateQuery.cnpj = updates.cnpj?.trim() ?? null;
   }
 
   if (updates.contactEmail !== undefined) {

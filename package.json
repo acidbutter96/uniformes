@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write .",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "migrate:cpf": "tsx scripts/add-cpf-unique-index.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

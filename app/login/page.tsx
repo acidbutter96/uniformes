@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useState } from 'react';
 
+import { PasswordField } from '@/app/components/forms/PasswordField';
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
@@ -115,20 +116,15 @@ function LoginView() {
               />
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="login-password" className="text-sm font-medium text-text">
-                Senha
-              </label>
-              <Input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="••••••••"
-                value={password}
-                onChange={event => setPassword(event.target.value)}
-                required
-              />
-            </div>
+            <PasswordField
+              id="login-password"
+              label="Senha"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+              required
+            />
 
             <Button type="submit" fullWidth disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}

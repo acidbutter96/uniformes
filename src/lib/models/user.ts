@@ -1,5 +1,15 @@
 import mongoose, { Schema, type Document, type Model } from 'mongoose';
 
+export interface UserAddress {
+  cep: string;
+  street: string;
+  number?: string;
+  complement?: string;
+  district: string;
+  city: string;
+  state: string;
+}
+
 export interface UserDocument extends Document {
   name: string;
   email: string;
@@ -7,6 +17,9 @@ export interface UserDocument extends Document {
   role: 'user' | 'admin';
   provider: 'credentials' | 'google';
   verified: boolean;
+  cpf?: string;
+  birthDate?: Date;
+  address?: UserAddress;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,8 +56,31 @@ const UserSchema = new Schema<UserDocument>(
       type: Boolean,
       default: false,
     },
+    cpf: {
+      type: String,
+      trim: true,
+      sparse: true,
+      unique: true,
+    },
+    birthDate: {
+      type: Date,
+    },
+    address: {
+      cep: { type: String, trim: true },
+      street: { type: String, trim: true },
+      number: { type: String, trim: true },
+      complement: { type: String, trim: true },
+      district: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+    },
   },
   { timestamps: true },
+);
+
+UserSchema.index(
+  { cpf: 1 },
+  { unique: true, partialFilterExpression: { cpf: { $type: 'string' } } },
 );
 
 const UserModel: Model<UserDocument> =

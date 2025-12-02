@@ -7,6 +7,17 @@ export interface AuthUser extends Record<string, unknown> {
   role?: 'user' | 'admin';
   name?: string;
   email?: string;
+  cpf?: string;
+  birthDate?: string | Date;
+  address?: {
+    cep?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    district?: string;
+    city?: string;
+    state?: string;
+  };
 }
 
 interface AuthState {

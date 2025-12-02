@@ -1,19 +1,24 @@
 import dbConnect from '@/src/lib/database';
-import UserModel, { type UserDocument } from '@/src/lib/models/user';
+import UserModel, { type UserAddress, type UserDocument } from '@/src/lib/models/user';
 
 export async function findByEmail(email: string) {
   await dbConnect();
   return UserModel.findOne({ email }).exec();
 }
 
-export async function createUser(data: {
+export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
   role?: 'user' | 'admin';
   provider?: 'credentials' | 'google';
   verified?: boolean;
-}) {
+  cpf?: string;
+  birthDate?: Date;
+  address?: UserAddress;
+}
+
+export async function createUser(data: CreateUserInput) {
   await dbConnect();
   return UserModel.create({
     ...data,

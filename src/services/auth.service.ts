@@ -2,11 +2,90 @@ import bcrypt from 'bcryptjs';
 import jwt, { type JwtPayload, type Secret, type SignOptions } from 'jsonwebtoken';
 
 import dbConnect from '@/src/lib/database';
-import UserModel from '@/src/lib/models/user';
+import UserModel, { type UserAddress } from '@/src/lib/models/user';
 
 const JWT_SECRET: Secret | undefined = process.env.JWT_SECRET;
 
 type AccessTokenPayload = JwtPayload & Record<string, unknown>;
+
+type RegisterAddressInput = {
+  cep: string;
+  street: string;
+  number?: string;
+  complement?: string;
+  district: string;
+  city: string;
+  state: string;
+};
+
+export interface RegisterUserPayload {
+  name: string;
+  email: string;
+  password: string;
+  cpf: string;
+  birthDate: string;
+  address: RegisterAddressInput;
+  provider?: 'credentials' | 'google';
+  role?: 'user' | 'admin';
+}
+
+function normalizeDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+export function normalizeCpf(cpf: string): string {
+  return normalizeDigits(cpf);
+}
+
+export function isValidCpf(cpf: string): boolean {
+  const digits = normalizeCpf(cpf);
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+
+  const calcCheckDigit = (slice: number): number => {
+    const sum = digits
+      .slice(0, slice)
+      .split('')
+      .reduce((acc, digit, index) => acc + parseInt(digit, 10) * (slice + 1 - index), 0);
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+
+  const check1 = calcCheckDigit(9);
+  const check2 = calcCheckDigit(10);
+
+  return check1 === Number(digits[9]) && check2 === Number(digits[10]);
+}
+
+function normalizeCep(cep: string): string {
+  return normalizeDigits(cep);
+}
+
+function sanitizeAddress(address: RegisterAddressInput): UserAddress {
+  const cep = normalizeCep(address.cep);
+  if (cep.length !== 8) {
+    throw new Error('CEP inválido.');
+  }
+
+  const street = address.street?.trim();
+  const district = address.district?.trim();
+  const city = address.city?.trim();
+  const state = address.state?.trim().toUpperCase();
+
+  if (!street || !district || !city || !state) {
+    throw new Error('Endereço incompleto.');
+  }
+
+  return {
+    cep,
+    street,
+    district,
+    city,
+    state,
+    number: address.number?.trim() || undefined,
+    complement: address.complement?.trim() || undefined,
+  };
+}
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(10);
@@ -57,19 +136,35 @@ export async function loginWithCredentials(email: string, password: string) {
   };
 }
 
-export async function registerUser(data: {
-  name: string;
-  email: string;
-  password: string;
-  provider?: 'credentials' | 'google';
-  role?: 'user' | 'admin';
-}) {
+export async function registerUser(data: RegisterUserPayload) {
   await dbConnect();
 
   const existing = await UserModel.findOne({ email: data.email }).lean().exec();
   if (existing) {
     throw new Error('Email already registered.');
   }
+
+  if (!isValidCpf(data.cpf)) {
+    throw new Error('CPF inválido.');
+  }
+
+  const normalizedCpf = normalizeCpf(data.cpf);
+
+  const existingCpf = await UserModel.findOne({ cpf: normalizedCpf }).lean().exec();
+  if (existingCpf) {
+    throw new Error('CPF já cadastrado.');
+  }
+
+  const parsedBirthDate = new Date(data.birthDate);
+  if (Number.isNaN(parsedBirthDate.getTime())) {
+    throw new Error('Data de nascimento inválida.');
+  }
+  const today = new Date();
+  if (parsedBirthDate > today) {
+    throw new Error('Data de nascimento no futuro não é permitida.');
+  }
+
+  const sanitizedAddress = sanitizeAddress(data.address);
 
   const hashedPassword = await hashPassword(data.password);
 
@@ -80,6 +175,9 @@ export async function registerUser(data: {
     provider: data.provider ?? 'credentials',
     role: data.role ?? 'user',
     verified: data.provider === 'google',
+    cpf: normalizedCpf,
+    birthDate: parsedBirthDate,
+    address: sanitizedAddress,
   });
 
   const token = generateAccessToken({ sub: user._id.toString(), role: user.role });

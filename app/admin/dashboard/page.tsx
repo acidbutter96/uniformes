@@ -48,11 +48,7 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Button variant="secondary">Exportar dados</Button>
-            <Button>Criar reserva</Button>
-            <Link
-              href="/admin/invites"
-              className={buttonClasses({ variant: 'secondary', size: 'md' })}
-            >
+            <Link href="/admin/invites" className={buttonClasses({ size: 'md' })}>
               Convites fornecedores
             </Link>
           </div>

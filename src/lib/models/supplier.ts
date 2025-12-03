@@ -24,8 +24,6 @@ const SupplierSchema = new Schema<SupplierDocument>(
     cnpj: {
       type: String,
       trim: true,
-      unique: true,
-      sparse: true,
     },
     specialty: {
       type: String,
@@ -64,6 +62,12 @@ const SupplierSchema = new Schema<SupplierDocument>(
     ],
   },
   { timestamps: true },
+);
+
+// Unique index only when cnpj is a string (allows multiple nulls/missing)
+SupplierSchema.index(
+  { cnpj: 1 },
+  { unique: true, partialFilterExpression: { cnpj: { $type: 'string' } }, name: 'cnpj_unique' },
 );
 
 const SupplierModel: Model<SupplierDocument> =

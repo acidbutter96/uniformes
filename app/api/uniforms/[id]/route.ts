@@ -42,18 +42,16 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
       return badRequest('Payload inválido.');
     }
 
-    const { name, description, supplierId, category, gender, price, sizes, imageSrc, imageAlt } =
-      payload as {
-        name?: unknown;
-        description?: unknown;
-        supplierId?: unknown;
-        category?: unknown;
-        gender?: unknown;
-        price?: unknown;
-        sizes?: unknown;
-        imageSrc?: unknown;
-        imageAlt?: unknown;
-      };
+    const { name, description, category, gender, price, sizes, imageSrc, imageAlt } = payload as {
+      name?: unknown;
+      description?: unknown;
+      category?: unknown;
+      gender?: unknown;
+      price?: unknown;
+      sizes?: unknown;
+      imageSrc?: unknown;
+      imageAlt?: unknown;
+    };
 
     const updates: Record<string, unknown> = {};
 
@@ -69,13 +67,6 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
         return badRequest('Descrição inválida.');
       }
       updates.description = description;
-    }
-
-    if (supplierId !== undefined) {
-      if (typeof supplierId !== 'string' || !supplierId.trim()) {
-        return badRequest('Fornecedor inválido.');
-      }
-      updates.supplierId = supplierId;
     }
 
     if (category !== undefined) {
@@ -136,9 +127,6 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
     return ok(updated);
   } catch (error) {
     console.error('Failed to update uniform', error);
-    if (error instanceof Error && error.message.includes('Fornecedor não encontrado')) {
-      return notFound(error.message);
-    }
 
     return serverError('Não foi possível atualizar o uniforme.');
   }

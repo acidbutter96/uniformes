@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types, type Document, type Model } from 'mongoose';
+import mongoose, { Schema, type Document, type Model } from 'mongoose';
 
 import {
   type UniformCategory,
@@ -10,7 +10,6 @@ import {
 export interface UniformDocument extends Document {
   name: string;
   description?: string;
-  supplierId: Types.ObjectId;
   category: UniformCategory;
   gender: UniformGender;
   sizes: string[];
@@ -40,11 +39,6 @@ const UniformSchema = new Schema<UniformDocument>(
     gender: {
       type: String,
       enum: UNIFORM_GENDERS,
-      required: true,
-    },
-    supplierId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Supplier',
       required: true,
     },
     sizes: {

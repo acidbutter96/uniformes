@@ -4,7 +4,6 @@ import { Badge } from '@/app/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/app/lib/format';
 import { listReservations } from '@/src/services/reservation.service';
 import { listSchools } from '@/src/services/school.service';
-import { listSuppliers } from '@/src/services/supplier.service';
 import { listUniforms } from '@/src/services/uniform.service';
 import type { ReservationStatus } from '@/src/types/reservation';
 
@@ -15,17 +14,14 @@ const STATUS_TONE: Record<ReservationStatus, 'success' | 'warning' | 'accent'> =
 };
 
 export default async function AdminReservationsPage() {
-  const [reservations, schools, uniforms, suppliers] = await Promise.all([
+  const [reservations, schools, uniforms] = await Promise.all([
     listReservations(),
     listSchools(),
     listUniforms(),
-    listSuppliers(),
   ]);
 
   const schoolLookup = new Map(schools.map(school => [school.id, school]));
   const uniformLookup = new Map(uniforms.map(uniform => [uniform.id, uniform]));
-  const supplierLookup = new Map(suppliers.map(supplier => [supplier.id, supplier]));
-
   const resolveSchoolLabel = (id: string) => {
     const school = schoolLookup.get(id);
     if (!school) {
@@ -37,13 +33,11 @@ export default async function AdminReservationsPage() {
   const resolveUniformInfo = (uniformId: string) => {
     const uniform = uniformLookup.get(uniformId);
     if (!uniform) {
-      return { uniformLabel: uniformId, supplierLabel: '—' };
+      return { uniformLabel: uniformId };
     }
 
-    const supplier = supplierLookup.get(uniform.supplierId);
     return {
       uniformLabel: uniform.name,
-      supplierLabel: supplier?.name ?? uniform.supplierId,
     };
   };
 
@@ -71,7 +65,7 @@ export default async function AdminReservationsPage() {
             </thead>
             <tbody className="divide-y divide-neutral-100 bg-white">
               {reservations.map(reservation => {
-                const { uniformLabel, supplierLabel } = resolveUniformInfo(reservation.uniformId);
+                const { uniformLabel } = resolveUniformInfo(reservation.uniformId);
                 return (
                   <tr key={reservation.id} className="hover:bg-brand-50/40">
                     <td className="px-4 py-3 font-medium text-neutral-900">{reservation.id}</td>
@@ -81,7 +75,6 @@ export default async function AdminReservationsPage() {
                     <td className="px-4 py-3 text-neutral-600">
                       <div className="flex flex-col">
                         <span>{uniformLabel}</span>
-                        <span className="text-xs text-neutral-400">{supplierLabel}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">

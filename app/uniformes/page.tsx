@@ -9,18 +9,9 @@ import { UniformCard } from '@/app/components/cards/UniformCard';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
 import type { Uniform } from '@/app/lib/models/uniform';
-import type { Supplier } from '@/app/lib/models/supplier';
 import { loadOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
-const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
-  const ids = Array.isArray(supplier.schoolIds)
-    ? supplier.schoolIds
-    : Array.isArray(supplier.schools)
-      ? supplier.schools
-      : [];
-
-  return ids.includes(schoolId);
-};
+// Note: uniforms no longer reference suppliers; supplier matching removed.
 
 export default function UniformsPage() {
   return (
@@ -39,7 +30,6 @@ function UniformsPageContent() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [uniforms, setUniforms] = useState<Uniform[]>([]);
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [selectedUniformId, setSelectedUniformId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,33 +46,13 @@ function UniformsPageContent() {
 
     const fetchData = async () => {
       try {
-        const [uniformsResponse, suppliersResponse] = await Promise.all([
-          fetch('/api/uniforms'),
-          fetch('/api/suppliers'),
-        ]);
-
-        if (!uniformsResponse.ok || !suppliersResponse.ok) {
+        const uniformsResponse = await fetch('/api/uniforms');
+        if (!uniformsResponse.ok) {
           throw new Error('Não foi possível carregar os uniformes.');
         }
 
         const uniformsPayload = (await uniformsResponse.json()) as { data: Uniform[] };
-        const suppliersPayload = (await suppliersResponse.json()) as { data: Supplier[] };
-
         setUniforms(uniformsPayload.data ?? []);
-
-        const currentSchoolId = schoolIdFromParams ?? state.schoolId;
-        let matchedSupplier: Supplier | undefined;
-
-        if (currentSchoolId) {
-          matchedSupplier = suppliersPayload.data?.find(currentSupplier =>
-            supplierSupportsSchool(currentSupplier, currentSchoolId),
-          );
-        }
-
-        if (matchedSupplier) {
-          setSupplier(matchedSupplier);
-          saveOrderFlowState({ supplierId: matchedSupplier.id });
-        }
 
         if (state.uniformId) {
           setSelectedUniformId(state.uniformId);
@@ -97,13 +67,7 @@ function UniformsPageContent() {
     fetchData();
   }, [router, schoolIdFromParams]);
 
-  const filteredUniforms = useMemo(() => {
-    if (!supplier) {
-      return uniforms;
-    }
-
-    return uniforms.filter(uniform => uniform.supplierId === supplier.id);
-  }, [supplier, uniforms]);
+  const filteredUniforms = useMemo(() => uniforms, [uniforms]);
 
   const handleSelect = (uniform: Uniform) => {
     setSelectedUniformId(uniform.id);
@@ -166,10 +130,6 @@ function UniformsPageContent() {
             <Card emphasis="muted" className="flex flex-col gap-sm">
               <h2 className="text-h3 font-heading">Resumo</h2>
               <dl className="flex flex-col gap-xs text-body text-text">
-                <div className="flex justify-between">
-                  <dt className="text-text-muted">Fornecedor</dt>
-                  <dd className="font-medium">{supplier?.name ?? 'Não identificado'}</dd>
-                </div>
                 <div className="flex justify-between">
                   <dt className="text-text-muted">Uniformes</dt>
                   <dd className="font-medium">{filteredUniforms.length}</dd>

@@ -9,7 +9,6 @@ import { Input } from '@/app/components/ui/Input';
 import useAuth from '@/src/hooks/useAuth';
 import { type SupplierDTO } from '@/src/types/supplier';
 
-
 export default function AdminSuppliersPage() {
   const { accessToken } = useAuth();
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);

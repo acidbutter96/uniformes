@@ -1,5 +1,5 @@
 import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
-import { badRequest, notFound, ok, serverError } from '@/app/api/utils/responses';
+import { badRequest, ok, serverError } from '@/app/api/utils/responses';
 import { UNIFORM_CATEGORIES, UNIFORM_GENDERS } from '@/src/lib/models/uniform';
 import { createUniform, listUniforms } from '@/src/services/uniform.service';
 import type { UniformCategory, UniformGender } from '@/src/types/uniform';
@@ -26,25 +26,11 @@ export async function POST(request: Request) {
       return badRequest('Payload inválido.');
     }
 
-    const { name, description, supplierId, category, gender, price, sizes, imageSrc, imageAlt } =
-      payload as {
-        name?: unknown;
-        description?: unknown;
-        supplierId?: unknown;
-        category?: unknown;
-        gender?: unknown;
-        price?: unknown;
-        sizes?: unknown;
-        imageSrc?: unknown;
-        imageAlt?: unknown;
-      };
+    const { name, description, category, gender, price, sizes, imageSrc, imageAlt } =
+      payload as Record<string, unknown>;
 
     if (typeof name !== 'string' || !name.trim()) {
       return badRequest('Nome do uniforme é obrigatório.');
-    }
-
-    if (typeof supplierId !== 'string' || !supplierId.trim()) {
-      return badRequest('Fornecedor é obrigatório.');
     }
 
     if (typeof category !== 'string' || !UNIFORM_CATEGORIES.includes(category as UniformCategory)) {
@@ -83,7 +69,6 @@ export async function POST(request: Request) {
     const created = await createUniform({
       name,
       description: description as string | undefined,
-      supplierId,
       category: category as UniformCategory,
       gender: gender as UniformGender,
       price: numericPrice,
@@ -95,9 +80,6 @@ export async function POST(request: Request) {
     return ok(created, { status: 201 });
   } catch (error) {
     console.error('Failed to create uniform', error);
-    if (error instanceof Error && error.message.includes('Fornecedor não encontrado')) {
-      return notFound(error.message);
-    }
 
     return serverError('Não foi possível criar o uniforme.');
   }

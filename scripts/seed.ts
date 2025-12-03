@@ -402,17 +402,11 @@ async function upsertSupplier(supplier: SeedSupplier, schoolMap: Map<string, Typ
   return updated._id;
 }
 
-async function upsertUniform(uniform: SeedUniform, supplierMap: Map<string, Types.ObjectId>) {
-  const supplierId = supplierMap.get(uniform.supplierKey);
-  if (!supplierId) {
-    throw new Error(`Supplier ${uniform.supplierKey} not found for uniform ${uniform.name}`);
-  }
-
+async function upsertUniform(uniform: SeedUniform) {
   const updated = await UniformModel.findOneAndUpdate(
     { name: uniform.name },
     {
       description: uniform.description,
-      supplierId,
       sizes: uniform.sizes,
       imageSrc: uniform.imageSrc,
       imageAlt: uniform.imageAlt,
@@ -503,7 +497,7 @@ async function seed() {
 
   const uniformMap = new Map<string, Types.ObjectId>();
   for (const uniform of seedUniforms) {
-    const id = await upsertUniform(uniform, supplierMap);
+    const id = await upsertUniform(uniform);
     uniformMap.set(uniform.key, id);
   }
 

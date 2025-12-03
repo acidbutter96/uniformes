@@ -8,7 +8,6 @@ export type UniformDTO = {
   id: string;
   name: string;
   description?: string;
-  supplierId: string;
   category: UniformCategory;
   gender: UniformGender;
   sizes: string[];

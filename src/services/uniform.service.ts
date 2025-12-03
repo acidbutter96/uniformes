@@ -2,7 +2,6 @@ import { Types } from 'mongoose';
 import type { UpdateQuery } from 'mongoose';
 
 import dbConnect from '@/src/lib/database';
-import SupplierModel from '@/src/lib/models/supplier';
 import UniformModel, {
   type UniformDocument,
   UNIFORM_CATEGORIES,
@@ -13,7 +12,6 @@ import type { UniformDTO, UniformCategory, UniformGender } from '@/src/types/uni
 export type CreateUniformInput = {
   name: string;
   description?: string;
-  supplierId: string;
   category: UniformCategory;
   gender: UniformGender;
   price: number;
@@ -40,25 +38,16 @@ export function serializeUniform(doc: SerializableUniform): UniformDTO {
   const plain = doc.toObject() as UniformDocument & {
     _id: Types.ObjectId;
     __v?: unknown;
-    supplierId: Types.ObjectId;
   };
 
-  const { _id, supplierId, createdAt, updatedAt, ...rest } = plain;
+  const { _id, createdAt, updatedAt, ...rest } = plain;
 
   return {
     id: _id.toString(),
-    supplierId: supplierId.toString(),
     ...rest,
     createdAt: toISOString(createdAt),
     updatedAt: toISOString(updatedAt),
   } satisfies UniformDTO;
-}
-
-async function ensureSupplierExists(supplierId: string) {
-  const exists = await SupplierModel.exists({ _id: supplierId }).exec();
-  if (!exists) {
-    throw new Error('Fornecedor não encontrado.');
-  }
 }
 
 export async function listUniforms(filter: UniformFilter = {}) {
@@ -75,13 +64,11 @@ export async function getUniformById(id: string) {
 
 export async function createUniform(input: CreateUniformInput) {
   await dbConnect();
-  await ensureSupplierExists(input.supplierId);
   const created = await UniformModel.create({
     name: input.name.trim(),
     description: input.description?.trim(),
     category: input.category,
     gender: input.gender,
-    supplierId: new Types.ObjectId(input.supplierId),
     sizes: input.sizes ?? [],
     price: input.price,
     imageSrc: input.imageSrc?.trim(),
@@ -115,11 +102,6 @@ export async function updateUniform(id: string, updates: UpdateUniformInput) {
       throw new Error('Gênero de uniforme inválido.');
     }
     updateQuery.gender = updates.gender;
-  }
-
-  if (updates.supplierId !== undefined) {
-    await ensureSupplierExists(updates.supplierId);
-    updateQuery.supplierId = new Types.ObjectId(updates.supplierId);
   }
 
   if (updates.sizes !== undefined) {

@@ -8,7 +8,6 @@ import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
 import { formatCurrency } from '@/app/lib/format';
 import useAuth from '@/src/hooks/useAuth';
-import type { SupplierDTO } from '@/src/types/supplier';
 import {
   type UniformCategory,
   type UniformDTO,
@@ -35,7 +34,6 @@ type UniformFormValues = {
   gender: UniformGender;
   sizesText: string;
   price: number;
-  supplierId: string;
   description: string;
   imageSrc: string;
   imageAlt: string;
@@ -47,7 +45,6 @@ const createEmptyForm = (): UniformFormValues => ({
   gender: 'unissex',
   sizesText: '',
   price: 0,
-  supplierId: '',
   description: '',
   imageSrc: '',
   imageAlt: '',
@@ -56,7 +53,6 @@ const createEmptyForm = (): UniformFormValues => ({
 export default function AdminUniformsPage() {
   const { accessToken } = useAuth();
   const [uniforms, setUniforms] = useState<UniformDTO[]>([]);
-  const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [formValues, setFormValues] = useState<UniformFormValues>(createEmptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +60,7 @@ export default function AdminUniformsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
-  const isFormDisabled = submitting || !accessToken || loading || suppliers.length === 0;
+  const isFormDisabled = submitting || !accessToken || loading;
 
   const fetchUniforms = useCallback(async () => {
     const response = await fetch('/api/uniforms', { cache: 'no-store' });
@@ -75,40 +71,19 @@ export default function AdminUniformsPage() {
     return payload.data ?? [];
   }, []);
 
-  const fetchSuppliers = useCallback(async () => {
-    const response = await fetch('/api/suppliers', { cache: 'no-store' });
-    const payload = (await response.json()) as { data?: SupplierDTO[]; error?: string };
-    if (!response.ok) {
-      throw new Error(payload.error ?? 'Não foi possível carregar fornecedores.');
-    }
-    return payload.data ?? [];
-  }, []);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [uniformData, supplierData] = await Promise.all([fetchUniforms(), fetchSuppliers()]);
+      const uniformData = await fetchUniforms();
       setUniforms(uniformData);
-      setSuppliers(supplierData);
-      setFormValues(prev => {
-        if (supplierData.length === 0) {
-          return { ...prev, supplierId: '' };
-        }
-
-        if (prev.supplierId && supplierData.some(item => item.id === prev.supplierId)) {
-          return prev;
-        }
-
-        return { ...prev, supplierId: supplierData[0]?.id ?? '' };
-      });
       setError(null);
     } catch (err) {
-      console.error('Failed to load uniforms or suppliers', err);
+      console.error('Failed to load uniforms', err);
       setError('Não foi possível carregar os dados. Tente novamente mais tarde.');
     } finally {
       setLoading(false);
     }
-  }, [fetchSuppliers, fetchUniforms]);
+  }, [fetchUniforms]);
 
   useEffect(() => {
     loadData();
@@ -164,7 +139,7 @@ export default function AdminUniformsPage() {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormValues(prev => ({ ...createEmptyForm(), supplierId: prev.supplierId }));
+    setFormValues(createEmptyForm());
     setError(null);
   };
 
@@ -188,11 +163,6 @@ export default function AdminUniformsPage() {
       return;
     }
 
-    if (!formValues.supplierId) {
-      setError('Selecione um fornecedor.');
-      return;
-    }
-
     if (formValues.price <= 0) {
       setError('Preço deve ser maior que zero.');
       return;
@@ -208,7 +178,6 @@ export default function AdminUniformsPage() {
         gender: formValues.gender,
         sizes,
         price: formValues.price,
-        supplierId: formValues.supplierId,
         description: formValues.description.trim() || undefined,
         imageSrc: formValues.imageSrc.trim() || undefined,
         imageAlt: formValues.imageAlt.trim() || undefined,
@@ -247,7 +216,6 @@ export default function AdminUniformsPage() {
       gender: target.gender,
       price: target.price,
       sizesText: target.sizes.join(', '),
-      supplierId: target.supplierId,
       description: target.description ?? '',
       imageSrc: target.imageSrc ?? '',
       imageAlt: target.imageAlt ?? '',
@@ -279,10 +247,7 @@ export default function AdminUniformsPage() {
     }
   };
 
-  const supplierLookup = useMemo(
-    () => new Map(suppliers.map(supplier => [supplier.id, supplier.name ?? supplier.id])),
-    [suppliers],
-  );
+  // Supplier relation removed; no lookup needed.
 
   return (
     <AdminGuard requiredRole="admin">
@@ -290,7 +255,7 @@ export default function AdminUniformsPage() {
         <header className="space-y-2">
           <h1 className="text-2xl font-semibold text-neutral-900">Catálogo de uniformes</h1>
           <p className="text-sm text-neutral-500">
-            Gerencie itens, tamanhos disponíveis, precificação e relacionamento com fornecedores.
+            Gerencie itens, tamanhos disponíveis, precificação e imagens.
           </p>
         </header>
 
@@ -302,7 +267,6 @@ export default function AdminUniformsPage() {
                   <th className="px-4 py-3">Nome</th>
                   <th className="px-4 py-3">Categoria</th>
                   <th className="px-4 py-3">Gênero</th>
-                  <th className="px-4 py-3">Fornecedor</th>
                   <th className="px-4 py-3">Tamanhos</th>
                   <th className="px-4 py-3">Preço</th>
                   <th className="px-4 py-3 text-right">Ações</th>
@@ -316,9 +280,6 @@ export default function AdminUniformsPage() {
                       <Badge tone="accent">{CATEGORY_LABEL[uniform.category]}</Badge>
                     </td>
                     <td className="px-4 py-3 text-neutral-600">{GENDER_LABEL[uniform.gender]}</td>
-                    <td className="px-4 py-3 text-neutral-600">
-                      {supplierLookup.get(uniform.supplierId) ?? uniform.supplierId}
-                    </td>
                     <td className="px-4 py-3 text-neutral-600">{uniform.sizes.join(', ')}</td>
                     <td className="px-4 py-3 text-neutral-600">{formatCurrency(uniform.price)}</td>
                     <td className="px-4 py-3">
@@ -345,7 +306,7 @@ export default function AdminUniformsPage() {
                 ))}
                 {uniforms.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-neutral-500">
+                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-neutral-500">
                       Nenhum uniforme cadastrado até o momento.
                     </td>
                   </tr>
@@ -363,11 +324,6 @@ export default function AdminUniformsPage() {
             </p>
 
             {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-            {suppliers.length === 0 && !loading && (
-              <p className="mt-4 text-sm text-brand-700">
-                Cadastre um fornecedor antes de adicionar novos uniformes.
-              </p>
-            )}
 
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
               <div className="space-y-1">
@@ -425,29 +381,6 @@ export default function AdminUniformsPage() {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor="uniform-supplier" className="text-sm font-medium text-neutral-700">
-                  Fornecedor
-                </label>
-                <select
-                  id="uniform-supplier"
-                  value={formValues.supplierId}
-                  onChange={event => handleChange('supplierId', event.target.value)}
-                  className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-primary/40"
-                  disabled={isFormDisabled}
-                  required
-                >
-                  <option value="" disabled>
-                    Selecione um fornecedor
-                  </option>
-                  {suppliers.map(supplier => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div className="space-y-1">

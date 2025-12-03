@@ -3,6 +3,8 @@ import type { NextRequest } from 'next/server';
 import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
 import { badRequest, notFound, ok, serverError } from '@/app/api/utils/responses';
 import { deleteSupplier, updateSupplier } from '@/src/services/supplier.service';
+import dbConnect from '@/src/lib/database';
+import UserModel from '@/src/lib/models/user';
 
 type ParamsPromise = Promise<Record<string, string | string[] | undefined>>;
 
@@ -119,6 +121,12 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
         !['active', 'pending', 'inactive', 'suspended'].includes(status)
       ) {
         return badRequest('Status inválido.');
+      }
+      // Block status changes if supplier has no associated user
+      await dbConnect();
+      const hasUser = await UserModel.exists({ supplierId: supplierId });
+      if (!hasUser) {
+        return badRequest('Status não pode ser alterado enquanto o fornecedor não possui usuário.');
       }
       updates.status = status as 'active' | 'pending' | 'inactive' | 'suspended';
     }

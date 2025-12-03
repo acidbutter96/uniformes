@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable prettier/prettier */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Alert } from '@/app/components/ui/Alert';
@@ -72,7 +72,9 @@ export default function SupplierRegisterClient() {
     const searchParams = useSearchParams();
     const token = searchParams?.get('token') ?? '';
 
-    const [name, setName] = useState('');
+    const [name, setName] = useState(''); // user full name
+    const [supplierName, setSupplierName] = useState('');
+    const [supplierLocked, setSupplierLocked] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -95,6 +97,32 @@ export default function SupplierRegisterClient() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        async function loadInvite() {
+            if (!token) return;
+            try {
+                const res = await fetch(`/api/suppliers/register-by-token?token=${encodeURIComponent(token)}`);
+                const data = await res.json();
+                if (!res.ok) {
+                    setError(data?.error ?? 'Não foi possível verificar o convite.');
+                    return;
+                }
+                const sId = data?.data?.supplierId ?? data?.supplierId ?? null;
+                const sName = data?.data?.supplierName ?? data?.supplierName ?? '';
+                if (sId) {
+                    setSupplierLocked(true);
+                    setSupplierName(sName ?? '');
+                } else {
+                    setSupplierLocked(false);
+                }
+            } catch (e) {
+                console.error('Failed to load invite metadata', e);
+                setError('Não foi possível verificar o convite.');
+            }
+        }
+        loadInvite();
+    }, [token]);
 
     const handleCpfChange = (rawValue: string) => {
         const digits = digitsOnly(rawValue).slice(0, 11);
@@ -243,7 +271,8 @@ export default function SupplierRegisterClient() {
                 },
                 body: JSON.stringify({
                     token,
-                    name,
+                    name, // user full name
+                    supplierName,
                     email,
                     password,
                     cpf: digitsOnly(cpf),
@@ -476,6 +505,21 @@ export default function SupplierRegisterClient() {
                             {!hasAutoAddress && !isFetchingCep && (
                                 <span className="font-semibold text-danger">CEP ainda não aplicado</span>
                             )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <label htmlFor="company-name" className="text-sm font-medium text-text">
+                                Nome do fornecedor
+                            </label>
+                            <Input
+                                id="company-name"
+                                placeholder={supplierLocked ? '' : 'Ex: Malharia Silva Ltda.'}
+                                value={supplierName}
+                                onChange={event => setSupplierName(event.target.value)}
+                                required={!supplierLocked}
+                                readOnly={supplierLocked}
+                                aria-readonly={supplierLocked}
+                            />
                         </div>
 
                         <div className="space-y-1">

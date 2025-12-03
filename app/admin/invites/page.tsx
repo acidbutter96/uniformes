@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AdminGuard from '../AdminGuard';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -14,11 +14,37 @@ export default function SupplierInvitesPage() {
   const { accessToken, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [supplierId, setSupplierId] = useState('');
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [expiresInMinutes, setExpiresInMinutes] = useState(60);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchSuppliers() {
+      if (!accessToken || authLoading) return;
+      setSuppliersLoading(true);
+      try {
+        const res = await fetch('/api/admin/suppliers/without-user', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          console.error('Failed to load suppliers without user', data);
+          return;
+        }
+        const list = (data?.data ?? []) as Array<{ id: string; name: string }>;
+        setSuppliers(list);
+      } catch (err) {
+        console.error('Error loading suppliers without user', err);
+      } finally {
+        setSuppliersLoading(false);
+      }
+    }
+    fetchSuppliers();
+  }, [accessToken, authLoading]);
 
   async function handleCreateInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -124,17 +150,24 @@ export default function SupplierInvitesPage() {
 
               <div className="flex flex-col gap-1">
                 <label htmlFor="supplierId" className="text-sm font-medium text-neutral-800">
-                  Supplier ID existente (opcional)
+                  Fornecedor sem usuário (opcional)
                 </label>
-                <Input
+                <select
                   id="supplierId"
-                  placeholder="Opcional: ID de um fornecedor já cadastrado"
+                  className="h-10 w-full rounded-md border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none ring-0 transition focus:border-neutral-500"
                   value={supplierId}
                   onChange={event => setSupplierId(event.target.value)}
-                />
+                >
+                  <option value="">Selecione um fornecedor</option>
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
                 <p className="text-xs text-neutral-500">
-                  Use apenas se o fornecedor já existir na base e o convite for para criar o
-                  usuário.
+                  Lista apenas fornecedores que ainda não possuem usuário associado.
+                  {suppliersLoading ? ' Carregando fornecedores...' : ''}
                 </p>
               </div>
             </div>

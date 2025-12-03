@@ -6,11 +6,54 @@ import UserModel from '@/src/lib/models/user';
 import { createUser } from '@/src/services/user.service';
 import { hashPassword, isValidCpf, normalizeCpf } from '@/src/services/auth.service';
 
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    const token = url.searchParams.get('token') ?? '';
+
+    if (!token) {
+      return badRequest('Token é obrigatório.');
+    }
+
+    await dbConnect();
+
+    const invite = await SupplierInviteModel.findOne({ token }).lean().exec();
+    if (!invite) {
+      return badRequest('Convite inválido ou não encontrado.');
+    }
+
+    if (invite.usedAt) {
+      return badRequest('Este convite já foi utilizado.');
+    }
+
+    if (invite.expiresAt.getTime() < Date.now()) {
+      return badRequest('Este convite expirou.');
+    }
+
+    let supplierName: string | null = null;
+    let supplierId: string | null = null;
+
+    if (invite.supplierId) {
+      const supplier = await SupplierModel.findById(invite.supplierId).select({ name: 1 }).lean();
+      if (supplier) {
+        supplierId = invite.supplierId.toString();
+        supplierName = (supplier as { name?: string }).name ?? '';
+      }
+    }
+
+    return ok({ supplierId, supplierName });
+  } catch (error) {
+    console.error('Failed to inspect supplier invite token', error);
+    return serverError('Não foi possível verificar o convite.');
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const payload = (await request.json().catch(() => null)) as {
       token?: unknown;
-      name?: unknown;
+      name?: unknown; // user name
+      supplierName?: unknown; // supplier/company name when creating new supplier
       email?: unknown;
       password?: unknown;
       cnpj?: unknown;
@@ -25,15 +68,22 @@ export async function POST(request: Request) {
       return badRequest('Payload inválido.');
     }
 
-    const { token, name, email, password, cnpj, specialty, phone, cpf, birthDate, address } =
-      payload;
+    const {
+      token,
+      name: userName,
+      supplierName,
+      email,
+      password,
+      cnpj,
+      specialty,
+      phone,
+      cpf,
+      birthDate,
+      address,
+    } = payload;
 
     if (typeof token !== 'string' || !token.trim()) {
       return badRequest('Token é obrigatório.');
-    }
-
-    if (typeof name !== 'string' || !name.trim()) {
-      return badRequest('Nome da empresa é obrigatório.');
     }
 
     if (typeof email !== 'string' || !email.trim()) {
@@ -42,6 +92,10 @@ export async function POST(request: Request) {
 
     if (typeof password !== 'string' || password.length < 6) {
       return badRequest('Senha deve ter ao menos 6 caracteres.');
+    }
+
+    if (typeof userName !== 'string' || !userName.trim()) {
+      return badRequest('Nome completo é obrigatório.');
     }
 
     if (cnpj !== undefined && typeof cnpj !== 'string') {
@@ -90,12 +144,19 @@ export async function POST(request: Request) {
 
     const hashedPassword = await hashPassword(password);
 
-    const supplier = await SupplierModel.create({
-      name: name.trim(),
-      cnpj: typeof cnpj === 'string' ? cnpj.trim() : undefined,
-      specialty: typeof specialty === 'string' ? specialty.trim() : undefined,
-      phone: typeof phone === 'string' ? phone.trim() : undefined,
-    });
+    let supplierIdToUse = invite.supplierId ?? null;
+    if (!supplierIdToUse) {
+      if (typeof supplierName !== 'string' || !supplierName.trim()) {
+        return badRequest('Nome do fornecedor é obrigatório.');
+      }
+      const created = await SupplierModel.create({
+        name: supplierName.trim(),
+        cnpj: typeof cnpj === 'string' ? cnpj.trim() : undefined,
+        specialty: typeof specialty === 'string' ? specialty.trim() : undefined,
+        phone: typeof phone === 'string' ? phone.trim() : undefined,
+      });
+      supplierIdToUse = created._id;
+    }
 
     // Optional user identity fields copied from user registration
     let normalizedCpf: string | undefined;
@@ -151,7 +212,7 @@ export async function POST(request: Request) {
       }
     }
     const user = await createUser({
-      name: name.trim(),
+      name: userName.trim(),
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       role: 'supplier',
@@ -160,13 +221,13 @@ export async function POST(request: Request) {
       address: userAddress,
     });
 
-    await UserModel.updateOne({ _id: user._id }, { $set: { supplierId: supplier._id } }).exec();
+    await UserModel.updateOne({ _id: user._id }, { $set: { supplierId: supplierIdToUse } }).exec();
 
     invite.usedAt = new Date();
     await invite.save();
 
     return ok({
-      supplierId: supplier._id.toString(),
+      supplierId: supplierIdToUse.toString(),
       userId: user._id.toString(),
     });
   } catch (error) {

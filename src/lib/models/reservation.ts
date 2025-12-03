@@ -16,6 +16,7 @@ export interface ReservationDocument extends Document {
   userId: Types.ObjectId;
   schoolId: Types.ObjectId;
   uniformId: Types.ObjectId;
+  supplierId?: Types.ObjectId | null;
   measurements: ReservationMeasurements;
   suggestedSize: string;
   status: ReservationStatus;
@@ -87,6 +88,11 @@ const ReservationSchema = new Schema<ReservationDocument>(
       type: Schema.Types.ObjectId,
       ref: 'Uniform',
       required: true,
+    },
+    supplierId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Supplier',
+      required: false,
     },
     measurements: {
       type: MeasurementsSchema,

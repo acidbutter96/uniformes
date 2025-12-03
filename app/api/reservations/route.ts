@@ -56,11 +56,12 @@ export async function POST(request: NextRequest) {
       return badRequest('Payload inválido.');
     }
 
-    const { userName, schoolId, uniformId, measurements, suggestedSize, status, value } =
+    const { userName, schoolId, uniformId, supplierId, measurements, suggestedSize, status, value } =
       payload as {
         userName?: unknown;
         schoolId?: unknown;
         uniformId?: unknown;
+        supplierId?: unknown;
         measurements?: unknown;
         suggestedSize?: unknown;
         status?: unknown;
@@ -87,6 +88,13 @@ export async function POST(request: NextRequest) {
 
     if (typeof suggestedSize !== 'string' || !suggestedSize.trim()) {
       return badRequest('Tamanho sugerido é obrigatório.');
+    }
+    let resolvedSupplierId: string | undefined;
+    if (supplierId !== undefined && supplierId !== null) {
+      if (typeof supplierId !== 'string' || !Types.ObjectId.isValid(supplierId)) {
+        return badRequest('Fornecedor inválido.');
+      }
+      resolvedSupplierId = supplierId as string;
     }
 
     if (typeof measurements !== 'object' || measurements === null) {
@@ -137,6 +145,7 @@ export async function POST(request: NextRequest) {
       userId: userObjectId.toString(),
       schoolId,
       uniformId,
+      supplierId: resolvedSupplierId,
       measurements: parsedMeasurements,
       suggestedSize,
       status: resolvedStatus,

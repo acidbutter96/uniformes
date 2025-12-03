@@ -19,6 +19,7 @@ export type CreateReservationInput = {
   userId: string;
   schoolId: string;
   uniformId: string;
+  supplierId?: string;
   measurements: ReservationMeasurements;
   suggestedSize: string;
   status?: ReservationStatus;
@@ -44,6 +45,7 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     userId: Types.ObjectId;
     schoolId: Types.ObjectId;
     uniformId: Types.ObjectId;
+    supplierId?: Types.ObjectId | null;
   };
 
   const { _id, userId, schoolId, uniformId, createdAt, updatedAt, ...rest } = plain;
@@ -53,6 +55,7 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     userId: userId.toString(),
     schoolId: schoolId.toString(),
     uniformId: uniformId.toString(),
+    supplierId: plain.supplierId ? plain.supplierId.toString() : undefined,
     ...rest,
     createdAt: toISOString(createdAt),
     updatedAt: toISOString(updatedAt),
@@ -110,6 +113,7 @@ export async function createReservation(input: CreateReservationInput) {
     userId: new Types.ObjectId(input.userId),
     schoolId: new Types.ObjectId(input.schoolId),
     uniformId: new Types.ObjectId(input.uniformId),
+    supplierId: input.supplierId ? new Types.ObjectId(input.supplierId) : undefined,
     measurements: input.measurements,
     suggestedSize: input.suggestedSize.trim(),
     status,

@@ -199,44 +199,9 @@ export default function SuggestionPage() {
     saveOrderFlowState({ selectedSize: sizeToSubmit });
     setOrderState(current => (current ? { ...current, selectedSize: sizeToSubmit } : current));
 
-    try {
-      const response = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          userName:
-            typeof user?.name === 'string' ? user.name : (orderState.userName ?? 'Responsável'),
-          schoolId: orderState.schoolId,
-          uniformId: orderState.uniformId,
-          measurements: orderState.measurements,
-          suggestedSize: sizeToSubmit,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        const message = payload?.error ?? 'Não foi possível registrar a reserva.';
-        throw new Error(message);
-      }
-
-      const payload = (await response.json()) as { data: ReservationDTO };
-
-      clearOrderFlowState();
-      saveOrderFlowState({
-        orderId: payload.data.id,
-        orderCreatedAt: payload.data.createdAt,
-      });
-
-      router.push('/reservas');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erro ao registrar a reserva.';
-      setSubmitError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    // New flow: go to supplier selection step
+    router.push('/fornecedor');
+    setIsSubmitting(false);
   };
 
   const suggestion = orderState?.suggestion;
@@ -252,7 +217,7 @@ export default function SuggestionPage() {
           <Card className="flex flex-col gap-lg">
             <header className="flex flex-col gap-sm">
               <span className="text-caption font-medium uppercase tracking-wide text-primary">
-                Etapa 4 de 4
+                Etapa 4 de 5
               </span>
               <h1 className="text-h2 font-heading">Confirme a reserva</h1>
               <p className="text-body text-text-muted">
@@ -372,7 +337,7 @@ export default function SuggestionPage() {
                   onClick={handleConfirm}
                   disabled={isSubmitting || isAdmin}
                 >
-                  {isSubmitting ? 'Confirmando...' : 'Confirmar reserva'}
+                  {isSubmitting ? 'Avançando...' : 'Avançar para fornecedores'}
                 </Button>
                 <Link
                   href="/medidas"

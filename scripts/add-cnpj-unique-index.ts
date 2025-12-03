@@ -25,7 +25,10 @@ async function normalizeExistingCnpjs() {
     if (!normalized) continue;
 
     const existingIds = duplicates.get(normalized) ?? [];
-    duplicates.set(normalized, [...existingIds, (supplier._id as mongoose.Types.ObjectId).toString()]);
+    duplicates.set(normalized, [
+      ...existingIds,
+      (supplier._id as mongoose.Types.ObjectId).toString(),
+    ]);
 
     if (normalized !== currentCnpj) {
       await SupplierModel.updateOne({ _id: supplier._id }, { $set: { cnpj: normalized } }).exec();

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import AdminGuard from '@/app/admin/AdminGuard';
 import { Button } from '@/app/components/ui/Button';
@@ -8,13 +9,11 @@ import { Input } from '@/app/components/ui/Input';
 import useAuth from '@/src/hooks/useAuth';
 import { type SupplierDTO } from '@/src/types/supplier';
 
-// Removido: tipos de formulário de edição
-
-// Removido: fábrica de formulário, não utilizada
 
 export default function AdminSuppliersPage() {
   const { accessToken } = useAuth();
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
+  const [suppliersWithoutUserIds, setSuppliersWithoutUserIds] = useState<string[]>([]);
   const [newName, setNewName] = useState('');
   const [newCnpj, setNewCnpj] = useState('');
   const [newSpecialty, setNewSpecialty] = useState('');
@@ -46,6 +45,8 @@ export default function AdminSuppliersPage() {
     fetchSuppliers();
   }, [fetchSuppliers]);
 
+  const router = useRouter();
+
   const authorizedRequest = useCallback(
     async <T,>(path: string, init: RequestInit): Promise<T> => {
       if (!accessToken) {
@@ -74,6 +75,24 @@ export default function AdminSuppliersPage() {
     },
     [accessToken],
   );
+
+  // Load suppliers without user to show "Enviar convite" action
+  useEffect(() => {
+    async function loadWithoutUser() {
+      if (!accessToken) return;
+      try {
+        const payload = await authorizedRequest<{ data: Array<{ id: string }> }>(
+          '/api/admin/suppliers/without-user',
+          { method: 'GET' },
+        );
+        const ids = (payload.data ?? []).map(item => item.id);
+        setSuppliersWithoutUserIds(ids);
+      } catch {
+        // ignore silently; action will simply not show
+      }
+    }
+    loadWithoutUser();
+  }, [accessToken, authorizedRequest]);
 
   // Removido: manipulação de formulário de edição
 
@@ -257,10 +276,23 @@ export default function AdminSuppliersPage() {
                         </select>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex justify-end gap-xs">
-                          <Button variant="secondary" size="sm" disabled>
-                            Edição desativada
-                          </Button>
+                        <div className="flex justify-end gap-2">
+                          {suppliersWithoutUserIds.includes(supplier.id) ? (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const url =
+                                  '/admin/invites?supplierId=' + encodeURIComponent(supplier.id);
+                                router.push(url);
+                              }}
+                            >
+                              Enviar convite
+                            </Button>
+                          ) : (
+                            <Button variant="secondary" size="sm" disabled>
+                              Edição desativada
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

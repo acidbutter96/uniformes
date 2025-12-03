@@ -1,6 +1,8 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AdminGuard from '../AdminGuard';
 import { Card } from '@/app/components/ui/Card';
 import { Button } from '@/app/components/ui/Button';
@@ -10,12 +12,13 @@ import useAuth from '@/src/hooks/useAuth';
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_URL ?? '';
 
-export default function SupplierInvitesPage() {
+function SupplierInvitesClient() {
   const { accessToken, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
+  const searchParams = useSearchParams();
   const [expiresInMinutes, setExpiresInMinutes] = useState(60);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,6 +40,10 @@ export default function SupplierInvitesPage() {
         }
         const list = (data?.data ?? []) as Array<{ id: string; name: string }>;
         setSuppliers(list);
+        const preselect = searchParams?.get('supplierId') ?? '';
+        if (preselect) {
+          setSupplierId(preselect);
+        }
       } catch (err) {
         console.error('Error loading suppliers without user', err);
       } finally {
@@ -44,7 +51,7 @@ export default function SupplierInvitesPage() {
       }
     }
     fetchSuppliers();
-  }, [accessToken, authLoading]);
+  }, [accessToken, authLoading, searchParams]);
 
   async function handleCreateInvite(event: React.FormEvent) {
     event.preventDefault();
@@ -215,5 +222,13 @@ export default function SupplierInvitesPage() {
         </Card>
       </div>
     </AdminGuard>
+  );
+}
+
+export default function SupplierInvitesPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-neutral-500">Carregando...</div>}>
+      <SupplierInvitesClient />
+    </Suspense>
   );
 }

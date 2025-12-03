@@ -1,5 +1,4 @@
 'use client';
-/* eslint-disable prettier/prettier */
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';

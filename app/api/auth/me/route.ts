@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { verifyAccessToken } from '@/src/services/auth.service';
+import { verifyAccessToken, isValidCpf } from '@/src/services/auth.service';
 import { getById, updateUser } from '@/src/services/user.service';
 
 export async function GET(request: Request) {
@@ -81,12 +81,30 @@ export async function PATCH(request: Request) {
       if (!existingCpf && incomingCpf) {
         // sanitize: keep only digits
         const sanitized = incomingCpf.replace(/\D/g, '');
-        if (sanitized.length !== 11) {
-          return NextResponse.json({ error: 'CPF inválido. Use 11 dígitos.' }, { status: 400 });
+        if (!isValidCpf(sanitized)) {
+          return NextResponse.json({ error: 'CPF inválido.' }, { status: 400 });
         }
         allowed.cpf = sanitized;
       }
       // If CPF already set, ignore any attempts to change it
+    }
+
+    // Permitir definir childrenCount apenas se ainda não existir
+    if (body?.childrenCount !== undefined) {
+      const current = await getById(payload.sub);
+      if (!current) {
+        return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+      }
+      const existingChildren = current.childrenCount;
+      const incoming = Number(body.childrenCount);
+      // Allow setting when not set or equal to 0; lock when >= 1
+      if (existingChildren == null || existingChildren <= 0) {
+        if (!Number.isFinite(incoming) || incoming < 0 || !Number.isInteger(incoming)) {
+          return NextResponse.json({ error: 'Quantidade de filhos inválida.' }, { status: 400 });
+        }
+        allowed.childrenCount = incoming;
+      }
+      // If already set, ignore attempts to change
     }
 
     const updated = await updateUser(payload.sub, allowed);

@@ -23,6 +23,7 @@ export interface UserDocument extends Document {
   cpf?: string;
   birthDate?: Date;
   address?: UserAddress;
+  childrenCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,6 +82,14 @@ const UserSchema = new Schema<UserDocument>(
       district: { type: String, trim: true },
       city: { type: String, trim: true },
       state: { type: String, trim: true },
+    },
+    childrenCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+      immutable(this: UserDocument) {
+        return this.verified === true;
+      },
     },
   },
   { timestamps: true },

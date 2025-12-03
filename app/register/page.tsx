@@ -1,6 +1,4 @@
 'use client';
-/* eslint-disable prettier/prettier */
-'use client';
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -65,7 +63,8 @@ type RegisterField =
   | 'district'
   | 'city'
   | 'state'
-  | 'number';
+  | 'number'
+  | 'childrenCount';
 
 type RegisterFieldErrors = Partial<Record<RegisterField, string>>;
 
@@ -100,6 +99,7 @@ function RegisterView() {
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
   const [error, setError] = useState<string | null>(null);
+  const [childrenCount, setChildrenCount] = useState('');
 
   const returnToParam = searchParams?.get('returnTo') ?? null;
 
@@ -343,6 +343,12 @@ function RegisterView() {
         nextErrors.number = 'Informe o número do endereço.';
       }
 
+      // children count validation (required for user role during registration)
+      const cc = Number(childrenCount);
+      if (!Number.isFinite(cc) || cc < 0 || !Number.isInteger(cc)) {
+        nextErrors.childrenCount = 'Informe a quantidade de filhos (número inteiro).';
+      }
+
       if (Object.keys(nextErrors).length > 0) {
         setFieldErrors(nextErrors);
         setError('Corrija os campos destacados antes de continuar.');
@@ -364,6 +370,7 @@ function RegisterView() {
           city,
           state: stateUf,
         },
+        childrenCount: Number(childrenCount) || 0,
       });
       const role = typeof createdUser?.role === 'string' ? createdUser.role : null;
       router.push(resolveDestination(role));
@@ -605,6 +612,28 @@ function RegisterView() {
             </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
               <div className="space-y-1 lg:col-span-3">
+                <label htmlFor="register-children" className="text-sm font-medium text-text">
+                  Quantidade de filhos
+                </label>
+                <Input
+                  id="register-children"
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="0"
+                  value={childrenCount}
+                  onChange={event => {
+                    setChildrenCount(event.target.value);
+                    setFieldError('childrenCount');
+                  }}
+                  required
+                  aria-invalid={Boolean(fieldErrors.childrenCount)}
+                />
+                {fieldErrors.childrenCount && (
+                  <p className="text-xs text-danger">{fieldErrors.childrenCount}</p>
+                )}
+              </div>
+              <div className="space-y-1 lg:col-span-3">
                 <label htmlFor="register-number" className="text-sm font-medium text-text">
                   Número
                 </label>
@@ -648,9 +677,11 @@ function RegisterView() {
               )}
             </div>
 
-            <Button type="submit" fullWidth disabled={loading}>
-              {loading ? 'Criando conta...' : 'Criar conta'}
-            </Button>
+            <div className="flex justify-center w-full">
+                <Button className="w-40" type="submit" disabled={loading}>
+                {loading ? 'Criando conta...' : 'Criar conta'}
+                </Button>
+            </div>
           </form>
 
           <p className="mt-6 text-center text-sm text-text-muted">

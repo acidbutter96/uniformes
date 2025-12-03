@@ -141,8 +141,8 @@ export default function SchoolStepPage() {
                           type="button"
                           onClick={() => setSelectedSchoolId(school.id)}
                           className={cn(
-                            'flex w-full flex-col gap-xs rounded-card border border-border bg-surface px-md py-sm text-left transition hover:border-primary/40 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                            isSelected && 'border-primary bg-primary/10 text-primary',
+                            'flex w-full flex-col gap-xs rounded-card border border-border bg-surface px-md py-sm text-left transition hover:border-accent/40 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                            isSelected && 'border-accent bg-accent/10 text-accent',
                           )}
                         >
                           <span className="text-body font-semibold">{school.name}</span>

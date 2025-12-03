@@ -7,6 +7,7 @@ import ReservationModel, {
 } from '@/src/lib/models/reservation';
 import SchoolModel from '@/src/lib/models/school';
 import UniformModel from '@/src/lib/models/uniform';
+import UserModel from '@/src/lib/models/user';
 import {
   type ReservationDTO,
   type ReservationStatus,
@@ -79,6 +80,20 @@ export async function listReservations(filter: ReservationFilter = {}) {
 export async function createReservation(input: CreateReservationInput) {
   await dbConnect();
   await ensureReferencesExists(input.schoolId, input.uniformId);
+
+  // Enforce reservation limit by user's childrenCount
+  const user = await UserModel.findById(input.userId).lean().exec();
+  if (!user) {
+    throw new Error('Usuário não encontrado.');
+  }
+  const limit = Number(user.childrenCount ?? 0);
+  if (!Number.isFinite(limit) || limit < 0) {
+    throw new Error('Configuração de usuário inválida.');
+  }
+  const currentCount = await ReservationModel.countDocuments({ userId: input.userId }).exec();
+  if (currentCount >= limit) {
+    throw new Error('Limite de reservas atingido.');
+  }
 
   const status = input.status ?? 'aguardando';
   if (!RESERVATION_STATUSES.includes(status)) {

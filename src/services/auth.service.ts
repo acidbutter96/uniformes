@@ -27,6 +27,7 @@ export interface RegisterUserPayload {
   address: RegisterAddressInput;
   provider?: 'credentials' | 'google';
   role?: 'user' | 'admin';
+  childrenCount?: number;
 }
 
 function normalizeDigits(value: string): string {
@@ -166,6 +167,20 @@ export async function registerUser(data: RegisterUserPayload) {
 
   const sanitizedAddress = sanitizeAddress(data.address);
 
+  // childrenCount is required for role 'user'; must be a finite integer >= 0
+  let childrenCount = 0;
+  if ((data.role ?? 'user') === 'user') {
+    const raw = data.childrenCount;
+    if (raw === undefined || raw === null) {
+      throw new Error('Informe a quantidade de filhos.');
+    }
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric) || numeric < 0 || !Number.isInteger(numeric)) {
+      throw new Error('Quantidade de filhos inválida.');
+    }
+    childrenCount = numeric;
+  }
+
   const hashedPassword = await hashPassword(data.password);
 
   const user = await UserModel.create({
@@ -178,6 +193,7 @@ export async function registerUser(data: RegisterUserPayload) {
     cpf: normalizedCpf,
     birthDate: parsedBirthDate,
     address: sanitizedAddress,
+    childrenCount,
   });
 
   const token = generateAccessToken({ sub: user._id.toString(), role: user.role });

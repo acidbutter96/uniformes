@@ -8,6 +8,7 @@ export interface SupplierDocument extends Document {
   rating?: number;
   contactEmail?: string;
   phone?: string;
+  status: 'active' | 'pending' | 'inactive' | 'suspended';
   schoolIds: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
@@ -47,6 +48,12 @@ const SupplierSchema = new Schema<SupplierDocument>(
     phone: {
       type: String,
       trim: true,
+    },
+    status: {
+      type: String,
+      enum: ['active', 'pending', 'inactive', 'suspended'],
+      default: 'pending',
+      required: true,
     },
     schoolIds: [
       {

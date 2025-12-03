@@ -14,6 +14,7 @@ export type CreateSupplierInput = {
   rating?: number;
   contactEmail?: string;
   phone?: string;
+  status?: 'active' | 'pending' | 'inactive' | 'suspended';
   schoolIds?: string[];
 };
 
@@ -64,7 +65,7 @@ async function resolveSchoolIds(ids: string[] = []) {
   return objectIds;
 }
 
-export async function listSuppliers(filter: SupplierFilter = {}) {
+export async function listSuppliers(filter: SupplierFilter = { status: 'active' }) {
   await dbConnect();
   const results = await SupplierModel.find(filter).sort({ name: 1 }).exec();
   return results.map(serializeSupplier);
@@ -87,6 +88,7 @@ export async function createSupplier(input: CreateSupplierInput) {
     rating: input.rating,
     contactEmail: input.contactEmail?.trim().toLowerCase(),
     phone: input.phone?.trim(),
+    status: input.status ?? 'pending',
     schoolIds,
   });
   return serializeSupplier(created);
@@ -124,6 +126,10 @@ export async function updateSupplier(id: string, updates: UpdateSupplierInput) {
 
   if (updates.rating !== undefined) {
     updateQuery.rating = updates.rating;
+  }
+
+  if (updates.status !== undefined) {
+    updateQuery.status = updates.status as SupplierDocument['status'];
   }
 
   if (updates.schoolIds !== undefined) {

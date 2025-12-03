@@ -48,6 +48,7 @@ interface SeedSupplier {
   contactEmail?: string;
   phone?: string;
   schoolKeys: string[];
+  status?: 'active' | 'pending' | 'inactive' | 'suspended';
 }
 
 interface SeedUniform {
@@ -387,6 +388,7 @@ async function upsertSupplier(supplier: SeedSupplier, schoolMap: Map<string, Typ
       rating: supplier.rating,
       contactEmail: supplier.contactEmail,
       phone: supplier.phone,
+      status: supplier.status ?? 'pending',
       schoolIds: linkedSchoolIds,
     },
     { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -486,6 +488,12 @@ async function seed() {
     const id = await upsertSupplier(supplier, schoolMap);
     supplierMap.set(supplier.key, id);
   }
+
+  // Ensure all suppliers have a valid status set
+  await SupplierModel.updateMany(
+    { $or: [{ status: { $exists: false } }, { status: null }, { status: '' }] },
+    { $set: { status: 'pending' } },
+  ).exec();
 
   const userMap = new Map<string, Types.ObjectId>();
   for (const user of seedUsers) {

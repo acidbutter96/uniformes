@@ -8,4 +8,5 @@ export interface Supplier {
   rating?: number;
   contactEmail?: string;
   phone?: string;
+  status?: 'active' | 'pending' | 'inactive' | 'suspended';
 }

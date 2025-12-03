@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
       return badRequest('Payload inválido.');
     }
 
-    const { name, cnpj, specialty, leadTimeDays, rating, contactEmail, phone, schoolIds } =
+    const { name, cnpj, specialty, leadTimeDays, rating, contactEmail, phone, schoolIds, status } =
       payload as {
         name?: unknown;
         cnpj?: unknown;
@@ -50,6 +50,7 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
         contactEmail?: unknown;
         phone?: unknown;
         schoolIds?: unknown;
+        status?: unknown;
       };
 
     const updates: Record<string, unknown> = {};
@@ -110,6 +111,16 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
         return badRequest('IDs de escola devem ser uma lista de strings.');
       }
       updates.schoolIds = schoolIds as string[];
+    }
+
+    if (status !== undefined) {
+      if (
+        typeof status !== 'string' ||
+        !['active', 'pending', 'inactive', 'suspended'].includes(status)
+      ) {
+        return badRequest('Status inválido.');
+      }
+      updates.status = status as 'active' | 'pending' | 'inactive' | 'suspended';
     }
 
     if (Object.keys(updates).length === 0) {

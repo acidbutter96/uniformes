@@ -7,6 +7,7 @@ export type SupplierDTO = {
   rating?: number;
   contactEmail?: string;
   phone?: string;
+  status: 'active' | 'pending' | 'inactive' | 'suspended';
   schoolIds: string[];
   createdAt: string;
   updatedAt: string;

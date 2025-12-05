@@ -1,12 +1,15 @@
+ 'use client';
+
+import { useEffect, useState } from 'react';
 import AdminGuard from '@/app/admin/AdminGuard';
 import MetricCard from '@/app/components/cards/MetricCard';
 import Link from 'next/link';
 import { Button, buttonClasses } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/app/lib/format';
-import { listReservations } from '@/src/services/reservation.service';
-import { listSchools } from '@/src/services/school.service';
-import type { ReservationStatus } from '@/src/types/reservation';
+import useAuth from '@/src/hooks/useAuth';
+import type { ReservationStatus, ReservationDTO } from '@/src/types/reservation';
+import type { SchoolDTO } from '@/src/types/school';
 
 const STATUS_TONE: Record<ReservationStatus, 'success' | 'warning' | 'accent'> = {
   enviado: 'success',
@@ -14,16 +17,55 @@ const STATUS_TONE: Record<ReservationStatus, 'success' | 'warning' | 'accent'> =
   'em-producao': 'accent',
 };
 
-export default async function AdminDashboardPage() {
-  const [reservations, schools] = await Promise.all([listReservations(), listSchools()]);
+export default function AdminDashboardPage() {
+  const { accessToken, loading: authLoading } = useAuth();
+  const [reservations, setReservations] = useState<ReservationDTO[]>([]);
+  const [schools, setSchools] = useState<SchoolDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const schoolRes = await fetch('/api/schools', { cache: 'no-store' });
+        const schoolJson = await schoolRes.json().catch(() => null);
+        const schoolsData = schoolJson?.data ?? [];
+
+        // fetch reservations via admin endpoint; server will filter by token role
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+        const resRes = await fetch('/api/admin/reservations', {
+          headers,
+          cache: 'no-store',
+        });
+        const resJson = await resRes.json().catch(() => null);
+        const reservationsData = resJson?.data ?? [];
+
+        setSchools(schoolsData);
+        setReservations(reservationsData);
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+        setSchools([]);
+        setReservations([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // wait for auth to finish loading so we have accessToken when needed
+    if (!authLoading) {
+      load();
+    }
+  }, [accessToken, authLoading]);
 
   const totalReservations = reservations.length;
   const awaitingReservations = reservations.filter(
     reservation => reservation.status === 'aguardando',
   ).length;
   const totalValue = reservations.reduce((sum, reservation) => sum + (reservation.value ?? 0), 0);
-  const activeSchools = schools.filter(school => school.status === 'ativo').length;
-  const schoolLookup = new Map(schools.map(school => [school.id, school]));
+  const activeSchools = schools.filter((school: SchoolDTO) => school.status === 'ativo').length;
+  const schoolLookup = new Map(schools.map((school: SchoolDTO) => [school.id, school]));
 
   const resolveSchoolLabel = (id: string) => {
     const school = schoolLookup.get(id);
@@ -94,25 +136,33 @@ export default async function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 bg-white">
-                {reservations.map(reservation => (
-                  <tr key={reservation.id} className="hover:bg-brand-50/40">
-                    <td className="px-4 py-3 font-medium text-neutral-900">{reservation.id}</td>
-                    <td className="px-4 py-3 text-neutral-600">
-                      {resolveSchoolLabel(reservation.schoolId)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={STATUS_TONE[reservation.status] ?? 'accent'}>
-                        {reservation.status.replaceAll('-', ' ')}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-neutral-500">
-                      {formatDate(reservation.updatedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-neutral-800">
-                      {formatCurrency(reservation.value ?? 0)}
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">
+                      Carregando reservas...
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  reservations.map((reservation: ReservationDTO) => (
+                    <tr key={reservation.id} className="hover:bg-brand-50/40">
+                      <td className="px-4 py-3 font-medium text-neutral-900">{reservation.id}</td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {resolveSchoolLabel(reservation.schoolId)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge tone={STATUS_TONE[reservation.status] ?? 'accent'}>
+                          {reservation.status.replaceAll('-', ' ')}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-neutral-500">
+                        {formatDate(reservation.updatedAt)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-neutral-800">
+                        {formatCurrency(reservation.value ?? 0)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

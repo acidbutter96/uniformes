@@ -144,18 +144,36 @@ export async function POST(request: Request) {
 
     const hashedPassword = await hashPassword(password);
 
+    const normalizeCnpj = (value: string) => value.replace(/\D/g, '');
+
     let supplierIdToUse = invite.supplierId ?? null;
     if (!supplierIdToUse) {
       if (typeof supplierName !== 'string' || !supplierName.trim()) {
         return badRequest('Nome do fornecedor é obrigatório.');
       }
+      const normalizedCnpj = typeof cnpj === 'string' ? normalizeCnpj(cnpj.trim()) : undefined;
       const created = await SupplierModel.create({
         name: supplierName.trim(),
-        cnpj: typeof cnpj === 'string' ? cnpj.trim() : undefined,
+        cnpj: normalizedCnpj,
         specialty: typeof specialty === 'string' ? specialty.trim() : undefined,
         phone: typeof phone === 'string' ? phone.trim() : undefined,
       });
       supplierIdToUse = created._id;
+    } else {
+      const update: Record<string, unknown> = {};
+      // Do not overwrite supplier name when invite is linked to an existing supplier.
+      if (typeof cnpj === 'string' && cnpj.trim()) {
+        update.cnpj = normalizeCnpj(cnpj.trim());
+      }
+      if (typeof specialty === 'string') {
+        update.specialty = specialty.trim();
+      }
+      if (typeof phone === 'string') {
+        update.phone = phone.trim();
+      }
+      if (Object.keys(update).length > 0) {
+        await SupplierModel.updateOne({ _id: supplierIdToUse }, { $set: update }).exec();
+      }
     }
 
     // Optional user identity fields copied from user registration

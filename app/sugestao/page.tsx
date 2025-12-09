@@ -13,13 +13,11 @@ import { cn } from '@/app/lib/utils';
 import type { School } from '@/app/lib/models/school';
 import type { Uniform } from '@/app/lib/models/uniform';
 import {
-  clearOrderFlowState,
   loadOrderFlowState,
   saveOrderFlowState,
   type OrderFlowState,
 } from '@/app/lib/storage/order-flow';
 import useAuth from '@/src/hooks/useAuth';
-import type { ReservationDTO } from '@/src/types/reservation';
 
 const FALLBACK_UNIFORM_IMAGE =
   'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80';

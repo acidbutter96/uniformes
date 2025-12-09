@@ -678,9 +678,9 @@ function RegisterView() {
             </div>
 
             <div className="flex justify-center w-full">
-                <Button className="w-40" type="submit" disabled={loading}>
+              <Button className="w-40" type="submit" disabled={loading}>
                 {loading ? 'Criando conta...' : 'Criar conta'}
-                </Button>
+              </Button>
             </div>
           </form>
 

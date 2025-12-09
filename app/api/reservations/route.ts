@@ -56,17 +56,25 @@ export async function POST(request: NextRequest) {
       return badRequest('Payload inválido.');
     }
 
-    const { userName, schoolId, uniformId, supplierId, measurements, suggestedSize, status, value } =
-      payload as {
-        userName?: unknown;
-        schoolId?: unknown;
-        uniformId?: unknown;
-        supplierId?: unknown;
-        measurements?: unknown;
-        suggestedSize?: unknown;
-        status?: unknown;
-        value?: unknown;
-      };
+    const {
+      userName,
+      schoolId,
+      uniformId,
+      supplierId,
+      measurements,
+      suggestedSize,
+      status,
+      value,
+    } = payload as {
+      userName?: unknown;
+      schoolId?: unknown;
+      uniformId?: unknown;
+      supplierId?: unknown;
+      measurements?: unknown;
+      suggestedSize?: unknown;
+      status?: unknown;
+      value?: unknown;
+    };
 
     if (typeof userName !== 'string' || !userName.trim()) {
       return badRequest('Nome do usuário é obrigatório.');

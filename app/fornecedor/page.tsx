@@ -1,16 +1,20 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-import { StepsHeader } from "@/app/components/steps/StepsHeader";
-import { Alert } from "@/app/components/ui/Alert";
-import { Button } from "@/app/components/ui/Button";
-import { Card } from "@/app/components/ui/Card";
-import { cn } from "@/app/lib/utils";
-import { loadOrderFlowState, saveOrderFlowState, clearOrderFlowState } from "@/app/lib/storage/order-flow";
-import useAuth from "@/src/hooks/useAuth";
-import type { ReservationDTO } from "@/src/types/reservation";
+import { StepsHeader } from '@/app/components/steps/StepsHeader';
+import { Alert } from '@/app/components/ui/Alert';
+import { Button } from '@/app/components/ui/Button';
+import { Card } from '@/app/components/ui/Card';
+import { cn } from '@/app/lib/utils';
+import {
+  loadOrderFlowState,
+  saveOrderFlowState,
+  clearOrderFlowState,
+} from '@/app/lib/storage/order-flow';
+import useAuth from '@/src/hooks/useAuth';
+import type { ReservationDTO } from '@/src/types/reservation';
 
 interface SupplierDTO {
   id: string;
@@ -25,24 +29,30 @@ export default function SupplierSelectStep() {
 
   const [orderState, setOrderState] = useState(loadOrderFlowState());
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(orderState.supplierId ?? null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
+    orderState.supplierId ?? null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const userCity = (user?.address?.city as string | undefined)?.trim() || "";
+  const userCity = (user?.address?.city as string | undefined)?.trim() || '';
 
   useEffect(() => {
     // enforce previous steps
     if (!orderState.schoolId) {
-      router.replace("/escola");
+      router.replace('/escola');
       return;
     }
     if (!orderState.uniformId) {
-      router.replace("/uniformes");
+      router.replace('/uniformes');
       return;
     }
-    if (!orderState.measurements || !orderState.suggestion || !(orderState.selectedSize ?? orderState.suggestion.suggestion)) {
-      router.replace("/medidas");
+    if (
+      !orderState.measurements ||
+      !orderState.suggestion ||
+      !(orderState.selectedSize ?? orderState.suggestion.suggestion)
+    ) {
+      router.replace('/medidas');
       return;
     }
   }, [orderState, router]);
@@ -51,14 +61,14 @@ export default function SupplierSelectStep() {
     const controller = new AbortController();
     async function loadSuppliers() {
       try {
-        const response = await fetch("/api/suppliers", { signal: controller.signal });
-        if (!response.ok) throw new Error("Não foi possível carregar fornecedores.");
+        const response = await fetch('/api/suppliers', { signal: controller.signal });
+        if (!response.ok) throw new Error('Não foi possível carregar fornecedores.');
         const payload = (await response.json()) as { data: SupplierDTO[] };
         setSuppliers(payload.data ?? []);
       } catch (err) {
-        if (!(err instanceof DOMException && err.name === "AbortError")) {
-          console.error("Failed to load suppliers", err);
-          setError("Falha ao carregar fornecedores.");
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          console.error('Failed to load suppliers', err);
+          setError('Falha ao carregar fornecedores.');
         }
       }
     }
@@ -69,14 +79,14 @@ export default function SupplierSelectStep() {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace(`/login?returnTo=${encodeURIComponent("/fornecedor")}`);
+      router.replace(`/login?returnTo=${encodeURIComponent('/fornecedor')}`);
       return;
     }
   }, [loading, user, router]);
 
   const sortedSuppliers = useMemo(() => {
-    const sameCity = suppliers.filter(s => (s.city ?? "").toLowerCase() === userCity.toLowerCase());
-    const others = suppliers.filter(s => (s.city ?? "").toLowerCase() !== userCity.toLowerCase());
+    const sameCity = suppliers.filter(s => (s.city ?? '').toLowerCase() === userCity.toLowerCase());
+    const others = suppliers.filter(s => (s.city ?? '').toLowerCase() !== userCity.toLowerCase());
     return [...sameCity, ...others];
   }, [suppliers, userCity]);
 
@@ -84,16 +94,16 @@ export default function SupplierSelectStep() {
 
   const handleConfirm = async () => {
     if (!finalSize) {
-      setError("Selecione um tamanho anteriormente.");
-      router.replace("/sugestao");
+      setError('Selecione um tamanho anteriormente.');
+      router.replace('/sugestao');
       return;
     }
     if (!selectedSupplierId) {
-      setError("Selecione um fornecedor para continuar.");
+      setError('Selecione um fornecedor para continuar.');
       return;
     }
     if (!accessToken) {
-      router.replace(`/login?returnTo=${encodeURIComponent("/fornecedor")}`);
+      router.replace(`/login?returnTo=${encodeURIComponent('/fornecedor')}`);
       return;
     }
 
@@ -103,14 +113,15 @@ export default function SupplierSelectStep() {
     setOrderState(current => ({ ...current, supplierId: selectedSupplierId! }));
 
     try {
-      const response = await fetch("/api/reservations", {
-        method: "POST",
+      const response = await fetch('/api/reservations', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          userName: typeof user?.name === "string" ? user.name : (orderState.userName ?? "Responsável"),
+          userName:
+            typeof user?.name === 'string' ? user.name : (orderState.userName ?? 'Responsável'),
           schoolId: orderState.schoolId,
           uniformId: orderState.uniformId,
           supplierId: selectedSupplierId,
@@ -121,7 +132,7 @@ export default function SupplierSelectStep() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        const message = payload?.error ?? "Não foi possível registrar a reserva.";
+        const message = payload?.error ?? 'Não foi possível registrar a reserva.';
         throw new Error(message);
       }
 
@@ -129,9 +140,9 @@ export default function SupplierSelectStep() {
 
       clearOrderFlowState();
       saveOrderFlowState({ orderId: payload.data.id, orderCreatedAt: payload.data.createdAt });
-      router.push("/reservas");
+      router.push('/reservas');
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao registrar a reserva.";
+      const message = err instanceof Error ? err.message : 'Erro ao registrar a reserva.';
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -146,9 +157,14 @@ export default function SupplierSelectStep() {
         <section className="grid gap-xl lg:grid-cols-[1.2fr_0.8fr]">
           <Card className="flex flex-col gap-lg">
             <header className="flex flex-col gap-sm">
-              <span className="text-caption font-medium uppercase tracking-wide text-primary">Etapa 5 de 5</span>
+              <span className="text-caption font-medium uppercase tracking-wide text-primary">
+                Etapa 5 de 5
+              </span>
               <h1 className="text-h2 font-heading">Escolha o fornecedor preferido</h1>
-              <p className="text-body text-text-muted">Selecionaremos fornecedores da sua cidade primeiro; você pode escolher outro se preferir.</p>
+              <p className="text-body text-text-muted">
+                Selecionaremos fornecedores da sua cidade primeiro; você pode escolher outro se
+                preferir.
+              </p>
             </header>
 
             {error && <Alert tone="danger" description={error} />}
@@ -162,13 +178,19 @@ export default function SupplierSelectStep() {
                       type="button"
                       onClick={() => setSelectedSupplierId(supplier.id)}
                       className={cn(
-                        "flex w-full flex-col gap-xxs rounded-card border px-md py-sm text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                        selected ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface text-text hover:border-primary/40"
+                        'flex w-full flex-col gap-xxs rounded-card border px-md py-sm text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        selected
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-surface text-text hover:border-primary/40',
                       )}
                     >
                       <span className="text-body font-semibold">{supplier.name}</span>
-                      <span className="text-caption text-text-muted">{supplier.address ?? "Endereço não informado"}</span>
-                      <span className="text-caption text-text-muted">{supplier.city ?? "Cidade não informada"}</span>
+                      <span className="text-caption text-text-muted">
+                        {supplier.address ?? 'Endereço não informado'}
+                      </span>
+                      <span className="text-caption text-text-muted">
+                        {supplier.city ?? 'Cidade não informada'}
+                      </span>
                     </button>
                   </li>
                 );
@@ -176,9 +198,15 @@ export default function SupplierSelectStep() {
             </ul>
 
             <div className="flex items-center justify-between">
-              <span className="text-caption text-text-muted">Você poderá acompanhar em Minhas Reservas.</span>
-              <Button size="lg" onClick={handleConfirm} disabled={isSubmitting || !selectedSupplierId}>
-                {isSubmitting ? "Confirmando..." : "Confirmar fornecedor e reservar"}
+              <span className="text-caption text-text-muted">
+                Você poderá acompanhar em Minhas Reservas.
+              </span>
+              <Button
+                size="lg"
+                onClick={handleConfirm}
+                disabled={isSubmitting || !selectedSupplierId}
+              >
+                {isSubmitting ? 'Confirmando...' : 'Confirmar fornecedor e reservar'}
               </Button>
             </div>
           </Card>
@@ -189,11 +217,13 @@ export default function SupplierSelectStep() {
               <dl className="flex flex-col gap-xs text-body text-text">
                 <div className="flex justify-between">
                   <dt className="text-text-muted">Cidade do usuário</dt>
-                  <dd className="font-medium">{userCity || "—"}</dd>
+                  <dd className="font-medium">{userCity || '—'}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-text-muted">Fornecedor escolhido</dt>
-                  <dd className="font-medium">{sortedSuppliers.find(s => s.id === selectedSupplierId)?.name ?? "—"}</dd>
+                  <dd className="font-medium">
+                    {sortedSuppliers.find(s => s.id === selectedSupplierId)?.name ?? '—'}
+                  </dd>
                 </div>
               </dl>
             </Card>

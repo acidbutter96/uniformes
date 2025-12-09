@@ -3,6 +3,9 @@ import jwt, { type JwtPayload, type Secret, type SignOptions } from 'jsonwebtoke
 
 import dbConnect from '@/src/lib/database';
 import UserModel, { type UserAddress } from '@/src/lib/models/user';
+import SchoolModel from '@/src/lib/models/school';
+import { Types } from 'mongoose';
+import AppSettingsModel from '@/src/lib/models/appSettings';
 
 const JWT_SECRET: Secret | undefined = process.env.JWT_SECRET;
 
@@ -27,7 +30,7 @@ export interface RegisterUserPayload {
   address: RegisterAddressInput;
   provider?: 'credentials' | 'google';
   role?: 'user' | 'admin';
-  childrenCount?: number;
+  children?: Array<{ name: string; age: number; schoolId: string }>;
 }
 
 function normalizeDigits(value: string): string {
@@ -167,18 +170,40 @@ export async function registerUser(data: RegisterUserPayload) {
 
   const sanitizedAddress = sanitizeAddress(data.address);
 
-  // childrenCount is required for role 'user'; must be a finite integer >= 0
-  let childrenCount = 0;
-  if ((data.role ?? 'user') === 'user') {
-    const raw = data.childrenCount;
-    if (raw === undefined || raw === null) {
-      throw new Error('Informe a quantidade de filhos.');
+  // Validate children array (optional) with max limit and school existence
+  let children: Array<{ name: string; age: number; schoolId: string }> = [];
+  if (Array.isArray(data.children) && data.children.length > 0) {
+    const settings = (await AppSettingsModel.findOne().lean().exec()) ?? { maxChildrenPerUser: 7 };
+    const maxChildren = Number(settings.maxChildrenPerUser) || 7;
+
+    if (data.children.length > maxChildren) {
+      throw new Error(`Número de crianças excede o limite de ${maxChildren}.`);
     }
-    const numeric = Number(raw);
-    if (!Number.isFinite(numeric) || numeric < 0 || !Number.isInteger(numeric)) {
-      throw new Error('Quantidade de filhos inválida.');
+
+    // Basic shape validation and school existence check
+    for (const child of data.children) {
+      const name = child?.name?.trim();
+      const age = Number(child?.age);
+      const schoolId = child?.schoolId?.toString();
+      if (!name) {
+        throw new Error('Nome da criança é obrigatório.');
+      }
+      if (!Number.isFinite(age) || age < 0 || !Number.isInteger(age)) {
+        throw new Error('Idade da criança inválida.');
+      }
+      if (!schoolId) {
+        throw new Error('Escola da criança é obrigatória.');
+      }
+      const schoolExists = await SchoolModel.exists({ _id: schoolId });
+      if (!schoolExists) {
+        throw new Error('Escola selecionada não está cadastrada.');
+      }
     }
-    childrenCount = numeric;
+    children = data.children.map(c => ({
+      name: c.name.trim(),
+      age: Number(c.age),
+      schoolId: c.schoolId,
+    }));
   }
 
   const hashedPassword = await hashPassword(data.password);
@@ -193,7 +218,13 @@ export async function registerUser(data: RegisterUserPayload) {
     cpf: normalizedCpf,
     birthDate: parsedBirthDate,
     address: sanitizedAddress,
-    childrenCount,
+    // keep legacy childrenCount default but prioritize children array
+    childrenCount: Array.isArray(children) ? children.length : 0,
+    children: children.map(c => ({
+      name: c.name,
+      age: c.age,
+      schoolId: new Types.ObjectId(c.schoolId),
+    })),
   });
 
   const token = generateAccessToken({ sub: user._id.toString(), role: user.role });

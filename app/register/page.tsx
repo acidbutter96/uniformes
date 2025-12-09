@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useCallback, useState } from 'react';
+import { useEffect } from 'react';
 
 import { PasswordField } from '@/app/components/forms/PasswordField';
 import { Alert } from '@/app/components/ui/Alert';
@@ -63,8 +64,7 @@ type RegisterField =
   | 'district'
   | 'city'
   | 'state'
-  | 'number'
-  | 'childrenCount';
+  | 'number';
 
 type RegisterFieldErrors = Partial<Record<RegisterField, string>>;
 
@@ -99,7 +99,10 @@ function RegisterView() {
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
   const [error, setError] = useState<string | null>(null);
-  const [childrenCount, setChildrenCount] = useState('');
+  // prettier-ignore
+  const [children, setChildren] = useState<Array<{ name: string; age: string; schoolId: string }>>([]);
+  const [schools, setSchools] = useState<Array<{ id: string; name: string }>>([]);
+  const [maxChildren, setMaxChildren] = useState<number>(7);
 
   const returnToParam = searchParams?.get('returnTo') ?? null;
 
@@ -110,6 +113,56 @@ function RegisterView() {
     }
 
     return role === 'admin' ? '/admin/dashboard' : '/sugestao';
+  };
+
+  // Load schools list for selection
+  const loadSchools = useCallback(async () => {
+    try {
+      const res = await fetch('/api/schools');
+      if (res.ok) {
+        const payload = await res.json();
+        // API helpers wrap successful responses as { data: [...] }
+        const list = Array.isArray(payload)
+          ? payload
+          : payload?.data ?? payload?.schools;
+        if (Array.isArray(list)) {
+          setSchools(
+            list.map((s: { id?: string; _id?: string; name: string }) => ({
+              id: (s.id ?? s._id ?? '') as string,
+              name: s.name,
+            })),
+          );
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSchools();
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/settings');
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data?.maxChildrenPerUser === 'number') {
+            setMaxChildren(Number(data.maxChildrenPerUser));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [loadSchools]);
+
+  // Add/remove children handlers
+  const addChild = () => {
+    if (children.length >= maxChildren) return;
+    setChildren(prev => [...prev, { name: '', age: '', schoolId: '' }]);
+  };
+  const removeChild = (index: number) => {
+    setChildren(prev => prev.filter((_, i) => i !== index));
   };
 
   const setFieldError = useCallback((field: RegisterField, message?: string) => {
@@ -343,10 +396,24 @@ function RegisterView() {
         nextErrors.number = 'Informe o número do endereço.';
       }
 
-      // children count validation (required for user role during registration)
-      const cc = Number(childrenCount);
-      if (!Number.isFinite(cc) || cc < 0 || !Number.isInteger(cc)) {
-        nextErrors.childrenCount = 'Informe a quantidade de filhos (número inteiro).';
+      // children validation: if added, validate fields
+      if (children.length > 0) {
+        for (let i = 0; i < children.length; i++) {
+          const c = children[i];
+          if (!c.name.trim()) {
+            nextErrors.name = 'Informe o nome da criança.';
+            break;
+          }
+          const ageNum = Number(c.age);
+          if (!Number.isFinite(ageNum) || ageNum < 0 || !Number.isInteger(ageNum)) {
+            nextErrors.birthDate = 'Idade da criança inválida.';
+            break;
+          }
+          if (!c.schoolId) {
+            nextErrors.city = 'Selecione a escola da criança.';
+            break;
+          }
+        }
       }
 
       if (Object.keys(nextErrors).length > 0) {
@@ -370,7 +437,11 @@ function RegisterView() {
           city,
           state: stateUf,
         },
-        childrenCount: Number(childrenCount) || 0,
+        children: children.map(c => ({
+          name: c.name.trim(),
+          age: Number(c.age),
+          schoolId: c.schoolId,
+        })),
       });
       const role = typeof createdUser?.role === 'string' ? createdUser.role : null;
       router.push(resolveDestination(role));
@@ -610,29 +681,8 @@ function RegisterView() {
                 {fieldErrors.state && <p className="text-xs text-danger">{fieldErrors.state}</p>}
               </div>
             </div>
+
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-              <div className="space-y-1 lg:col-span-3">
-                <label htmlFor="register-children" className="text-sm font-medium text-text">
-                  Quantidade de filhos
-                </label>
-                <Input
-                  id="register-children"
-                  type="number"
-                  min={0}
-                  step={1}
-                  placeholder="0"
-                  value={childrenCount}
-                  onChange={event => {
-                    setChildrenCount(event.target.value);
-                    setFieldError('childrenCount');
-                  }}
-                  required
-                  aria-invalid={Boolean(fieldErrors.childrenCount)}
-                />
-                {fieldErrors.childrenCount && (
-                  <p className="text-xs text-danger">{fieldErrors.childrenCount}</p>
-                )}
-              </div>
               <div className="space-y-1 lg:col-span-3">
                 <label htmlFor="register-number" className="text-sm font-medium text-text">
                   Número
@@ -662,6 +712,85 @@ function RegisterView() {
                 />
               </div>
               <div className="space-y-1 lg:col-span-4 hidden lg:block"></div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-text">Crianças</p>
+                  <p className="text-xs text-text-muted">
+                    Você pode adicionar até {maxChildren} crianças.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={addChild}
+                  disabled={children.length >= maxChildren}
+                >
+                  Adicionar criança
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {children.map((child, idx) => (
+                  <div key={idx} className="grid grid-cols-1 gap-3 lg:grid-cols-12 items-end">
+                    <div className="space-y-1 lg:col-span-4">
+                      <label className="text-sm font-medium text-text">Nome da criança</label>
+                      <Input
+                        placeholder="Maria"
+                        value={child.name}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setChildren(prev =>
+                            prev.map((c, i) => (i === idx ? { ...c, name: v } : c)),
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1 lg:col-span-2">
+                      <label className="text-sm font-medium text-text">Idade</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="10"
+                        value={child.age}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setChildren(prev =>
+                            prev.map((c, i) => (i === idx ? { ...c, age: v } : c)),
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1 lg:col-span-5">
+                      <label className="text-sm font-medium text-text">Escola</label>
+                      <select
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text outline-none focus:border-primary"
+                        value={child.schoolId}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setChildren(prev =>
+                            prev.map((c, i) => (i === idx ? { ...c, schoolId: v } : c)),
+                          );
+                        }}
+                      >
+                        <option value="">Selecione a escola</option>
+                        {schools.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="lg:col-span-1 flex justify-end lg:justify-start">
+                      <Button type="button" variant="danger" onClick={() => removeChild(idx)}>
+                        Remover
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center justify-between text-xs text-text-muted">

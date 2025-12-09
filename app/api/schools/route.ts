@@ -5,9 +5,23 @@ import { createSchool, listSchools } from '@/src/services/school.service';
 
 const VALID_STATUS = new Set<SchoolStatus>(SCHOOL_STATUSES);
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const data = await listSchools();
+    const url = new URL(request.url);
+    const all = url.searchParams.get('all');
+    const statusParam = url.searchParams.get('status');
+
+    let data;
+    // If `all=true`, do not filter by status
+    if (all === 'true') {
+      data = await listSchools();
+    } else {
+      // When a valid `status` is provided, filter by it; otherwise default to 'ativo'
+      const desiredStatus =
+        statusParam && (VALID_STATUS as Set<string>).has(statusParam) ? statusParam : 'ativo';
+      data = await listSchools({ status: desiredStatus as SchoolStatus });
+    }
+
     return ok(data);
   } catch (error) {
     console.error('Failed to list schools', error);

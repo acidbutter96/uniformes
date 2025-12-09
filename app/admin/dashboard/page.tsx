@@ -93,6 +93,12 @@ export default function AdminDashboardPage() {
             <Link href="/admin/invites" className={buttonClasses({ size: 'md' })}>
               Convites fornecedores
             </Link>
+            <Link
+              href="/admin/settings"
+              className={buttonClasses({ size: 'md', variant: 'ghost' })}
+            >
+              Configurações
+            </Link>
           </div>
         </header>
 

@@ -23,7 +23,11 @@ export interface UserDocument extends Document {
   cpf?: string;
   birthDate?: Date;
   address?: UserAddress;
-  childrenCount?: number;
+  children?: Array<{
+    name: string;
+    age: number;
+    schoolId: Types.ObjectId;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +95,16 @@ const UserSchema = new Schema<UserDocument>(
         return this.verified === true;
       },
     },
+    children: [
+      new Schema(
+        {
+          name: { type: String, required: true, trim: true },
+          age: { type: Number, required: true, min: 0 },
+          schoolId: { type: Schema.Types.ObjectId, ref: 'School', required: true },
+        },
+        { _id: false },
+      ),
+    ],
   },
   { timestamps: true },
 );

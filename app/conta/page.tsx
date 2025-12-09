@@ -65,7 +65,9 @@ export default function AccountPage() {
     const loadSchools = async () => {
       try {
         const res = await fetch('/api/schools');
-        const payload = (await res.json().catch(() => ({}))) as { data?: Array<{ id: string; name: string }> };
+        const payload = (await res.json().catch(() => ({}))) as {
+          data?: Array<{ id: string; name: string }>;
+        };
         setSchools(payload?.data ?? []);
       } catch (err) {
         console.error('Failed to load schools', err);
@@ -323,11 +325,14 @@ export default function AccountPage() {
             <div className="grid gap-md md:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-sm font-medium">Fornecedor</label>
+                {/* prettier-ignore */}
                 <Input
                   value={
-                    (((user as unknown as { supplier?: { name?: string } })?.supplier?.name as string) ??
+                    (
+                      ((user as unknown as { supplier?: { name?: string } })?.supplier?.name as string) ??
                       (user?.name as string) ??
-                      '')
+                      ''
+                    )
                   }
                   readOnly
                   disabled
@@ -335,10 +340,13 @@ export default function AccountPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">CNPJ</label>
+                {/* prettier-ignore */}
                 <Input
                   value={
-                    (((user as unknown as { supplier?: { cnpj?: string } })?.supplier?.cnpj as string) ?? '')
-                      .trim()
+                    (
+                      ((user as unknown as { supplier?: { cnpj?: string } })?.supplier?.cnpj as string) ??
+                      ''
+                    )
                   }
                   readOnly
                   disabled
@@ -577,7 +585,9 @@ export default function AccountPage() {
                       </li>
                     ))}
                     {filteredSchools.length === 0 && (
-                      <li className="px-3 py-2 text-sm text-text-muted">Nenhuma escola encontrada.</li>
+                      <li className="px-3 py-2 text-sm text-text-muted">
+                        Nenhuma escola encontrada.
+                      </li>
                     )}
                   </ul>
                 </div>

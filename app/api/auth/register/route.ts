@@ -5,7 +5,7 @@ import { registerUser } from '@/src/services/auth.service';
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null);
-    const { name, email, password, cpf, birthDate, address, childrenCount, role } = body ?? {};
+    const { name, email, password, cpf, birthDate, address, children, role } = body ?? {};
 
     const missingFields: string[] = [];
     if (!name) missingFields.push('nome');
@@ -15,16 +15,7 @@ export async function POST(request: Request) {
     if (!birthDate) missingFields.push('data de nascimento');
     if (!address) missingFields.push('endereço');
 
-    if ((role ?? 'user') === 'user') {
-      if (childrenCount === undefined || childrenCount === null) {
-        missingFields.push('quantidade de filhos');
-      } else {
-        const numeric = Number(childrenCount);
-        if (!Number.isFinite(numeric) || numeric < 0 || !Number.isInteger(numeric)) {
-          return NextResponse.json({ error: 'Quantidade de filhos inválida.' }, { status: 400 });
-        }
-      }
-    }
+    // children array replaces childrenCount; optional but validated in service
 
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -40,7 +31,7 @@ export async function POST(request: Request) {
       cpf,
       birthDate,
       address,
-      childrenCount,
+      children,
       role,
     });
 

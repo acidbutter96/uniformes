@@ -12,6 +12,7 @@ import useAuth from '@/src/hooks/useAuth';
 export default function AccountPage() {
   const { user, accessToken, loading, loadUser } = useAuth();
   const router = useRouter();
+  const isSupplier = (user?.role as string) === 'supplier';
 
   const initial = useMemo(
     () => ({
@@ -43,6 +44,11 @@ export default function AccountPage() {
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [hasAutoAddress, setHasAutoAddress] = useState(false);
+  const [schools, setSchools] = useState<Array<{ id: string; name: string }>>([]);
+  const [supplierSchoolIds, setSupplierSchoolIds] = useState<string[]>([]);
+  const [schoolQuery, setSchoolQuery] = useState('');
+  const [schoolError, setSchoolError] = useState<string | null>(null);
+  const [savingSchools, setSavingSchools] = useState(false);
 
   useEffect(() => {
     setForm(initial);
@@ -53,6 +59,37 @@ export default function AccountPage() {
       router.replace('/login');
     }
   }, [user, loading, router]);
+
+  // Load schools list and supplier's linked schools when supplier
+  useEffect(() => {
+    const loadSchools = async () => {
+      try {
+        const res = await fetch('/api/schools');
+        const payload = (await res.json().catch(() => ({}))) as { data?: Array<{ id: string; name: string }> };
+        setSchools(payload?.data ?? []);
+      } catch (err) {
+        console.error('Failed to load schools', err);
+      }
+    };
+
+    const loadSupplierSchools = async () => {
+      if (!accessToken) return;
+      try {
+        const res = await fetch('/api/suppliers/me/schools', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const payload = (await res.json().catch(() => ({}))) as { data?: { schoolIds?: string[] } };
+        setSupplierSchoolIds(payload?.data?.schoolIds ?? []);
+      } catch (err) {
+        console.error('Failed to load supplier schools', err);
+      }
+    };
+
+    if (isSupplier) {
+      loadSchools();
+      loadSupplierSchools();
+    }
+  }, [isSupplier, accessToken]);
 
   const handleChange = (
     field: 'name' | 'email' | 'cpf' | `address.${keyof typeof form.address}`,
@@ -232,6 +269,43 @@ export default function AccountPage() {
     }
   };
 
+  const filteredSchools = useMemo(() => {
+    const q = schoolQuery.trim().toLowerCase();
+    if (!q) return schools;
+    return schools.filter(s => s.name.toLowerCase().includes(q));
+  }, [schoolQuery, schools]);
+
+  const toggleSchool = (id: string) => {
+    setSupplierSchoolIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
+  const saveSupplierSchools = async () => {
+    if (!accessToken) return;
+    setSavingSchools(true);
+    setSchoolError(null);
+    try {
+      const res = await fetch('/api/suppliers/me/schools', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ schoolIds: supplierSchoolIds }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setSchoolError(payload?.error ?? 'Não foi possível salvar escolas atendidas.');
+        return;
+      }
+      setSuccess('Escolas atendidas atualizadas com sucesso.');
+    } catch (err) {
+      console.error('Failed to update supplier schools', err);
+      setSchoolError('Erro inesperado ao salvar escolas atendidas.');
+    } finally {
+      setSavingSchools(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-lg px-md py-2xl">
@@ -243,6 +317,35 @@ export default function AccountPage() {
         <Card className="space-y-md p-6">
           {error && <Alert tone="danger" description={error} />}
           {success && <Alert tone="success" description={success} />}
+
+          {/* Supplier header (read-only) */}
+          {isSupplier && (
+            <div className="grid gap-md md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Fornecedor</label>
+                <Input
+                  value={
+                    (((user as unknown as { supplier?: { name?: string } })?.supplier?.name as string) ??
+                      (user?.name as string) ??
+                      '')
+                  }
+                  readOnly
+                  disabled
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">CNPJ</label>
+                <Input
+                  value={
+                    (((user as unknown as { supplier?: { cnpj?: string } })?.supplier?.cnpj as string) ?? '')
+                      .trim()
+                  }
+                  readOnly
+                  disabled
+                />
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="grid gap-md md:grid-cols-2">
             <div className="space-y-1">
@@ -257,42 +360,44 @@ export default function AccountPage() {
               />
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="children-count" className="text-sm font-medium">
-                Quantidade de filhos {childrenCountIsEmpty ? '' : '(não editável)'}
-              </label>
-              {childrenCountIsEmpty ? (
-                <Input
-                  id="children-count"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={String(form.childrenCount ?? '')}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setForm(prev => ({
-                      ...prev,
-                      childrenCount: val === '' ? undefined : Number(val),
-                    }));
-                  }}
-                  placeholder="0"
-                  required
-                  inputMode="numeric"
-                />
-              ) : (
-                <Input
-                  id="children-count"
-                  value={String((form.childrenCount ?? 0) < 0 ? 0 : (form.childrenCount ?? 0))}
-                  readOnly
-                  disabled
-                />
-              )}
-              {childrenCountIsEmpty && (
-                <p className="text-xs text-text-muted">
-                  Atenção: após salvar, a quantidade de filhos não poderá ser alterada.
-                </p>
-              )}
-            </div>
+            {!isSupplier && (
+              <div className="space-y-1">
+                <label htmlFor="children-count" className="text-sm font-medium">
+                  Quantidade de filhos {childrenCountIsEmpty ? '' : '(não editável)'}
+                </label>
+                {childrenCountIsEmpty ? (
+                  <Input
+                    id="children-count"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={String(form.childrenCount ?? '')}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setForm(prev => ({
+                        ...prev,
+                        childrenCount: val === '' ? undefined : Number(val),
+                      }));
+                    }}
+                    placeholder="0"
+                    required
+                    inputMode="numeric"
+                  />
+                ) : (
+                  <Input
+                    id="children-count"
+                    value={String((form.childrenCount ?? 0) < 0 ? 0 : (form.childrenCount ?? 0))}
+                    readOnly
+                    disabled
+                  />
+                )}
+                {childrenCountIsEmpty && (
+                  <p className="text-xs text-text-muted">
+                    Atenção: após salvar, a quantidade de filhos não poderá ser alterada.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1">
               <label htmlFor="email" className="text-sm font-medium">
@@ -445,6 +550,45 @@ export default function AccountPage() {
               </Button>
             </div>
           </form>
+
+          {/* Supplier schools selector */}
+          {isSupplier && (
+            <div className="space-y-md">
+              {schoolError && <Alert tone="danger" description={schoolError} />}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Escolas atendidas</label>
+                <Input
+                  placeholder="Pesquisar escolas por nome"
+                  value={schoolQuery}
+                  onChange={e => setSchoolQuery(e.target.value)}
+                />
+                <div className="max-h-64 overflow-auto border border-border rounded-md">
+                  <ul className="divide-y divide-border">
+                    {filteredSchools.map(s => (
+                      <li key={s.id} className="flex items-center justify-between px-3 py-2">
+                        <span className="text-sm">{s.name}</span>
+                        <Button
+                          size="sm"
+                          variant={supplierSchoolIds.includes(s.id) ? 'primary' : 'outline'}
+                          onClick={() => toggleSchool(s.id)}
+                        >
+                          {supplierSchoolIds.includes(s.id) ? 'Selecionada' : 'Selecionar'}
+                        </Button>
+                      </li>
+                    ))}
+                    {filteredSchools.length === 0 && (
+                      <li className="px-3 py-2 text-sm text-text-muted">Nenhuma escola encontrada.</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <Button onClick={saveSupplierSchools} disabled={savingSchools || !accessToken}>
+                    {savingSchools ? 'Salvando...' : 'Salvar escolas atendidas'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
     </main>

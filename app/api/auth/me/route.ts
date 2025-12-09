@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { verifyAccessToken, isValidCpf } from '@/src/services/auth.service';
 import { getById, updateUser } from '@/src/services/user.service';
+import { getSupplierById } from '@/src/services/supplier.service';
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +27,18 @@ export async function GET(request: Request) {
     const { password: removedPassword, ...safeUser } = user.toObject();
     void removedPassword;
 
-    return NextResponse.json({ data: safeUser });
+    // If supplier, attach supplier details in response
+    let supplier: unknown = undefined;
+    if (safeUser.role === 'supplier' && safeUser.supplierId) {
+      try {
+        const s = await getSupplierById(safeUser.supplierId.toString());
+        if (s) supplier = s;
+      } catch (err) {
+        console.error('Failed to load supplier for current user', err);
+      }
+    }
+
+    return NextResponse.json({ data: { ...safeUser, supplier } });
   } catch (error) {
     console.error('Auth me error', error);
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });

@@ -5,7 +5,7 @@ import { registerUser } from '@/src/services/auth.service';
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => null);
-    const { name, email, password, cpf, birthDate, address, children, role } = body ?? {};
+    const { name, email, password, cpf, birthDate, address, children, student, role } = body ?? {};
 
     const missingFields: string[] = [];
     if (!name) missingFields.push('nome');
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       birthDate,
       address,
       children,
+      student,
       role,
     });
 

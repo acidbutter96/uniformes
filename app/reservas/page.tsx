@@ -156,7 +156,7 @@ export default function UserReservationsPage() {
         </header>
 
         <div className="flex flex-wrap gap-md">
-          <Link href="/escola" className={buttonClasses({ variant: 'primary', size: 'md' })}>
+          <Link href="/alunos" className={buttonClasses({ variant: 'primary', size: 'md' })}>
             Iniciar nova reserva
           </Link>
         </div>
@@ -173,7 +173,7 @@ export default function UserReservationsPage() {
             <p className="text-body text-text-muted">
               Assim que você confirmar uma reserva, ela aparecerá aqui para acompanhamento.
             </p>
-            <Link href="/escola" className={buttonClasses({ variant: 'primary', size: 'md' })}>
+            <Link href="/alunos" className={buttonClasses({ variant: 'primary', size: 'md' })}>
               Começar agora
             </Link>
           </Card>

@@ -96,7 +96,7 @@ export default function SchoolStepPage() {
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-2xl px-md py-2xl">
-        <StepsHeader currentStep={1} />
+        <StepsHeader currentStep={2} />
 
         <section className="grid gap-xl lg:grid-cols-[1.2fr_0.8fr]">
           <div className="flex flex-col gap-lg">

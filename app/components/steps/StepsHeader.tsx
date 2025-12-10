@@ -1,10 +1,12 @@
 import { cn } from '@/app/lib/utils';
 
 const steps = [
+  { id: 'select-student', label: 'Selecionar Aluno' },
   { id: 'validate-school', label: 'Validar Escola' },
   { id: 'select-uniform', label: 'Selecionar Uniforme' },
   { id: 'inform-measurements', label: 'Informar Medidas' },
   { id: 'confirmation', label: 'Confirmação' },
+  { id: 'select-supplier', label: 'Selecionar Fornecedor' },
 ];
 
 export interface StepsHeaderProps {

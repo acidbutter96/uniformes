@@ -87,14 +87,6 @@ const UserSchema = new Schema<UserDocument>(
       city: { type: String, trim: true },
       state: { type: String, trim: true },
     },
-    childrenCount: {
-      type: Number,
-      min: 0,
-      default: 0,
-      immutable(this: UserDocument) {
-        return this.verified === true;
-      },
-    },
     children: [
       new Schema(
         {

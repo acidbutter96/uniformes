@@ -19,7 +19,6 @@ export default function AccountPage() {
       name: (user?.name as string) || '',
       email: (user?.email as string) || '',
       cpf: (user?.cpf as string) || '',
-      childrenCount: (user?.childrenCount as number | undefined) ?? undefined,
       address: {
         cep: (user?.address?.cep as string) || '',
         street: (user?.address?.street as string) || '',
@@ -38,8 +37,6 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const cpfIsEmpty = !((user?.cpf as string) || '').trim();
-  const childrenCountIsEmpty =
-    (user?.childrenCount as number | undefined) == null || (user?.childrenCount as number) <= 0;
   const [cepError, setCepError] = useState<string | null>(null);
   const [cpfError, setCpfError] = useState<string | null>(null);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
@@ -244,14 +241,6 @@ export default function AccountPage() {
           address: form.address,
           // permitir envio de cpf somente se ainda estiver vazio no servidor
           cpf: cpfIsEmpty ? form.cpf : undefined,
-          // permitir envio de childrenCount somente se ainda estiver vazio no servidor
-          childrenCount: childrenCountIsEmpty
-            ? typeof form.childrenCount === 'number'
-              ? form.childrenCount
-              : Number.isFinite(Number(form.childrenCount))
-                ? Number(form.childrenCount)
-                : undefined
-            : undefined,
         }),
       });
 
@@ -368,44 +357,6 @@ export default function AccountPage() {
               />
             </div>
 
-            {!isSupplier && (
-              <div className="space-y-1">
-                <label htmlFor="children-count" className="text-sm font-medium">
-                  Quantidade de filhos {childrenCountIsEmpty ? '' : '(não editável)'}
-                </label>
-                {childrenCountIsEmpty ? (
-                  <Input
-                    id="children-count"
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={String(form.childrenCount ?? '')}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setForm(prev => ({
-                        ...prev,
-                        childrenCount: val === '' ? undefined : Number(val),
-                      }));
-                    }}
-                    placeholder="0"
-                    required
-                    inputMode="numeric"
-                  />
-                ) : (
-                  <Input
-                    id="children-count"
-                    value={String((form.childrenCount ?? 0) < 0 ? 0 : (form.childrenCount ?? 0))}
-                    readOnly
-                    disabled
-                  />
-                )}
-                {childrenCountIsEmpty && (
-                  <p className="text-xs text-text-muted">
-                    Atenção: após salvar, a quantidade de filhos não poderá ser alterada.
-                  </p>
-                )}
-              </div>
-            )}
 
             <div className="space-y-1">
               <label htmlFor="email" className="text-sm font-medium">

@@ -18,6 +18,11 @@ export interface AuthUser extends Record<string, unknown> {
     city?: string;
     state?: string;
   };
+  children?: Array<{
+    name: string;
+    age: number;
+    schoolId: string;
+  }>;
 }
 
 interface AuthState {

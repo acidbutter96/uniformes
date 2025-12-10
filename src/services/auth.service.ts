@@ -31,6 +31,8 @@ export interface RegisterUserPayload {
   provider?: 'credentials' | 'google';
   role?: 'user' | 'admin';
   children?: Array<{ name: string; age: number; schoolId: string }>;
+  // optional single student payload, mapped to children
+  student?: { name: string; age: number; schoolId: string };
 }
 
 function normalizeDigits(value: string): string {
@@ -170,13 +172,26 @@ export async function registerUser(data: RegisterUserPayload) {
 
   const sanitizedAddress = sanitizeAddress(data.address);
 
-  // Validate children array (optional) with max limit and school existence
+  // Validate children array or single student (optional) with max limit and school existence
   let children: Array<{ name: string; age: number; schoolId: string }> = [];
+  // if single student provided, normalize to children array
+  if (!Array.isArray(data.children) || data.children.length === 0) {
+    if (data.student && data.student.name && data.student.schoolId) {
+      children = [
+        {
+          name: data.student.name,
+          age: Number(data.student.age),
+          schoolId: data.student.schoolId,
+        },
+      ];
+    }
+  }
   if (Array.isArray(data.children) && data.children.length > 0) {
     const settings = (await AppSettingsModel.findOne().lean().exec()) ?? { maxChildrenPerUser: 7 };
     const maxChildren = Number(settings.maxChildrenPerUser) || 7;
 
-    if (data.children.length > maxChildren) {
+    const totalChildren = data.children.length + (children.length ?? 0);
+    if (totalChildren > maxChildren) {
       throw new Error(`Número de crianças excede o limite de ${maxChildren}.`);
     }
 
@@ -199,11 +214,14 @@ export async function registerUser(data: RegisterUserPayload) {
         throw new Error('Escola selecionada não está cadastrada.');
       }
     }
-    children = data.children.map(c => ({
+    children = [
+      ...(children ?? []),
+      ...data.children.map(c => ({
       name: c.name.trim(),
       age: Number(c.age),
       schoolId: c.schoolId,
-    }));
+      })),
+    ];
   }
 
   const hashedPassword = await hashPassword(data.password);
@@ -218,8 +236,6 @@ export async function registerUser(data: RegisterUserPayload) {
     cpf: normalizedCpf,
     birthDate: parsedBirthDate,
     address: sanitizedAddress,
-    // keep legacy childrenCount default but prioritize children array
-    childrenCount: Array.isArray(children) ? children.length : 0,
     children: children.map(c => ({
       name: c.name,
       age: c.age,

@@ -152,13 +152,13 @@ export default function SupplierSelectStep() {
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-2xl px-md py-2xl">
-        <StepsHeader currentStep={5} />
+        <StepsHeader currentStep={6} />
 
         <section className="grid gap-xl lg:grid-cols-[1.2fr_0.8fr]">
           <Card className="flex flex-col gap-lg">
             <header className="flex flex-col gap-sm">
               <span className="text-caption font-medium uppercase tracking-wide text-primary">
-                Etapa 5 de 5
+                Etapa 6 de 6
               </span>
               <h1 className="text-h2 font-heading">Escolha o fornecedor preferido</h1>
               <p className="text-body text-text-muted">

@@ -98,25 +98,6 @@ export async function PATCH(request: Request) {
         }
         allowed.cpf = sanitized;
       }
-      // If CPF already set, ignore any attempts to change it
-    }
-
-    // Permitir definir childrenCount apenas se ainda não existir
-    if (body?.childrenCount !== undefined) {
-      const current = await getById(payload.sub);
-      if (!current) {
-        return NextResponse.json({ error: 'User not found.' }, { status: 404 });
-      }
-      const existingChildren = current.childrenCount;
-      const incoming = Number(body.childrenCount);
-      // Allow setting when not set or equal to 0; lock when >= 1
-      if (existingChildren == null || existingChildren <= 0) {
-        if (!Number.isFinite(incoming) || incoming < 0 || !Number.isInteger(incoming)) {
-          return NextResponse.json({ error: 'Quantidade de filhos inválida.' }, { status: 400 });
-        }
-        allowed.childrenCount = incoming;
-      }
-      // If already set, ignore attempts to change
     }
 
     const updated = await updateUser(payload.sub, allowed);

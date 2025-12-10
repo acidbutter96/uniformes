@@ -83,13 +83,13 @@ function UniformsPageContent() {
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-2xl px-md py-2xl">
-        <StepsHeader currentStep={2} />
+        <StepsHeader currentStep={3} />
 
         <section className="grid gap-lg lg:grid-cols-[1fr_320px]">
           <div className="flex flex-col gap-lg">
             <header className="flex flex-col gap-xs">
               <span className="text-caption font-medium uppercase tracking-wide text-primary">
-                Etapa 2 de 4
+                Etapa 3 de 6
               </span>
               <h1 className="text-h2 font-heading">Selecione o uniforme</h1>
               <p className="max-w-2xl text-body text-text-muted">

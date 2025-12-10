@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
 
     const {
       userName,
+      childId,
       schoolId,
       uniformId,
       supplierId,
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       value,
     } = payload as {
       userName?: unknown;
+      childId?: unknown;
       schoolId?: unknown;
       uniformId?: unknown;
       supplierId?: unknown;
@@ -86,6 +88,10 @@ export async function POST(request: NextRequest) {
 
     if (typeof uniformId !== 'string' || !uniformId.trim()) {
       return badRequest('Uniforme é obrigatório.');
+    }
+
+    if (typeof childId !== 'string' || !childId.trim()) {
+      return badRequest('Aluno é obrigatório.');
     }
 
     if (!Types.ObjectId.isValid(authResult.payload.sub)) {
@@ -151,6 +157,7 @@ export async function POST(request: NextRequest) {
     const created = await createReservation({
       userName,
       userId: userObjectId.toString(),
+      childId,
       schoolId,
       uniformId,
       supplierId: resolvedSupplierId,

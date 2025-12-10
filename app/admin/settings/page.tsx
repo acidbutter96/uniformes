@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import AdminGuard from '@/app/admin/AdminGuard';
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
@@ -49,34 +50,36 @@ export default function AdminSettingsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-3xl">
-        <Card className="rounded-2xl border border-border p-6 shadow-card">
-          <h1 className="text-2xl font-semibold text-text mb-4">Configurações</h1>
-          {message && (
-            <Alert
-              tone={message.includes('sucesso') ? 'success' : 'danger'}
-              description={message}
-              className="mb-4"
-            />
-          )}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-text">Máximo de crianças por usuário</label>
-            <Input
-              type="number"
-              min={1}
-              step={1}
-              value={maxChildren}
-              onChange={e => setMaxChildren(e.target.value)}
-            />
-          </div>
-          <div className="mt-4">
-            <Button onClick={save} disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </div>
-        </Card>
-      </div>
-    </main>
+    <AdminGuard requiredRole="admin" redirectTo="/login">
+      <main className="min-h-screen bg-background p-6">
+        <div className="mx-auto max-w-3xl">
+          <Card className="rounded-2xl border border-border p-6 shadow-card">
+            <h1 className="text-2xl font-semibold text-text mb-4">Configurações</h1>
+            {message && (
+              <Alert
+                tone={message.includes('sucesso') ? 'success' : 'danger'}
+                description={message}
+                className="mb-4"
+              />
+            )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text">Máximo de crianças por usuário</label>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={maxChildren}
+                onChange={e => setMaxChildren(e.target.value)}
+              />
+            </div>
+            <div className="mt-4">
+              <Button onClick={save} disabled={loading}>
+                {loading ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </main>
+    </AdminGuard>
   );
 }

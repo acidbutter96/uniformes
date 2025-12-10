@@ -10,7 +10,7 @@ import { Card } from '@/app/components/ui/Card';
 import { cn } from '@/app/lib/utils';
 import type { School } from '@/app/lib/models/school';
 import type { Supplier } from '@/app/lib/models/supplier';
-import { clearOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
+import { saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
 const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
   const ids = Array.isArray(supplier.schoolIds)
@@ -46,8 +46,6 @@ export default function SchoolStepPage() {
     : null;
 
   useEffect(() => {
-    clearOrderFlowState();
-
     const fetchData = async () => {
       try {
         const [schoolsResponse, suppliersResponse] = await Promise.all([

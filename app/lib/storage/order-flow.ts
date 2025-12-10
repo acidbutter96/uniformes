@@ -18,6 +18,7 @@ export interface SuggestionData {
 }
 
 export interface OrderFlowState {
+  childId?: string;
   schoolId?: string;
   supplierId?: string;
   uniformId?: string;

@@ -13,6 +13,7 @@ import { saveOrderFlowState, clearOrderFlowState } from '@/app/lib/storage/order
 import useAuth from '@/src/hooks/useAuth';
 
 interface ChildInfo {
+  id?: string;
   name: string;
   age: number;
   schoolId: string;
@@ -52,6 +53,7 @@ export default function SelectChildStepPage() {
         const rawChildren = Array.isArray(payload?.data?.children) ? payload.data.children : [];
         const parsed: ChildInfo[] = rawChildren
           .map((c: any) => ({
+            id: typeof c?._id === 'string' ? c._id : undefined,
             name: String(c?.name ?? ''),
             age: Number(c?.age ?? 0),
             schoolId: String(c?.schoolId ?? ''),
@@ -84,9 +86,9 @@ export default function SelectChildStepPage() {
 
     const child = children[selectedIndex];
 
-    // Save initial flow state using child's school if available
+    // Save initial flow state using child's school and id
     const schoolId = child.schoolId || undefined;
-    saveOrderFlowState({ schoolId });
+    saveOrderFlowState({ schoolId, childId: child.id });
 
     router.push('/escola');
   };

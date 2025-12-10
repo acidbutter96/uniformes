@@ -10,6 +10,7 @@ import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
 import { Input } from '@/app/components/ui/Input';
+import { clearOrderFlowState } from '@/app/lib/storage/order-flow';
 import useAuth from '@/src/hooks/useAuth';
 
 export default function LoginPage() {
@@ -54,11 +55,17 @@ function LoginView() {
 
   const resolveDestination = (role?: string | null) => {
     const sanitizedReturnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : null;
-    if (sanitizedReturnTo) {
-      return sanitizedReturnTo;
+
+    // Sempre que logar, resetar o fluxo de reservas para a primeira tela
+    // e não voltar para passos intermediários do fluxo.
+    clearOrderFlowState();
+
+    if (role === 'admin') {
+      return '/admin/dashboard';
     }
 
-    return role === 'admin' ? '/admin/dashboard' : '/sugestao';
+    // Para usuários comuns, sempre começar o fluxo em /alunos
+    return '/alunos';
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

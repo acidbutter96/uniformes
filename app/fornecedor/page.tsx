@@ -40,7 +40,7 @@ export default function SupplierSelectStep() {
   useEffect(() => {
     // enforce previous steps
     if (!orderState.schoolId) {
-      router.replace('/escola');
+      router.replace('/alunos');
       return;
     }
     if (!orderState.uniformId) {
@@ -122,6 +122,7 @@ export default function SupplierSelectStep() {
         body: JSON.stringify({
           userName:
             typeof user?.name === 'string' ? user.name : (orderState.userName ?? 'Responsável'),
+          childId: orderState.childId,
           schoolId: orderState.schoolId,
           uniformId: orderState.uniformId,
           supplierId: selectedSupplierId,

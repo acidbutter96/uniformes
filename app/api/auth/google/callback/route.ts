@@ -92,10 +92,19 @@ function buildSuccessHtml(token: string, redirectTo: string) {
             window.localStorage.setItem('accessToken', token);
           }
           window.localStorage.removeItem('refreshToken');
+
+          // Sempre que logar, resetar o fluxo de reservas para a primeira tela
+          try {
+            window.sessionStorage.removeItem('uniformes:order-flow');
+          } catch (e) {
+            console.error('Falha ao limpar fluxo de reservas', e);
+          }
         } catch (error) {
           console.error('Falha ao armazenar token do Google OAuth', error);
         }
-        window.location.replace(${JSON.stringify(redirectTo)});
+        // Independente do returnTo anterior, após login Google começamos em /alunos
+        var target = ${JSON.stringify('/alunos')};
+        window.location.replace(target);
       })();
     </script>
     <noscript>

@@ -34,6 +34,7 @@ export default function UserReservationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [schoolMap, setSchoolMap] = useState<Record<string, string>>({});
   const [uniformMap, setUniformMap] = useState<Record<string, string>>({});
+  const [childMap, setChildMap] = useState<Record<string, string>>({});
 
   const userId = typeof user?._id === 'string' ? user._id : null;
   const role = typeof user?.role === 'string' ? user.role : null;
@@ -125,6 +126,18 @@ export default function UserReservationsPage() {
           }
           setUniformMap(nextMap);
         }
+
+        // build child lookup from current user in context (includes children)
+        const children = Array.isArray(user?.children) ? (user.children as any[]) : [];
+        const childLookup: Record<string, string> = {};
+        for (const child of children) {
+          const id = typeof child?._id === 'string' ? child._id : undefined;
+          const name = typeof child?.name === 'string' ? child.name : undefined;
+          if (id && name) {
+            childLookup[id] = name;
+          }
+        }
+        setChildMap(childLookup);
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
           console.error('Failed to load reservation metadata', err);
@@ -182,12 +195,14 @@ export default function UserReservationsPage() {
             {sortedReservations.map(reservation => {
               const uniformName = uniformMap[reservation.uniformId] ?? reservation.uniformId;
               const schoolName = schoolMap[reservation.schoolId] ?? reservation.schoolId;
+              const childName = childMap[reservation.childId] ?? 'Aluno não identificado';
 
               return (
                 <Card key={reservation.id} className="flex flex-col gap-sm">
                   <div className="flex flex-wrap items-center justify-between gap-sm">
-                    <div className="flex items-center gap-sm">
-                      <h2 className="text-h4 font-heading">{reservation.userName}</h2>
+                    <div className="flex flex-col gap-xxs sm:flex-row sm:items-center sm:gap-sm">
+                      <h2 className="text-h4 font-heading">{childName}</h2>
+                      <span className="text-caption text-text-muted">Responsável: {reservation.userName}</span>
                       <Badge tone={STATUS_TONES[reservation.status]}>
                         {STATUS_LABELS[reservation.status]}
                       </Badge>

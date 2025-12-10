@@ -14,6 +14,7 @@ export type ReservationDTO = {
   id: string;
   userName: string;
   userId: string;
+  childId: string;
   schoolId: string;
   uniformId: string;
   measurements: ReservationMeasurementsDTO;

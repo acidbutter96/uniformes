@@ -24,6 +24,7 @@ export interface UserDocument extends Document {
   birthDate?: Date;
   address?: UserAddress;
   children?: Array<{
+    _id?: Types.ObjectId;
     name: string;
     age: number;
     schoolId: Types.ObjectId;
@@ -94,7 +95,7 @@ const UserSchema = new Schema<UserDocument>(
           age: { type: Number, required: true, min: 0 },
           schoolId: { type: Schema.Types.ObjectId, ref: 'School', required: true },
         },
-        { _id: false },
+        // keep default _id for each child so we can reference it in reservations
       ),
     ],
   },

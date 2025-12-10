@@ -14,6 +14,7 @@ export interface ReservationMeasurements {
 export interface ReservationDocument extends Document {
   userName: string;
   userId: Types.ObjectId;
+  childId: Types.ObjectId;
   schoolId: Types.ObjectId;
   uniformId: Types.ObjectId;
   supplierId?: Types.ObjectId | null;
@@ -77,6 +78,10 @@ const ReservationSchema = new Schema<ReservationDocument>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      required: true,
+    },
+    childId: {
+      type: Schema.Types.ObjectId,
       required: true,
     },
     schoolId: {

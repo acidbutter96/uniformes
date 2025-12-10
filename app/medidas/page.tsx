@@ -35,7 +35,7 @@ export default function MeasurementsPage() {
     const state = loadOrderFlowState();
 
     if (!state.schoolId) {
-      router.replace('/escola');
+      router.replace('/alunos');
       return;
     }
 

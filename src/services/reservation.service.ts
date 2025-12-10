@@ -17,6 +17,7 @@ import {
 export type CreateReservationInput = {
   userName: string;
   userId: string;
+  childId: string;
   schoolId: string;
   uniformId: string;
   supplierId?: string;
@@ -43,16 +44,18 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     _id: Types.ObjectId;
     __v?: unknown;
     userId: Types.ObjectId;
+    childId: Types.ObjectId;
     schoolId: Types.ObjectId;
     uniformId: Types.ObjectId;
     supplierId?: Types.ObjectId | null;
   };
 
-  const { _id, userId, schoolId, uniformId, createdAt, updatedAt, ...rest } = plain;
+  const { _id, userId, childId, schoolId, uniformId, createdAt, updatedAt, ...rest } = plain;
 
   return {
     id: _id.toString(),
     userId: userId.toString(),
+    childId: childId.toString(),
     schoolId: schoolId.toString(),
     uniformId: uniformId.toString(),
     supplierId: plain.supplierId ? plain.supplierId.toString() : undefined,
@@ -84,18 +87,41 @@ export async function createReservation(input: CreateReservationInput) {
   await dbConnect();
   await ensureReferencesExists(input.schoolId, input.uniformId);
 
-  // Enforce reservation limit by user's childrenCount
+  // Enforce reservation limit by the number of children in the user document
   const user = await UserModel.findById(input.userId).lean().exec();
   if (!user) {
     throw new Error('Usuário não encontrado.');
   }
-  const limit = Number(user.childrenCount ?? 0);
-  if (!Number.isFinite(limit) || limit < 0) {
-    throw new Error('Configuração de usuário inválida.');
+  const childrenArray = Array.isArray((user as { children?: { _id?: Types.ObjectId }[] }).children)
+    ? ((user as { children?: { _id?: Types.ObjectId }[] }).children ?? [])
+    : [];
+  const limit = childrenArray.length;
+  if (limit <= 0) {
+    throw new Error('Usuário não possui crianças cadastradas para realizar reservas.');
   }
+
+  // Ensure the provided childId belongs to this user
+  if (!Types.ObjectId.isValid(input.childId)) {
+    throw new Error('Criança inválida.');
+  }
+  const childObjectId = new Types.ObjectId(input.childId);
+  const hasChild = childrenArray.some(c => c._id && c._id.equals(childObjectId));
+  if (!hasChild) {
+    throw new Error('Criança selecionada não pertence a este usuário.');
+  }
+
   const currentCount = await ReservationModel.countDocuments({ userId: input.userId }).exec();
   if (currentCount >= limit) {
     throw new Error('Limite de reservas atingido.');
+  }
+
+  // Enforce only one reservation per child
+  const existingForChild = await ReservationModel.countDocuments({
+    userId: input.userId,
+    childId: childObjectId,
+  }).exec();
+  if (existingForChild > 0) {
+    throw new Error('Já existe uma reserva para esta criança.');
   }
 
   const status = input.status ?? 'aguardando';
@@ -111,6 +137,7 @@ export async function createReservation(input: CreateReservationInput) {
   const created = await ReservationModel.create({
     userName: input.userName.trim(),
     userId: new Types.ObjectId(input.userId),
+    childId: childObjectId,
     schoolId: new Types.ObjectId(input.schoolId),
     uniformId: new Types.ObjectId(input.uniformId),
     supplierId: input.supplierId ? new Types.ObjectId(input.supplierId) : undefined,

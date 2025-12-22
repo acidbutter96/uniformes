@@ -73,8 +73,6 @@ const UserSchema = new Schema<UserDocument>(
     cpf: {
       type: String,
       trim: true,
-      sparse: true,
-      unique: true,
     },
     birthDate: {
       type: Date,

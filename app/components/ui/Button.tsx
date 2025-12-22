@@ -16,7 +16,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-accent text-text shadow-card hover:bg-accent/90 focus-visible:outline-accent focus-visible:outline-offset-2',
   secondary: 'bg-surface text-text ring-1 ring-inset ring-border hover:bg-surface/90',
   ghost: 'bg-transparent text-primary hover:bg-primary/10',
-  danger: 'bg-red-600 text-white shadow-card hover:bg-red-700 focus-visible:outline-red-600 focus-visible:outline-offset-2',
+  danger:
+    'bg-red-600 text-white shadow-card hover:bg-red-700 focus-visible:outline-red-600 focus-visible:outline-offset-2',
   outline: 'bg-transparent text-text ring-1 ring-inset ring-border hover:bg-surface/90',
 };
 

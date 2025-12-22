@@ -217,9 +217,9 @@ export async function registerUser(data: RegisterUserPayload) {
     children = [
       ...(children ?? []),
       ...data.children.map(c => ({
-      name: c.name.trim(),
-      age: Number(c.age),
-      schoolId: c.schoolId,
+        name: c.name.trim(),
+        age: Number(c.age),
+        schoolId: c.schoolId,
       })),
     ];
   }

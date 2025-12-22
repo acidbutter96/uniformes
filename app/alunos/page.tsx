@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -44,21 +44,34 @@ export default function SelectChildStepPage() {
     const controller = new AbortController();
     async function loadCurrentUser() {
       try {
+        type RawChild = {
+          _id?: string;
+          name?: unknown;
+          age?: unknown;
+          schoolId?: unknown;
+        };
+
         const response = await fetch('/api/auth/me', {
           headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
           signal: controller.signal,
         });
         if (!response.ok) throw new Error('Falha ao carregar usuário.');
         const payload = await response.json();
-        const rawChildren = Array.isArray(payload?.data?.children) ? payload.data.children : [];
+        const rawChildren: RawChild[] = Array.isArray(payload?.data?.children)
+          ? (payload.data.children as RawChild[])
+          : [];
+
         const parsed: ChildInfo[] = rawChildren
-          .map((c: any) => ({
-            id: typeof c?._id === 'string' ? c._id : undefined,
-            name: String(c?.name ?? ''),
-            age: Number(c?.age ?? 0),
-            schoolId: String(c?.schoolId ?? ''),
-          }))
-          .filter(c => c.name && Number.isFinite(c.age) && c.age >= 0);
+          .map((child: RawChild) => {
+            const c = child;
+            return {
+              id: typeof c?._id === 'string' ? c._id : undefined,
+              name: String(c?.name ?? ''),
+              age: Number(c?.age ?? 0),
+              schoolId: String(c?.schoolId ?? ''),
+            };
+          })
+          .filter((c: ChildInfo) => c.name && Number.isFinite(c.age) && c.age >= 0);
         setChildren(parsed);
       } catch (err) {
         if (!(err instanceof DOMException && err.name === 'AbortError')) {
@@ -106,7 +119,8 @@ export default function SelectChildStepPage() {
               </span>
               <h1 className="text-h2 font-heading">Selecione o aluno</h1>
               <p className="text-body text-text-muted">
-                Escolha para quem a reserva será feita. Se não houver alunos cadastrados, você pode continuar e informar a escola na próxima etapa.
+                Escolha para quem a reserva será feita. Se não houver alunos cadastrados, você pode
+                continuar e informar a escola na próxima etapa.
               </p>
             </header>
 
@@ -137,9 +151,7 @@ export default function SelectChildStepPage() {
               </ul>
             ) : (
               <Card emphasis="muted" className="flex flex-col gap-sm">
-                <p className="text-body text-text">
-                  Nenhum aluno cadastrado na sua conta.
-                </p>
+                <p className="text-body text-text">Nenhum aluno cadastrado na sua conta.</p>
                 <p className="text-caption text-text-muted">
                   Cadastre um filho nas configurações da conta para iniciar uma reserva.
                 </p>

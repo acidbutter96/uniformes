@@ -14,6 +14,8 @@ export default function AccountPage() {
   const router = useRouter();
   const isSupplier = (user?.role as string) === 'supplier';
 
+  type AddressKey = 'cep' | 'street' | 'number' | 'complement' | 'district' | 'city' | 'state';
+
   const initial = useMemo(
     () => ({
       name: (user?.name as string) || '',
@@ -90,17 +92,17 @@ export default function AccountPage() {
     }
   }, [isSupplier, accessToken]);
 
-  const handleChange = (
-    field: 'name' | 'email' | 'cpf' | `address.${keyof typeof form.address}`,
-    value: string,
-  ) => {
-    if (field.startsWith('address.')) {
-      const aKey = field.split('.')[1] as keyof typeof form.address;
-      setForm(prev => ({ ...prev, address: { ...prev.address, [aKey]: value } }));
-    } else {
-      setForm(prev => ({ ...prev, [field]: value }));
-    }
-  };
+  const handleChange = useCallback(
+    (field: 'name' | 'email' | 'cpf' | `address.${AddressKey}`, value: string) => {
+      if (field.startsWith('address.')) {
+        const aKey = field.split('.')[1] as AddressKey;
+        setForm(prev => ({ ...prev, address: { ...prev.address, [aKey]: value } }));
+      } else {
+        setForm(prev => ({ ...prev, [field]: value }));
+      }
+    },
+    [],
+  );
 
   // CEP helpers (same behavior as cadastro)
   const digitsOnly = (value: string) => value.replace(/\D/g, '');
@@ -219,7 +221,7 @@ export default function AccountPage() {
     } finally {
       setIsFetchingCep(false);
     }
-  }, [form.address.cep, resetAddressFields]);
+  }, [form.address.cep, handleChange, resetAddressFields]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -356,7 +358,6 @@ export default function AccountPage() {
                 required
               />
             </div>
-
 
             <div className="space-y-1">
               <label htmlFor="email" className="text-sm font-medium">

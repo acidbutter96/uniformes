@@ -54,8 +54,6 @@ function LoginView() {
   }, [oauthError]);
 
   const resolveDestination = (role?: string | null) => {
-    const sanitizedReturnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : null;
-
     // Sempre que logar, resetar o fluxo de reservas para a primeira tela
     // e não voltar para passos intermediários do fluxo.
     clearOrderFlowState();

@@ -63,7 +63,9 @@ export default function AdminSettingsPage() {
               />
             )}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text">Máximo de crianças por usuário</label>
+              <label className="text-sm font-medium text-text">
+                Máximo de crianças por usuário
+              </label>
               <Input
                 type="number"
                 min={1}

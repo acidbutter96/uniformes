@@ -128,7 +128,8 @@ export default function UserReservationsPage() {
         }
 
         // build child lookup from current user in context (includes children)
-        const children = Array.isArray(user?.children) ? (user.children as any[]) : [];
+        type UserChild = { _id?: string; name?: string | null };
+        const children = Array.isArray(user?.children) ? (user.children as UserChild[]) : [];
         const childLookup: Record<string, string> = {};
         for (const child of children) {
           const id = typeof child?._id === 'string' ? child._id : undefined;
@@ -148,7 +149,7 @@ export default function UserReservationsPage() {
     void loadMetadata();
 
     return () => controller.abort();
-  }, [loading, role, userId]);
+  }, [loading, role, user, userId]);
 
   const sortedReservations = useMemo(
     () =>
@@ -202,7 +203,9 @@ export default function UserReservationsPage() {
                   <div className="flex flex-wrap items-center justify-between gap-sm">
                     <div className="flex flex-col gap-xxs sm:flex-row sm:items-center sm:gap-sm">
                       <h2 className="text-h4 font-heading">{childName}</h2>
-                      <span className="text-caption text-text-muted">Responsável: {reservation.userName}</span>
+                      <span className="text-caption text-text-muted">
+                        Responsável: {reservation.userName}
+                      </span>
                       <Badge tone={STATUS_TONES[reservation.status]}>
                         {STATUS_LABELS[reservation.status]}
                       </Badge>

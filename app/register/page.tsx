@@ -122,9 +122,7 @@ function RegisterView() {
       if (res.ok) {
         const payload = await res.json();
         // API helpers wrap successful responses as { data: [...] }
-        const list = Array.isArray(payload)
-          ? payload
-          : payload?.data ?? payload?.schools;
+        const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.schools);
         if (Array.isArray(list)) {
           setSchools(
             list.map((s: { id?: string; _id?: string; name: string }) => ({

@@ -8,6 +8,7 @@ import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
 import { Input } from '@/app/components/ui/Input';
 import useAuth from '@/src/hooks/useAuth';
+import type { AuthUser } from '@/src/context/AuthContext';
 
 export default function AccountPage() {
   const { user, accessToken, loading, loadUser } = useAuth();
@@ -44,10 +45,14 @@ export default function AccountPage() {
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const [hasAutoAddress, setHasAutoAddress] = useState(false);
   const [schools, setSchools] = useState<Array<{ id: string; name: string }>>([]);
+  const [childrenState, setChildrenState] = useState<
+    Array<{ id?: string; name: string; age: number; schoolId?: string }>
+  >([]);
   const [supplierSchoolIds, setSupplierSchoolIds] = useState<string[]>([]);
   const [schoolQuery, setSchoolQuery] = useState('');
   const [schoolError, setSchoolError] = useState<string | null>(null);
   const [savingSchools, setSavingSchools] = useState(false);
+  const [showNewChildrenModal, setShowNewChildrenModal] = useState(false);
 
   useEffect(() => {
     setForm(initial);
@@ -86,11 +91,26 @@ export default function AccountPage() {
       }
     };
 
-    if (isSupplier) {
-      loadSchools();
-      loadSupplierSchools();
-    }
+    loadSchools();
+    if (isSupplier) loadSupplierSchools();
   }, [isSupplier, accessToken]);
+
+  // Load current user's children into local state
+  useEffect(() => {
+    if (!user) return;
+    const raw = Array.isArray(user?.children)
+      ? (user.children as NonNullable<AuthUser['children']>)
+      : [];
+    const parsed = raw
+      .map(c => ({
+        id: c._id ? String(c._id) : undefined,
+        name: String(c.name ?? ''),
+        age: Number(c.age ?? 0),
+        schoolId: String(c.schoolId ?? ''),
+      }))
+      .filter(c => c.name && Number.isFinite(c.age) && c.age >= 0);
+    setChildrenState(parsed);
+  }, [user]);
 
   const handleChange = useCallback(
     (field: 'name' | 'email' | 'cpf' | `address.${AddressKey}`, value: string) => {
@@ -225,6 +245,10 @@ export default function AccountPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await attemptSave();
+  };
+
+  const saveProfile = async () => {
     if (!accessToken) return;
     setSaving(true);
     setError(null);
@@ -243,6 +267,10 @@ export default function AccountPage() {
           address: form.address,
           // permitir envio de cpf somente se ainda estiver vazio no servidor
           cpf: cpfIsEmpty ? form.cpf : undefined,
+          // include only valid children
+          children: childrenState
+            .filter(c => c.name?.trim() && Number.isFinite(c.age) && c.age >= 0 && c.schoolId)
+            .map(c => ({ name: c.name.trim(), age: c.age, schoolId: c.schoolId })),
         }),
       });
 
@@ -260,6 +288,40 @@ export default function AccountPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const attemptSave = async () => {
+    // if there are new children (without id) ask for confirmation
+    const hasNew = childrenState.some(c => !c.id && c.name?.trim() && Number.isFinite(c.age));
+    if (hasNew) {
+      setShowNewChildrenModal(true);
+      return;
+    }
+    await saveProfile();
+  };
+
+  const handleChildChange = (index: number, field: 'name' | 'age' | 'schoolId', value: string) => {
+    setChildrenState(prev => {
+      const next = [...prev];
+      const current = { ...(next[index] ?? { name: '', age: 0, schoolId: '' }) };
+      if (field === 'age') {
+        current.age = Number(value || 0);
+      } else if (field === 'name') {
+        current.name = value;
+      } else {
+        current.schoolId = value;
+      }
+      next[index] = current;
+      return next;
+    });
+  };
+
+  const addChild = () => {
+    setChildrenState(prev => [...prev, { name: '', age: 0, schoolId: '' }]);
+  };
+
+  const removeChild = (index: number) => {
+    setChildrenState(prev => prev.filter((_, i) => i !== index));
   };
 
   const filteredSchools = useMemo(() => {
@@ -504,12 +566,190 @@ export default function AccountPage() {
               />
             </div>
 
-            <div className="md:col-span-2">
-              <Button type="submit" disabled={saving || !user || Boolean(cpfError)}>
-                {saving ? 'Salvando...' : 'Salvar alterações'}
-              </Button>
-            </div>
+            {/* submit removed from here; final save button is at page end */}
+            <div className="md:col-span-2" />
           </form>
+
+          {/* Children (alunos) editor for account owners */}
+          <div className="space-y-md">
+            <label className="text-sm font-medium">Alunos vinculados</label>
+            <div className="space-y-3">
+              {childrenState.length === 0 && (
+                <p className="text-sm text-text-muted">Nenhum aluno cadastrado na sua conta.</p>
+              )}
+              <div className="flex flex-col gap-2">
+                {childrenState.map((child, idx) => (
+                  <div
+                    key={child.id ?? idx}
+                    className="flex items-center justify-between gap-4 rounded-card border border-border bg-surface px-md py-sm"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-body font-semibold truncate">
+                            {child.name || '—'}
+                          </div>
+                          <div className="text-caption text-text-muted">{child.age} anos</div>
+                        </div>
+                        <div className="text-sm text-text-muted truncate w-40 text-right">
+                          {schools.find(s => s.id === child.schoolId)?.name ??
+                            'Escola não selecionada'}
+                        </div>
+                      </div>
+                      {/* Inline editable fields */}
+                      <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
+                        {child.id ? (
+                          <>
+                            <Input
+                              placeholder="Nome do aluno"
+                              value={child.name}
+                              readOnly
+                              disabled
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Idade"
+                              value={String(child.age ?? 0)}
+                              readOnly
+                              disabled
+                            />
+                            <select
+                              className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm"
+                              value={child.schoolId ?? ''}
+                              disabled
+                            >
+                              <option value="">
+                                {schools.find(s => s.id === child.schoolId)?.name ?? 'Escola'}
+                              </option>
+                            </select>
+                          </>
+                        ) : (
+                          <>
+                            <Input
+                              placeholder="Nome do aluno"
+                              value={child.name}
+                              onChange={e => handleChildChange(idx, 'name', e.target.value)}
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Idade"
+                              value={String(child.age ?? 0)}
+                              onChange={e => handleChildChange(idx, 'age', e.target.value)}
+                              min={0}
+                            />
+                            <select
+                              className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                              value={child.schoolId ?? ''}
+                              onChange={e => handleChildChange(idx, 'schoolId', e.target.value)}
+                            >
+                              <option value="">Selecione a escola</option>
+                              {schools.map(s => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!child.id && (
+                        <button
+                          type="button"
+                          aria-label={`Remover aluno ${child.name || ''}`}
+                          onClick={() => removeChild(idx)}
+                          className="flex h-10 w-10 items-center justify-center rounded-card border border-border bg-surface text-text-muted shadow-soft transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            className="h-5 w-5 text-danger"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  aria-label="Adicionar aluno"
+                  onClick={addChild}
+                  className="flex h-10 w-10 items-center justify-center rounded-card border border-border bg-surface text-text-muted shadow-soft transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-5 w-5"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {showNewChildrenModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="absolute inset-0 bg-black/40"
+                aria-hidden="true"
+                onClick={() => setShowNewChildrenModal(false)}
+              />
+              <div
+                className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-card"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="new-children-warning-title"
+              >
+                <h2 id="new-children-warning-title" className="text-lg font-semibold">
+                  Atenção — alunos adicionados não poderão ser editados
+                </h2>
+                <p className="mt-3 text-sm text-text-muted">
+                  Ao salvar, os alunos recém-adicionados serão vinculados permanentemente ao seu
+                  cadastro e não poderão ser editados ou removidos através da interface. Deseja
+                  prosseguir?
+                </p>
+                <div className="mt-6 flex items-center justify-end gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewChildrenModal(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      setShowNewChildrenModal(false);
+                      await saveProfile();
+                    }}
+                  >
+                    Confirmar e salvar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Supplier schools selector */}
           {isSupplier && (
@@ -551,6 +791,19 @@ export default function AccountPage() {
               </div>
             </div>
           )}
+
+          {/* Final save button placed at the end */}
+          <div className="mt-6 flex justify-center">
+            <div className="w-full max-w-md flex justify-center">
+              <Button
+                onClick={attemptSave}
+                size="md"
+                disabled={saving || !user || Boolean(cpfError)}
+              >
+                {saving ? 'Salvando...' : 'Salvar alterações'}
+              </Button>
+            </div>
+          </div>
         </Card>
       </div>
     </main>

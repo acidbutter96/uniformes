@@ -81,6 +81,26 @@ export async function PATCH(request: Request) {
       };
     }
 
+    // Allow updating children (replace entire children array)
+    if (Array.isArray(body?.children)) {
+      const raw = body.children as unknown[];
+      const parsed: Array<{ name: string; age: number; schoolId: string }> = [];
+      for (const item of raw) {
+        if (!item || typeof item !== 'object') {
+          return NextResponse.json({ error: 'Dados de aluno inválidos.' }, { status: 400 });
+        }
+        const it = item as Record<string, unknown>;
+        const name = typeof it.name === 'string' ? it.name.trim() : '';
+        const age = Number(it.age);
+        const schoolId = typeof it.schoolId === 'string' ? it.schoolId : '';
+        if (!name || !Number.isFinite(age) || age < 0 || !schoolId) {
+          return NextResponse.json({ error: 'Dados de aluno inválidos.' }, { status: 400 });
+        }
+        parsed.push({ name, age, schoolId });
+      }
+      allowed.children = parsed as unknown as typeof allowed.children;
+    }
+
     // Permitir definir CPF apenas se ainda não existir
     if (typeof body?.cpf === 'string') {
       const current = await getById(payload.sub);

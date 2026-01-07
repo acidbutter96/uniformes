@@ -157,6 +157,35 @@ export default function AccountPage() {
     digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5, 8)}` : digits;
   const isCepDigitsValid = (digits: string) => digits.length === 8;
 
+  // Check CPF uniqueness on input (requires auth)
+  const checkCpfUnique = useCallback(
+    async (digits: string) => {
+      if (!accessToken) return;
+      const sanitized = digitsOnly(digits);
+      if (sanitized.length !== 11) return;
+      try {
+        const res = await fetch('/api/auth/check-cpf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ cpf: sanitized }),
+        });
+        const payload = (await res.json().catch(() => ({}))) as {
+          data?: { exists?: boolean };
+          error?: string;
+        };
+        const exists = Boolean(payload?.data?.exists);
+        if (exists) {
+          setCpfError('CPF já cadastrado.');
+        } else {
+          setCpfError(null);
+        }
+      } catch (err) {
+        console.error('Failed to check cpf uniqueness', err);
+      }
+    },
+    [accessToken],
+  );
+
   const resetAddressFields = useCallback(() => {
     setForm(prev => ({
       ...prev,
@@ -446,7 +475,9 @@ export default function AccountPage() {
                       } else if (digits.length < 11) {
                         setCpfError('Digite os 11 dígitos do CPF.');
                       } else {
-                        setCpfError(isCpfDigitsValid(digits) ? null : 'CPF inválido.');
+                        const valid = isCpfDigitsValid(digits);
+                        setCpfError(valid ? null : 'CPF inválido.');
+                        if (valid) checkCpfUnique(digits);
                       }
                     }}
                     placeholder="000.000.000-00"

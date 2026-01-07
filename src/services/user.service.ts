@@ -47,6 +47,11 @@ export async function getById(id: string) {
   return UserModel.findById(id).exec();
 }
 
+export async function findByCpf(cpf: string) {
+  await dbConnect();
+  return UserModel.findOne({ cpf }).exec();
+}
+
 export async function promoteToAdmin(id: string) {
   await dbConnect();
   return UserModel.findByIdAndUpdate(id, { role: 'admin' }, { new: true }).exec();

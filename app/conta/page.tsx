@@ -411,14 +411,9 @@ export default function AccountPage() {
           <form onSubmit={handleSubmit} className="grid gap-md md:grid-cols-2">
             <div className="space-y-1">
               <label htmlFor="name" className="text-sm font-medium">
-                Nome completo
+                Nome completo (somente leitura)
               </label>
-              <Input
-                id="name"
-                value={form.name}
-                onChange={e => handleChange('name', e.target.value)}
-                required
-              />
+              <Input id="name" value={form.name} readOnly disabled />
             </div>
 
             <div className="space-y-1">
@@ -455,7 +450,6 @@ export default function AccountPage() {
                       }
                     }}
                     placeholder="000.000.000-00"
-                    inputMode="numeric"
                     maxLength={14}
                     required
                   />

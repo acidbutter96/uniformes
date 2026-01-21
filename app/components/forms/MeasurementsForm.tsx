@@ -37,16 +37,6 @@ type FieldConfig = {
 
 const fields: FieldConfig[] = [
   {
-    name: 'age',
-    label: 'Idade',
-    placeholder: 'Ex: 25',
-    unit: 'anos',
-    example: 'Ex.: 25 anos',
-    min: 1,
-    max: 120,
-    step: 1,
-  },
-  {
     name: 'height',
     label: 'Altura',
     placeholder: 'Ex: 170',
@@ -85,7 +75,6 @@ const fields: FieldConfig[] = [
 ];
 
 const initialValues: Record<MeasurementField, string> = {
-  age: '',
   height: '',
   chest: '',
   waist: '',
@@ -93,7 +82,6 @@ const initialValues: Record<MeasurementField, string> = {
 };
 
 const initialTouched: Record<MeasurementField, boolean> = {
-  age: false,
   height: false,
   chest: false,
   waist: false,

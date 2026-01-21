@@ -13,16 +13,14 @@ const WEIGHTS = {
   height: 3,
   waist: 2,
   hips: 2,
-  age: 1,
 } as const;
 
-export const MAX_SCORE =
-  WEIGHTS.chest + WEIGHTS.height + WEIGHTS.waist + WEIGHTS.hips + WEIGHTS.age;
+export const MAX_SCORE = WEIGHTS.chest + WEIGHTS.height + WEIGHTS.waist + WEIGHTS.hips;
 
 const OUTSIDE_TOLERANCE_RATIO = 0.05;
 const PARTIAL_RATIO = 0.5;
 
-export const MIN_SCORE_THRESHOLD = 7;
+export const MIN_SCORE_THRESHOLD = 6;
 
 function scoreRange(value: number, [min, max]: Range, weight: number): number {
   if (value >= min && value <= max) {
@@ -43,13 +41,12 @@ function scoreRange(value: number, [min, max]: Range, weight: number): number {
 }
 
 function scoreSize(entry: SizeChartEntry, m: MeasurementsData): number {
-  // Weight is intentionally not used (requirements focus on height/chest/waist/hips/age).
+  // Only height/chest/waist/hips are used (age is intentionally ignored).
   return (
     scoreRange(m.chest, entry.chest, WEIGHTS.chest) +
     scoreRange(m.height, entry.height, WEIGHTS.height) +
     scoreRange(m.waist, entry.waist, WEIGHTS.waist) +
-    scoreRange(m.hips, entry.hips, WEIGHTS.hips) +
-    scoreRange(m.age, entry.age, WEIGHTS.age)
+    scoreRange(m.hips, entry.hips, WEIGHTS.hips)
   );
 }
 

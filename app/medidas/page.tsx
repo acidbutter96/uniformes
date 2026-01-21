@@ -288,13 +288,10 @@ export default function MeasurementsPage() {
             {inputMode === 'measurements' && (
               <MeasurementsForm
                 id="measurements-form"
-                lockedValues={child ? { age: child.age } : undefined}
-                disabledFields={{ age: true }}
                 onRecommendation={(next, data) => {
                   setRecommendation(next);
 
                   const measurementsMap: MeasurementsMap = {
-                    age: Number(child?.age ?? data.age),
                     height: Number(data.height),
                     chest: Number(data.chest),
                     waist: Number(data.waist),
@@ -393,9 +390,45 @@ export default function MeasurementsPage() {
                   <p className="text-body text-text">
                     {engineMessage ?? 'Sugestão calculada com base nas medidas informadas.'}
                   </p>
-                  <p className="text-caption text-text-muted">
-                    Pontuação: {recommendation.score}/{MAX_SCORE}
-                  </p>
+                  {(() => {
+                    const ratio = MAX_SCORE > 0 ? recommendation.score / MAX_SCORE : 0;
+                    const clamped = Math.max(0, Math.min(1, ratio));
+                    const percent = Math.round(clamped * 100);
+
+                    const barColor =
+                      clamped < 0.45
+                        ? 'bg-red-500'
+                        : clamped < 0.75
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500';
+
+                    return (
+                      <div className="space-y-xxs">
+                        <div className="flex items-center justify-between">
+                          <span
+                            className="text-caption text-text-muted"
+                            title={`${percent}%`}
+                            aria-label={`Precisão da sugestão: ${percent}%`}
+                          >
+                            Precisão da sugestão
+                          </span>
+                          <span className="sr-only">{percent}%</span>
+                        </div>
+                        <div
+                          className="h-2 w-full overflow-hidden rounded-full bg-border"
+                          role="progressbar"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={percent}
+                        >
+                          <div
+                            className={cn('h-full transition-[width] duration-300', barColor)}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {recommendation.size === 'MANUAL' ? (
                     <Button variant="secondary" fullWidth onClick={handleChooseSizeDirect}>

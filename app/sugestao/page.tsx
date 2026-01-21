@@ -150,9 +150,8 @@ export default function SuggestionPage() {
       return [];
     }
 
-    const { age, height, chest, waist, hips } = orderState.measurements;
+    const { height, chest, waist, hips } = orderState.measurements;
     return [
-      { label: 'Idade', value: `${age} anos` },
       { label: 'Altura', value: `${height} cm` },
       { label: 'Tórax', value: `${chest} cm` },
       { label: 'Cintura', value: `${waist} cm` },

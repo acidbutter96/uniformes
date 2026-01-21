@@ -8,7 +8,6 @@ export type SizeChartEntry = {
   chest: Range; // cm
   waist: Range; // cm
   hips: Range; // cm
-  age: Range; // years (up to 17)
 };
 
 // Deterministic, realistic-ish ranges for Brazilian youth sizing (up to 17 years).
@@ -20,7 +19,6 @@ export const SIZE_CHART: readonly SizeChartEntry[] = [
     chest: [52, 64],
     waist: [50, 58],
     hips: [56, 70],
-    age: [2, 6],
   },
   {
     size: 'P',
@@ -28,7 +26,6 @@ export const SIZE_CHART: readonly SizeChartEntry[] = [
     chest: [62, 74],
     waist: [56, 66],
     hips: [68, 82],
-    age: [6, 10],
   },
   {
     size: 'M',
@@ -36,7 +33,6 @@ export const SIZE_CHART: readonly SizeChartEntry[] = [
     chest: [72, 86],
     waist: [64, 76],
     hips: [80, 94],
-    age: [9, 13],
   },
   {
     size: 'G',
@@ -44,7 +40,6 @@ export const SIZE_CHART: readonly SizeChartEntry[] = [
     chest: [84, 98],
     waist: [74, 88],
     hips: [92, 106],
-    age: [12, 17],
   },
   {
     size: 'GG',
@@ -52,6 +47,5 @@ export const SIZE_CHART: readonly SizeChartEntry[] = [
     chest: [96, 112],
     waist: [86, 104],
     hips: [104, 120],
-    age: [14, 17],
   },
 ] as const;

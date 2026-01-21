@@ -3,7 +3,6 @@ import mongoose, { Schema, Types, type Document, type Model } from 'mongoose';
 import { type ReservationStatus, RESERVATION_STATUSES } from '@/src/types/reservation';
 
 export interface ReservationMeasurements {
-  age: number;
   height: number;
   chest: number;
   waist: number;
@@ -27,12 +26,6 @@ export interface ReservationDocument extends Document {
 
 const MeasurementsSchema = new Schema<ReservationMeasurements>(
   {
-    age: {
-      type: Number,
-      min: 1,
-      max: 120,
-      required: false,
-    },
     height: {
       type: Number,
       min: 50,

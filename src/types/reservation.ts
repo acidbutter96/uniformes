@@ -1,5 +1,4 @@
 export type ReservationMeasurementsDTO = {
-  age: number;
   height: number;
   chest: number;
   waist: number;

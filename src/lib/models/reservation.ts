@@ -5,7 +5,6 @@ import { type ReservationStatus, RESERVATION_STATUSES } from '@/src/types/reserv
 export interface ReservationMeasurements {
   age: number;
   height: number;
-  weight: number;
   chest: number;
   waist: number;
   hips: number;
@@ -38,12 +37,6 @@ const MeasurementsSchema = new Schema<ReservationMeasurements>(
       type: Number,
       min: 50,
       max: 230,
-      required: false,
-    },
-    weight: {
-      type: Number,
-      min: 10,
-      max: 250,
       required: false,
     },
     chest: {

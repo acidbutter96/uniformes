@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
+import { MAX_SCORE, recommendSize } from '@/app/lib/sizeEngine';
 
 interface MeasurementsPayload {
   age?: number;
   height?: number;
-  weight?: number;
   chest?: number;
   waist?: number;
   hips?: number;
@@ -24,40 +24,6 @@ function sanitizeNumber(value: unknown): number | undefined {
   return undefined;
 }
 
-function averageCircumference(values: Array<number | undefined>) {
-  const filtered = values.filter((value): value is number => typeof value === 'number');
-  if (!filtered.length) {
-    return undefined;
-  }
-  return filtered.reduce((sum, value) => sum + value, 0) / filtered.length;
-}
-
-function suggestSize({ height, weight, chest, waist, hips }: MeasurementsPayload) {
-  if (!height || !weight) {
-    return 'M';
-  }
-
-  const circumference = averageCircumference([chest, waist, hips]) ?? height * 0.6;
-
-  const thresholds = [
-    { size: 'PP', height: 155, weight: 50, circumference: 85 },
-    { size: 'P', height: 170, weight: 65, circumference: 100 },
-    { size: 'M', height: 185, weight: 85, circumference: 115 },
-  ];
-
-  for (const threshold of thresholds) {
-    if (
-      height <= threshold.height ||
-      weight <= threshold.weight ||
-      circumference <= threshold.circumference
-    ) {
-      return threshold.size;
-    }
-  }
-
-  return 'G';
-}
-
 export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as MeasurementsPayload;
@@ -65,30 +31,43 @@ export async function POST(request: Request) {
     const normalized: MeasurementsPayload = {
       age: sanitizeNumber(payload.age),
       height: sanitizeNumber(payload.height),
-      weight: sanitizeNumber(payload.weight),
       chest: sanitizeNumber(payload.chest),
       waist: sanitizeNumber(payload.waist),
       hips: sanitizeNumber(payload.hips),
     };
 
-    if (!normalized.height || !normalized.weight) {
+    if (
+      !normalized.age ||
+      !normalized.height ||
+      !normalized.chest ||
+      !normalized.waist ||
+      !normalized.hips
+    ) {
       return NextResponse.json(
-        { error: 'Altura e peso são obrigatórios para gerar a sugestão.' },
+        {
+          error: 'Idade, altura, tórax, cintura e quadril são obrigatórios para gerar a sugestão.',
+        },
         { status: 422 },
       );
     }
 
-    const suggestion = suggestSize(normalized);
+    const { size, score } = recommendSize({
+      age: normalized.age,
+      height: normalized.height,
+      chest: normalized.chest,
+      waist: normalized.waist,
+      hips: normalized.hips,
+    });
 
-    const confidence = Math.min(
-      1,
-      [normalized.chest, normalized.waist, normalized.hips].filter(Boolean).length / 3 + 0.4,
-    );
+    const suggestion = size === 'MANUAL' ? 'M' : size;
+    const confidence = score / MAX_SCORE;
+    const message =
+      size === 'MANUAL' ? 'Ajuste manual recomendado.' : `Recomendamos o tamanho ${suggestion}.`;
 
     return NextResponse.json({
       suggestion,
       confidence,
-      message: `Recomendamos o tamanho ${suggestion}.`,
+      message,
     });
   } catch (error) {
     console.error('Failed to generate suggestion', error);

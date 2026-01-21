@@ -2,25 +2,21 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/app/lib/utils';
-import { sanitizeDecimalInput, sanitizeIntegerInput } from '@/app/lib/input';
+import { sanitizeIntegerInput } from '@/app/lib/input';
+import { MAX_SCORE, recommendSize, type RecommendSizeResult } from '@/app/lib/sizeEngine';
+import type { MeasurementField, MeasurementsData } from '@/app/lib/measurements';
 import { Input } from '@/app/components/ui/Input';
 import { Button } from '@/app/components/ui/Button';
 import { Alert } from '@/app/components/ui/Alert';
 
-type MeasurementField = 'age' | 'height' | 'weight' | 'chest' | 'waist' | 'hips';
-
-export interface MeasurementsData {
-  age: number;
-  height: number;
-  weight: number;
-  chest: number;
-  waist: number;
-  hips: number;
-}
+export type { MeasurementsData };
 
 interface MeasurementsFormProps {
   id?: string;
   onSubmit?: (data: MeasurementsData) => Promise<void> | void;
+  onRecommendation?: (recommendation: RecommendSizeResult, data: MeasurementsData) => void;
+  lockedValues?: Partial<MeasurementsData>;
+  disabledFields?: Partial<Record<MeasurementField, boolean>>;
   className?: string;
   submitLabel?: string;
   successMessage?: string;
@@ -60,15 +56,6 @@ const fields: FieldConfig[] = [
     max: 230,
   },
   {
-    name: 'weight',
-    label: 'Peso',
-    placeholder: 'Ex: 68',
-    unit: 'kg',
-    example: 'Ex.: 68 kg',
-    min: 10,
-    max: 250,
-  },
-  {
     name: 'chest',
     label: 'Tórax',
     placeholder: 'Ex: 95',
@@ -100,7 +87,6 @@ const fields: FieldConfig[] = [
 const initialValues: Record<MeasurementField, string> = {
   age: '',
   height: '',
-  weight: '',
   chest: '',
   waist: '',
   hips: '',
@@ -109,7 +95,6 @@ const initialValues: Record<MeasurementField, string> = {
 const initialTouched: Record<MeasurementField, boolean> = {
   age: false,
   height: false,
-  weight: false,
   chest: false,
   waist: false,
   hips: false,
@@ -118,6 +103,9 @@ const initialTouched: Record<MeasurementField, boolean> = {
 export function MeasurementsForm({
   id,
   onSubmit,
+  onRecommendation,
+  lockedValues,
+  disabledFields,
   className,
   submitLabel = 'Salvar medidas',
   successMessage = 'Medidas salvas!',
@@ -129,6 +117,7 @@ export function MeasurementsForm({
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
     'idle',
   );
+  const [recommendation, setRecommendation] = useState<RecommendSizeResult | null>(null);
 
   useEffect(() => {
     if (!defaultValues) {
@@ -149,7 +138,29 @@ export function MeasurementsForm({
     setValues(nextValues);
     setTouched(initialTouched);
     setSubmitStatus('idle');
+    setRecommendation(null);
   }, [defaultValues]);
+
+  useEffect(() => {
+    if (!lockedValues) {
+      return;
+    }
+
+    setValues(prev => {
+      const next = { ...prev };
+
+      for (const field of fields) {
+        const provided = lockedValues[field.name];
+        if (provided === undefined || Number.isNaN(Number(provided))) {
+          continue;
+        }
+
+        next[field.name] = String(provided);
+      }
+
+      return next;
+    });
+  }, [lockedValues]);
 
   const errors = useMemo(() => {
     const next: Partial<Record<MeasurementField, string>> = {};
@@ -179,8 +190,7 @@ export function MeasurementsForm({
   const isComplete = Object.values(values).every(value => value.trim() !== '');
 
   function handleChange(field: MeasurementField, nextValue: string) {
-    const sanitized =
-      field === 'weight' ? sanitizeDecimalInput(nextValue, 2) : sanitizeIntegerInput(nextValue);
+    const sanitized = sanitizeIntegerInput(nextValue);
     setValues(prev => ({ ...prev, [field]: sanitized }));
     setSubmitStatus('idle');
   }
@@ -205,6 +215,10 @@ export function MeasurementsForm({
       acc[field.name] = Number(values[field.name]);
       return acc;
     }, {} as MeasurementsData);
+
+    const nextRecommendation = recommendSize(payload);
+    setRecommendation(nextRecommendation);
+    onRecommendation?.(nextRecommendation, payload);
 
     setSubmitStatus('loading');
 
@@ -238,9 +252,9 @@ export function MeasurementsForm({
         {fields.map(field => {
           const isInvalid = Boolean(errors[field.name]);
           const showError = isInvalid && touched[field.name];
-          const isDecimalField = field.name === 'weight';
-          const step = typeof field.step === 'number' ? field.step : isDecimalField ? 0.01 : 1;
-          const inputMode = isDecimalField ? 'decimal' : 'numeric';
+          const step = typeof field.step === 'number' ? field.step : 1;
+          const inputMode = 'numeric';
+          const isDisabled = Boolean(disabledFields?.[field.name]);
 
           return (
             <label key={field.name} className="flex flex-col gap-xs text-body text-text">
@@ -259,6 +273,7 @@ export function MeasurementsForm({
                   aria-invalid={isInvalid}
                   aria-describedby={`${field.name}-example ${field.name}-error`}
                   className="flex-1"
+                  disabled={isDisabled}
                 />
                 <span className="shrink-0 rounded-card bg-background px-sm py-xxs text-body text-text-muted">
                   {field.unit}
@@ -280,6 +295,22 @@ export function MeasurementsForm({
           );
         })}
       </div>
+
+      {recommendation && (
+        <div className="rounded-card border border-border bg-background px-md py-sm">
+          <div className="flex items-baseline justify-between gap-md">
+            <span className="text-caption font-medium uppercase tracking-wide text-text-muted">
+              Recomendação
+            </span>
+            <span className="text-h4 font-heading text-text">
+              {recommendation.size === 'MANUAL' ? 'Ajuste manual recomendado' : recommendation.size}
+            </span>
+          </div>
+          <p className="mt-1 text-caption text-text-muted">
+            Pontuação: {recommendation.score}/{MAX_SCORE}
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
         <p className="text-caption text-text-muted">Todos os campos são obrigatórios.</p>

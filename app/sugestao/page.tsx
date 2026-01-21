@@ -150,11 +150,10 @@ export default function SuggestionPage() {
       return [];
     }
 
-    const { age, height, weight, chest, waist, hips } = orderState.measurements;
+    const { age, height, chest, waist, hips } = orderState.measurements;
     return [
       { label: 'Idade', value: `${age} anos` },
       { label: 'Altura', value: `${height} cm` },
-      { label: 'Peso', value: `${weight} kg` },
       { label: 'Tórax', value: `${chest} cm` },
       { label: 'Cintura', value: `${waist} cm` },
       { label: 'Quadril', value: `${hips} cm` },
@@ -308,6 +307,12 @@ export default function SuggestionPage() {
                     </li>
                   ))}
                 </ul>
+
+                {!suggestion && (
+                  <div className="rounded-card bg-background px-md py-sm text-body text-text-muted">
+                    Não foi possível sugerir um tamanho automaticamente. Ajuste manual recomendado.
+                  </div>
+                )}
               </div>
             ) : (
               <div className="rounded-card bg-background px-md py-sm text-body text-text-muted">

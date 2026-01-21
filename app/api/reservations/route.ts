@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       resolvedSupplierId = supplierId as string;
     }
 
-    const requiredFields = ['age', 'height', 'weight', 'chest', 'waist', 'hips'] as const;
+    const requiredFields = ['age', 'height', 'chest', 'waist', 'hips'] as const;
     let parsedMeasurements: Record<(typeof requiredFields)[number], number> | undefined;
 
     if (measurements !== undefined && measurements !== null) {
@@ -122,7 +122,6 @@ export async function POST(request: NextRequest) {
       const parsed: Record<(typeof requiredFields)[number], number> = {
         age: 0,
         height: 0,
-        weight: 0,
         chest: 0,
         waist: 0,
         hips: 0,

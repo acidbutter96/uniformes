@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { StepsHeader } from '@/app/components/steps/StepsHeader';
-import { MeasurementsForm, type MeasurementsData } from '@/app/components/forms/MeasurementsForm';
+import { MeasurementsForm } from '@/app/components/forms/MeasurementsForm';
 import { Card } from '@/app/components/ui/Card';
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 import { cn } from '@/app/lib/utils';
+import { MAX_SCORE, type RecommendSizeResult } from '@/app/lib/sizeEngine';
 import type { Uniform } from '@/app/lib/models/uniform';
 import type { School } from '@/app/lib/models/school';
 import {
@@ -17,29 +18,37 @@ import {
   type MeasurementsMap,
   type SuggestionData,
 } from '@/app/lib/storage/order-flow';
-
-interface SuggestionResult {
-  suggestion: string;
-  confidence: number;
-  message: string;
-}
+import useAuth from '@/src/hooks/useAuth';
 
 type InputMode = 'choice' | 'size' | 'measurements';
 
 const FALLBACK_SIZES = ['PP', 'P', 'M', 'G', 'GG'];
 
+function isKnownSize(value: string): value is 'PP' | 'P' | 'M' | 'G' | 'GG' {
+  return value === 'PP' || value === 'P' || value === 'M' || value === 'G' || value === 'GG';
+}
+
 export default function MeasurementsPage() {
   const router = useRouter();
-  const [result, setResult] = useState<SuggestionResult | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const { user, accessToken, loading: authLoading } = useAuth();
+
+  const [recommendation, setRecommendation] = useState<RecommendSizeResult | null>(null);
+  const [engineMessage, setEngineMessage] = useState<string | null>(null);
   const [measurementValues, setMeasurementValues] = useState<MeasurementsMap | null>(null);
   const [uniform, setUniform] = useState<Uniform | null>(null);
   const [school, setSchool] = useState<School | null>(null);
   const [inputMode, setInputMode] = useState<InputMode>('choice');
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [childId, setChildId] = useState<string | null>(null);
+  const [child, setChild] = useState<{ name: string; age: number } | null>(null);
 
   useEffect(() => {
     const state = loadOrderFlowState();
+
+    if (!state.childId) {
+      router.replace('/alunos');
+      return;
+    }
 
     if (!state.schoolId) {
       router.replace('/alunos');
@@ -51,8 +60,9 @@ export default function MeasurementsPage() {
       return;
     }
 
-    if (state.suggestion) {
-      setResult(state.suggestion);
+    if (state.suggestion && isKnownSize(state.suggestion.suggestion)) {
+      setRecommendation({ size: state.suggestion.suggestion, score: MAX_SCORE });
+      setEngineMessage(state.suggestion.message ?? null);
     }
 
     if (state.measurements) {
@@ -68,6 +78,7 @@ export default function MeasurementsPage() {
     }
 
     setSelectedSize(state.selectedSize ?? null);
+    setChildId(state.childId ?? null);
 
     const fetchDetails = async () => {
       try {
@@ -101,50 +112,71 @@ export default function MeasurementsPage() {
     fetchDetails();
   }, [router]);
 
-  async function handleSubmit(data: MeasurementsData) {
-    setResult(null);
-    setApiError(null);
-
-    const response = await fetch('/api/mock/suggest-size', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      const message = payload?.error ?? 'Erro ao contactar API.';
-      setApiError(message);
-      throw new Error(message);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace(`/login?returnTo=${encodeURIComponent('/medidas')}`);
+      return;
     }
 
-    const payload = (await response.json()) as SuggestionResult;
-    setResult(payload);
+    if (!childId) {
+      return;
+    }
 
-    const measurementsMap: MeasurementsMap = {
-      age: Number(data.age),
-      height: Number(data.height),
-      weight: Number(data.weight),
-      chest: Number(data.chest),
-      waist: Number(data.waist),
-      hips: Number(data.hips),
-    };
+    const controller = new AbortController();
 
-    const suggestionData: SuggestionData = {
-      suggestion: payload.suggestion,
-      confidence: payload.confidence,
-      message: payload.message,
-    };
+    async function loadChild() {
+      try {
+        type RawChild = {
+          _id?: string;
+          name?: unknown;
+          age?: unknown;
+        };
 
-    saveOrderFlowState({ measurements: measurementsMap, suggestion: suggestionData });
-    setMeasurementValues(measurementsMap);
-    setApiError(null);
-  }
+        const response = await fetch('/api/auth/me', {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error('Falha ao carregar aluno.');
+        }
+
+        const payload = await response.json();
+        const rawChildren: RawChild[] = Array.isArray(payload?.data?.children)
+          ? (payload.data.children as RawChild[])
+          : [];
+
+        const match = rawChildren.find(
+          c => (typeof c?._id === 'string' ? c._id : undefined) === childId,
+        );
+        if (!match) {
+          setChild(null);
+          return;
+        }
+
+        const name = String(match.name ?? '').trim();
+        const age = Number(match.age ?? 0);
+
+        if (!name || !Number.isFinite(age) || age < 0) {
+          setChild(null);
+          return;
+        }
+
+        setChild({ name, age });
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          console.error('Failed to load child for measurements', error);
+        }
+      }
+    }
+
+    void loadChild();
+    return () => controller.abort();
+  }, [authLoading, user, accessToken, childId, router]);
 
   const handleAdvance = () => {
-    if (!result) return;
+    if (!recommendation || recommendation.size === 'MANUAL') return;
     router.push('/sugestao');
   };
 
@@ -152,8 +184,8 @@ export default function MeasurementsPage() {
     // Clear measurement-based data (user chose manual size).
     saveOrderFlowState({ measurements: undefined, suggestion: undefined, selectedSize: undefined });
     setMeasurementValues(null);
-    setResult(null);
-    setApiError(null);
+    setRecommendation(null);
+    setEngineMessage(null);
     setSelectedSize(null);
     setInputMode('size');
   };
@@ -256,7 +288,37 @@ export default function MeasurementsPage() {
             {inputMode === 'measurements' && (
               <MeasurementsForm
                 id="measurements-form"
-                onSubmit={handleSubmit}
+                lockedValues={child ? { age: child.age } : undefined}
+                disabledFields={{ age: true }}
+                onRecommendation={(next, data) => {
+                  setRecommendation(next);
+
+                  const measurementsMap: MeasurementsMap = {
+                    age: Number(child?.age ?? data.age),
+                    height: Number(data.height),
+                    chest: Number(data.chest),
+                    waist: Number(data.waist),
+                    hips: Number(data.hips),
+                  };
+
+                  setMeasurementValues(measurementsMap);
+
+                  if (next.size === 'MANUAL') {
+                    const message = 'Ajuste manual recomendado para maior precisão.';
+                    setEngineMessage(message);
+                    saveOrderFlowState({ measurements: measurementsMap, suggestion: undefined });
+                    return;
+                  }
+
+                  const suggestionData: SuggestionData = {
+                    suggestion: next.size,
+                    confidence: next.score / MAX_SCORE,
+                    message: 'Sugestão calculada com base nas medidas informadas.',
+                  };
+
+                  setEngineMessage(suggestionData.message);
+                  saveOrderFlowState({ measurements: measurementsMap, suggestion: suggestionData });
+                }}
                 submitLabel="Sugerir tamanho"
                 successMessage="Sugestão enviada!"
                 errorMessage="Não foi possível gerar uma sugestão."
@@ -270,6 +332,14 @@ export default function MeasurementsPage() {
               <h2 className="text-h3 font-heading">Seleção atual</h2>
               {uniform && school ? (
                 <dl className="flex flex-col gap-xs text-body text-text">
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Aluno</dt>
+                    <dd className="font-medium">{child?.name ?? 'Carregando...'}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-muted">Idade</dt>
+                    <dd className="font-medium">{child ? `${child.age} anos` : 'Carregando...'}</dd>
+                  </div>
                   <div className="flex justify-between">
                     <dt className="text-text-muted">Escola</dt>
                     <dd className="font-medium">{school.name}</dd>
@@ -310,19 +380,32 @@ export default function MeasurementsPage() {
                     Avançar para confirmação
                   </Button>
                 </div>
-              ) : result ? (
+              ) : recommendation ? (
                 <div className="flex flex-col gap-sm">
                   <div className="flex items-baseline justify-between">
                     <span className="text-caption text-text-muted">Tamanho sugerido</span>
-                    <span className="text-h4 font-heading text-text">{result.suggestion}</span>
+                    <span className="text-h4 font-heading text-text">
+                      {recommendation.size === 'MANUAL'
+                        ? 'Ajuste manual recomendado'
+                        : recommendation.size}
+                    </span>
                   </div>
-                  <p className="text-body text-text">{result.message}</p>
-                  <p className="text-caption text-text-muted">
-                    Confiança estimada: {(result.confidence * 100).toFixed(0)}%
+                  <p className="text-body text-text">
+                    {engineMessage ?? 'Sugestão calculada com base nas medidas informadas.'}
                   </p>
-                  <Button variant="primary" fullWidth onClick={handleAdvance}>
-                    Avançar para confirmação
-                  </Button>
+                  <p className="text-caption text-text-muted">
+                    Pontuação: {recommendation.score}/{MAX_SCORE}
+                  </p>
+
+                  {recommendation.size === 'MANUAL' ? (
+                    <Button variant="secondary" fullWidth onClick={handleChooseSizeDirect}>
+                      Escolher tamanho manualmente
+                    </Button>
+                  ) : (
+                    <Button variant="primary" fullWidth onClick={handleAdvance}>
+                      Avançar para confirmação
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <p className="text-body text-text-muted">
@@ -331,8 +414,12 @@ export default function MeasurementsPage() {
               )}
             </Card>
 
-            {apiError && (
-              <Alert tone="danger" heading="Erro ao sugerir tamanho" description={apiError} />
+            {recommendation?.size === 'MANUAL' && engineMessage && (
+              <Alert
+                tone="warning"
+                heading="Ajuste manual recomendado"
+                description={engineMessage}
+              />
             )}
           </aside>
         </section>

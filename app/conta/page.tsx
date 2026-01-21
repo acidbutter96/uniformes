@@ -52,7 +52,6 @@ export default function AccountPage() {
   const [schoolQuery, setSchoolQuery] = useState('');
   const [schoolError, setSchoolError] = useState<string | null>(null);
   const [savingSchools, setSavingSchools] = useState(false);
-  const [showNewChildrenModal, setShowNewChildrenModal] = useState(false);
 
   useEffect(() => {
     setForm(initial);
@@ -63,6 +62,25 @@ export default function AccountPage() {
       router.replace('/login');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    if (typeof window === 'undefined') return;
+
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    const id = decodeURIComponent(hash.replace('#', '')).trim();
+    if (!id) return;
+
+    requestAnimationFrame(() => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  }, [loading, user]);
 
   // Load schools list and supplier's linked schools when supplier
   useEffect(() => {
@@ -320,12 +338,6 @@ export default function AccountPage() {
   };
 
   const attemptSave = async () => {
-    // if there are new children (without id) ask for confirmation
-    const hasNew = childrenState.some(c => !c.id && c.name?.trim() && Number.isFinite(c.age));
-    if (hasNew) {
-      setShowNewChildrenModal(true);
-      return;
-    }
     await saveProfile();
   };
 
@@ -345,13 +357,7 @@ export default function AccountPage() {
     });
   };
 
-  const addChild = () => {
-    setChildrenState(prev => [...prev, { name: '', age: 0, schoolId: '' }]);
-  };
-
-  const removeChild = (index: number) => {
-    setChildrenState(prev => prev.filter((_, i) => i !== index));
-  };
+  // Children list is managed elsewhere; on this page we only allow updating the school.
 
   const filteredSchools = useMemo(() => {
     const q = schoolQuery.trim().toLowerCase();
@@ -596,7 +602,7 @@ export default function AccountPage() {
           </form>
 
           {/* Children (alunos) editor for account owners */}
-          <div className="space-y-md">
+          <section id="alunos-vinculados" className="space-y-md">
             <label className="text-sm font-medium">Alunos vinculados</label>
             <div className="space-y-3">
               {childrenState.length === 0 && (
@@ -621,160 +627,35 @@ export default function AccountPage() {
                             'Escola não selecionada'}
                         </div>
                       </div>
-                      {/* Inline editable fields */}
+                      {/* Only school can be changed here */}
                       <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-3">
-                        {child.id ? (
-                          <>
-                            <Input
-                              placeholder="Nome do aluno"
-                              value={child.name}
-                              readOnly
-                              disabled
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Idade"
-                              value={String(child.age ?? 0)}
-                              readOnly
-                              disabled
-                            />
-                            <select
-                              className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm"
-                              value={child.schoolId ?? ''}
-                              disabled
-                            >
-                              <option value="">
-                                {schools.find(s => s.id === child.schoolId)?.name ?? 'Escola'}
-                              </option>
-                            </select>
-                          </>
-                        ) : (
-                          <>
-                            <Input
-                              placeholder="Nome do aluno"
-                              value={child.name}
-                              onChange={e => handleChildChange(idx, 'name', e.target.value)}
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Idade"
-                              value={String(child.age ?? 0)}
-                              onChange={e => handleChildChange(idx, 'age', e.target.value)}
-                              min={0}
-                            />
-                            <select
-                              className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                              value={child.schoolId ?? ''}
-                              onChange={e => handleChildChange(idx, 'schoolId', e.target.value)}
-                            >
-                              <option value="">Selecione a escola</option>
-                              {schools.map(s => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
-                                </option>
-                              ))}
-                            </select>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {!child.id && (
-                        <button
-                          type="button"
-                          aria-label={`Remover aluno ${child.name || ''}`}
-                          onClick={() => removeChild(idx)}
-                          className="flex h-10 w-10 items-center justify-center rounded-card border border-border bg-surface text-text-muted shadow-soft transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                        <Input placeholder="Nome do aluno" value={child.name} readOnly disabled />
+                        <Input
+                          type="number"
+                          placeholder="Idade"
+                          value={String(child.age ?? 0)}
+                          readOnly
+                          disabled
+                        />
+                        <select
+                          className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          value={child.schoolId ?? ''}
+                          onChange={e => handleChildChange(idx, 'schoolId', e.target.value)}
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            className="h-5 w-5 text-danger"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      )}
+                          <option value="">Selecione a escola</option>
+                          {schools.map(s => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <div>
-                <button
-                  type="button"
-                  aria-label="Adicionar aluno"
-                  onClick={addChild}
-                  className="flex h-10 w-10 items-center justify-center rounded-card border border-border bg-surface text-text-muted shadow-soft transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-5 w-5"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-              </div>
             </div>
-          </div>
-
-          {showNewChildrenModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div
-                className="absolute inset-0 bg-black/40"
-                aria-hidden="true"
-                onClick={() => setShowNewChildrenModal(false)}
-              />
-              <div
-                className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-card"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="new-children-warning-title"
-              >
-                <h2 id="new-children-warning-title" className="text-lg font-semibold">
-                  Atenção — alunos adicionados não poderão ser editados
-                </h2>
-                <p className="mt-3 text-sm text-text-muted">
-                  Ao salvar, os alunos recém-adicionados serão vinculados permanentemente ao seu
-                  cadastro e não poderão ser editados ou removidos através da interface. Deseja
-                  prosseguir?
-                </p>
-                <div className="mt-6 flex items-center justify-end gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowNewChildrenModal(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={async () => {
-                      setShowNewChildrenModal(false);
-                      await saveProfile();
-                    }}
-                  >
-                    Confirmar e salvar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
+          </section>
 
           {/* Supplier schools selector */}
           {isSupplier && (

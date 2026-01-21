@@ -21,7 +21,7 @@ export type CreateReservationInput = {
   schoolId: string;
   uniformId: string;
   supplierId?: string;
-  measurements: ReservationMeasurements;
+  measurements?: ReservationMeasurements;
   suggestedSize: string;
   status?: ReservationStatus;
   value?: number;
@@ -134,18 +134,23 @@ export async function createReservation(input: CreateReservationInput) {
     throw new Error('Valor da reserva inválido.');
   }
 
-  const created = await ReservationModel.create({
+  const reservationPayload: Record<string, unknown> = {
     userName: input.userName.trim(),
     userId: new Types.ObjectId(input.userId),
     childId: childObjectId,
     schoolId: new Types.ObjectId(input.schoolId),
     uniformId: new Types.ObjectId(input.uniformId),
     supplierId: input.supplierId ? new Types.ObjectId(input.supplierId) : undefined,
-    measurements: input.measurements,
     suggestedSize: input.suggestedSize.trim(),
     status,
     value,
-  });
+  };
+
+  if (input.measurements) {
+    reservationPayload.measurements = input.measurements;
+  }
+
+  const created = await ReservationModel.create(reservationPayload);
 
   return serializeReservation(created);
 }

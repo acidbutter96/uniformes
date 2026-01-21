@@ -47,12 +47,8 @@ export default function SupplierSelectStep() {
       router.replace('/uniformes');
       return;
     }
-    if (
-      !orderState.measurements ||
-      !orderState.suggestion ||
-      !(orderState.selectedSize ?? orderState.suggestion.suggestion)
-    ) {
-      router.replace('/medidas');
+    if (!(orderState.selectedSize ?? orderState.suggestion?.suggestion)) {
+      router.replace('/sugestao');
       return;
     }
   }, [orderState, router]);
@@ -126,7 +122,7 @@ export default function SupplierSelectStep() {
           schoolId: orderState.schoolId,
           uniformId: orderState.uniformId,
           supplierId: selectedSupplierId,
-          measurements: orderState.measurements,
+          ...(orderState.measurements ? { measurements: orderState.measurements } : {}),
           suggestedSize: finalSize,
         }),
       });

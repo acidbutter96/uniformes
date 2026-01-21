@@ -48,11 +48,7 @@ export default function SuggestionPage() {
       return;
     }
 
-    if (!state.measurements || !state.suggestion) {
-      router.replace('/medidas');
-      return;
-    }
-
+    // Measurements are optional; user may choose size directly.
     setSelectedSize(state.selectedSize ?? state.suggestion?.suggestion ?? null);
     setOrderState(state);
   }, [router]);
@@ -174,12 +170,6 @@ export default function SuggestionPage() {
 
   const handleConfirm = async () => {
     if (!orderState) return;
-
-    if (!orderState.suggestion?.suggestion) {
-      setSubmitError('Não encontramos a sugestão de tamanho. Volte e gere novamente.');
-      return;
-    }
-
     const sizeToSubmit = finalSize;
 
     if (!sizeToSubmit) {
@@ -302,22 +292,28 @@ export default function SuggestionPage() {
               </div>
             )}
 
-            <div className="flex flex-col gap-sm">
-              <h3 className="text-caption font-medium uppercase tracking-wide text-text-muted">
-                Medidas informadas
-              </h3>
-              <ul className="grid gap-xs min-[500px]:grid-cols-2">
-                {measurementEntries.map(entry => (
-                  <li
-                    key={entry.label}
-                    className="rounded-card bg-background px-md py-xs text-body"
-                  >
-                    <span className="text-text-muted">{entry.label}</span>
-                    <span className="ml-2 font-semibold text-text">{entry.value}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {measurementEntries.length > 0 ? (
+              <div className="flex flex-col gap-sm">
+                <h3 className="text-caption font-medium uppercase tracking-wide text-text-muted">
+                  Medidas informadas
+                </h3>
+                <ul className="grid gap-xs min-[500px]:grid-cols-2">
+                  {measurementEntries.map(entry => (
+                    <li
+                      key={entry.label}
+                      className="rounded-card bg-background px-md py-xs text-body"
+                    >
+                      <span className="text-text-muted">{entry.label}</span>
+                      <span className="ml-2 font-semibold text-text">{entry.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="rounded-card bg-background px-md py-sm text-body text-text-muted">
+                Você optou por escolher o tamanho sem informar medidas.
+              </div>
+            )}
 
             {submitError && <Alert tone="danger" description={submitError} />}
             {isAdmin && (

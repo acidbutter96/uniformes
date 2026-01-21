@@ -18,7 +18,7 @@ export interface ReservationDocument extends Document {
   schoolId: Types.ObjectId;
   uniformId: Types.ObjectId;
   supplierId?: Types.ObjectId | null;
-  measurements: ReservationMeasurements;
+  measurements?: ReservationMeasurements;
   suggestedSize: string;
   status: ReservationStatus;
   value: number;
@@ -32,37 +32,37 @@ const MeasurementsSchema = new Schema<ReservationMeasurements>(
       type: Number,
       min: 1,
       max: 120,
-      required: true,
+      required: false,
     },
     height: {
       type: Number,
       min: 50,
       max: 230,
-      required: true,
+      required: false,
     },
     weight: {
       type: Number,
       min: 10,
       max: 250,
-      required: true,
+      required: false,
     },
     chest: {
       type: Number,
       min: 30,
       max: 220,
-      required: true,
+      required: false,
     },
     waist: {
       type: Number,
       min: 30,
       max: 220,
-      required: true,
+      required: false,
     },
     hips: {
       type: Number,
       min: 30,
       max: 220,
-      required: true,
+      required: false,
     },
   },
   { _id: false },
@@ -101,7 +101,7 @@ const ReservationSchema = new Schema<ReservationDocument>(
     },
     measurements: {
       type: MeasurementsSchema,
-      required: true,
+      required: false,
     },
     suggestedSize: {
       type: String,

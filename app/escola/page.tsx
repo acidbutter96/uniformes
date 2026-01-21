@@ -1,16 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { StepsHeader } from '@/app/components/steps/StepsHeader';
-import { Input } from '@/app/components/ui/Input';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
-import { cn } from '@/app/lib/utils';
 import type { School } from '@/app/lib/models/school';
 import type { Supplier } from '@/app/lib/models/supplier';
-import { saveOrderFlowState } from '@/app/lib/storage/order-flow';
+import { loadOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
 
 const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
   const ids = Array.isArray(supplier.schoolIds)
@@ -24,32 +22,25 @@ const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
 
 export default function SchoolStepPage() {
   const router = useRouter();
-  const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [schools, setSchools] = useState<School[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null);
-
-  const filteredSchools = useMemo(() => {
-    const search = query.trim().toLowerCase();
-    if (!search) return schools;
-
-    return schools.filter(({ name, city }) => {
-      const haystack = `${name} ${city}`.toLowerCase();
-      return haystack.includes(search);
-    });
-  }, [query, schools]);
-
-  const selectedSchool = schools.find(school => school.id === selectedSchoolId) ?? null;
-  const selectedSupplier = selectedSchool
-    ? (suppliers.find(supplier => supplierSupportsSchool(supplier, selectedSchool.id)) ?? null)
-    : null;
+  const [school, setSchool] = useState<School | null>(null);
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      const state = loadOrderFlowState();
+      if (!state.schoolId) {
+        // If we don't have a school from the selected child, user must update account data.
+        router.replace('/conta');
+        return;
+      }
+
       try {
         const [schoolsResponse, suppliersResponse] = await Promise.all([
-          fetch('/api/schools'),
+          // Need the school's data, but API does not expose GET /api/schools/[id].
+          // Fetch all and filter client-side.
+          fetch('/api/schools?all=true'),
           fetch('/api/suppliers'),
         ]);
 
@@ -60,10 +51,22 @@ export default function SchoolStepPage() {
         const schoolsPayload = (await schoolsResponse.json()) as { data: School[] };
         const suppliersPayload = (await suppliersResponse.json()) as { data: Supplier[] };
 
-        setSchools(schoolsPayload.data ?? []);
-        setSuppliers(suppliersPayload.data ?? []);
+        const schools = schoolsPayload.data ?? [];
+        const suppliers = suppliersPayload.data ?? [];
+
+        const matchedSchool = schools.find(item => item.id === state.schoolId) ?? null;
+        if (!matchedSchool) {
+          setError('Não encontramos a escola vinculada ao aluno. Atualize os dados da conta.');
+          setSchool(null);
+          setSupplier(null);
+          return;
+        }
+
+        setSchool(matchedSchool);
+        setSupplier(suppliers.find(s => supplierSupportsSchool(s, matchedSchool.id)) ?? null);
       } catch (error) {
         console.error(error);
+        setError('Não foi possível carregar os dados da escola.');
       } finally {
         setIsLoading(false);
       }
@@ -72,23 +75,26 @@ export default function SchoolStepPage() {
     fetchData();
   }, []);
 
-  const handleContinue = () => {
-    if (!selectedSchool) return;
-
-    const supplierId = selectedSupplier?.id;
+  const handleConfirmYes = () => {
+    if (!school) return;
 
     saveOrderFlowState({
-      schoolId: selectedSchool.id,
-      supplierId,
+      schoolId: school.id,
+      supplierId: supplier?.id,
       uniformId: undefined,
       measurements: undefined,
       suggestion: undefined,
+      selectedSize: undefined,
       userName: undefined,
       orderId: undefined,
       orderCreatedAt: undefined,
     });
 
-    router.push(`/uniformes?schoolId=${selectedSchool.id}`);
+    router.push(`/uniformes?schoolId=${school.id}`);
+  };
+
+  const handleConfirmNo = () => {
+    router.push('/conta#alunos-vinculados');
   };
 
   return (
@@ -101,104 +107,64 @@ export default function SchoolStepPage() {
             <div className="flex flex-col gap-sm">
               <h1 className="text-h2 font-heading">Validar Escola</h1>
               <p className="text-body text-text-muted">
-                Pesquise o nome da escola participante e selecione para continuar. Se não encontrar,
-                você poderá solicitar inclusão na próxima etapa.
+                Vamos usar a escola cadastrada para o aluno selecionado. Confirme se está correta.
+                Se não estiver, atualize os dados na sua conta.
               </p>
             </div>
 
-            <Card className="flex flex-col gap-md">
-              <div className="flex flex-col gap-xs">
-                <label htmlFor="school-search" className="text-body font-medium text-text">
-                  Nome da escola
-                </label>
-                <Input
-                  id="school-search"
-                  placeholder="Ex: Colégio Horizonte"
-                  value={query}
-                  onChange={event => setQuery(event.target.value)}
-                  aria-label="Buscar escola"
-                />
-              </div>
-
-              <div className="flex flex-col gap-xs">
-                <h2 className="text-caption font-medium uppercase tracking-wide text-text-muted">
-                  Resultados
-                </h2>
-                <ul className="flex max-h-80 flex-col gap-sm overflow-y-auto" aria-live="polite">
-                  {!isLoading && filteredSchools.length === 0 && (
-                    <li className="rounded-card border border-dashed border-border bg-background px-md py-sm text-caption text-text-muted">
-                      Nenhuma escola encontrada. Verifique a grafia ou tente outra cidade.
-                    </li>
-                  )}
-
-                  {filteredSchools.map(school => {
-                    const isSelected = school.id === selectedSchoolId;
-                    return (
-                      <li key={school.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSchoolId(school.id)}
-                          className={cn(
-                            'flex w-full flex-col gap-xs rounded-card border border-border bg-surface px-md py-sm text-left transition hover:border-accent/40 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                            isSelected && 'border-accent bg-accent/10 text-accent',
-                          )}
-                        >
-                          <span className="text-body font-semibold">{school.name}</span>
-                          <span className="text-caption text-text-muted">{school.city}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+            <Card className="flex flex-col gap-md" aria-live="polite">
+              {isLoading ? (
+                <p className="text-body text-text-muted">Carregando escola...</p>
+              ) : error ? (
+                <div className="flex flex-col gap-sm">
+                  <p className="text-body text-text">{error}</p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => router.push('/conta#alunos-vinculados')}
+                  >
+                    Ir para minha conta
+                  </Button>
+                </div>
+              ) : school ? (
+                <div className="flex flex-col gap-sm">
+                  <p className="text-body text-text">A escola do aluno é:</p>
+                  <div className="rounded-card border border-border bg-surface px-md py-sm">
+                    <div className="text-body font-semibold">{school.name}</div>
+                    <div className="text-caption text-text-muted">{school.city}</div>
+                    {supplier ? (
+                      <div className="mt-xs text-caption text-text-muted">
+                        Fornecedor: <span className="font-medium text-text">{supplier.name}</span>
+                      </div>
+                    ) : (
+                      <div className="mt-xs text-caption text-text-muted">
+                        Nenhum fornecedor vinculado para esta escola.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-body text-text-muted">Nenhuma escola disponível.</p>
+              )}
             </Card>
           </div>
 
           <aside className="flex flex-col gap-md">
             <Card emphasis="muted" className="flex flex-col gap-sm">
-              <h2 className="text-h3 font-heading">Detalhes da escola</h2>
-              {selectedSchool ? (
-                <dl className="flex flex-col gap-xs text-body text-text">
-                  <div className="flex justify-between">
-                    <dt className="text-text-muted">Nome</dt>
-                    <dd className="font-medium">{selectedSchool.name}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-text-muted">Cidade</dt>
-                    <dd className="font-medium">{selectedSchool.city}</dd>
-                  </div>
-                  {selectedSupplier ? (
-                    <div className="flex justify-between">
-                      <dt className="text-text-muted">Fornecedor</dt>
-                      <dd className="font-medium">{selectedSupplier.name}</dd>
-                    </div>
-                  ) : (
-                    <p className="text-caption text-text-muted">
-                      Nenhum fornecedor vinculado para esta escola.
-                    </p>
-                  )}
-                </dl>
-              ) : (
-                <p className="text-body text-text-muted">
-                  Selecione uma escola para ver os detalhes. Essas informações ajudam a confirmar se
-                  você está no lugar certo.
-                </p>
-              )}
+              <h2 className="text-h3 font-heading">Confirmação</h2>
+              <p className="text-body text-text-muted">
+                Está tudo certo com a escola cadastrada para este aluno?
+              </p>
             </Card>
 
-            <Button
-              type="button"
-              disabled={!selectedSchool || isLoading}
-              size="lg"
-              onClick={handleContinue}
-            >
-              Continuar
-            </Button>
-            {!selectedSchool && (
-              <span className="text-caption text-text-muted">
-                Escolha uma escola para liberar a próxima etapa.
-              </span>
-            )}
+            <div className="flex flex-col gap-sm">
+              <Button type="button" size="lg" disabled={!school || isLoading || !!error} onClick={handleConfirmYes}>
+                Sim, está correta
+              </Button>
+              <Button type="button" size="lg" variant="secondary" onClick={handleConfirmNo}>
+                Não, quero corrigir
+              </Button>
+            </div>
           </aside>
         </section>
       </div>

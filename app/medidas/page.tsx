@@ -131,19 +131,51 @@ export default function MeasurementsPage() {
     router.push('/sugestao');
   };
 
+  const handleSkipMeasurements = () => {
+    // Clear previous measurement-based suggestion if any, then continue to size selection.
+    saveOrderFlowState({ measurements: undefined, suggestion: undefined, selectedSize: undefined });
+    router.push('/sugestao');
+  };
+
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-2xl px-md py-2xl">
         <StepsHeader currentStep={4} />
 
         <section className="grid gap-xl lg:grid-cols-[1.2fr_0.8fr]">
-          <MeasurementsForm
-            onSubmit={handleSubmit}
-            submitLabel="Sugerir tamanho"
-            successMessage="Sugestão enviada!"
-            errorMessage="Não foi possível gerar uma sugestão."
-            defaultValues={measurementValues ?? undefined}
-          />
+          <div className="space-y-xl">
+            <Card className="flex flex-col gap-sm">
+              <h2 className="text-h3 font-heading">Como você prefere informar o tamanho?</h2>
+              <p className="text-body text-text-muted">
+                Você pode preencher as medidas para receber uma sugestão automática, ou escolher o
+                tamanho manualmente.
+              </p>
+              <div className="flex flex-col gap-sm sm:flex-row">
+                <Button variant="secondary" type="button" onClick={handleSkipMeasurements}>
+                  Escolher tamanho direto
+                </Button>
+                <Button
+                  variant="primary"
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('measurements-form');
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                >
+                  Informar medidas (recomendado)
+                </Button>
+              </div>
+            </Card>
+
+            <MeasurementsForm
+              id="measurements-form"
+              onSubmit={handleSubmit}
+              submitLabel="Sugerir tamanho"
+              successMessage="Sugestão enviada!"
+              errorMessage="Não foi possível gerar uma sugestão."
+              defaultValues={measurementValues ?? undefined}
+            />
+          </div>
 
           <aside className="flex flex-col gap-md">
             <Card emphasis="muted" className="flex flex-col gap-sm">

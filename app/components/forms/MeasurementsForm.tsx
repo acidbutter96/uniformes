@@ -18,6 +18,7 @@ export interface MeasurementsData {
 }
 
 interface MeasurementsFormProps {
+  id?: string;
   onSubmit?: (data: MeasurementsData) => Promise<void> | void;
   className?: string;
   submitLabel?: string;
@@ -114,6 +115,7 @@ const initialTouched: Record<MeasurementField, boolean> = {
 };
 
 export function MeasurementsForm({
+  id,
   onSubmit,
   className,
   submitLabel = 'Salvar medidas',
@@ -217,6 +219,7 @@ export function MeasurementsForm({
 
   return (
     <form
+      id={id}
       onSubmit={handleSubmit}
       noValidate
       className={cn('flex flex-col gap-md rounded-card bg-surface p-md shadow-soft', className)}

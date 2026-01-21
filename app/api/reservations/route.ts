@@ -111,27 +111,33 @@ export async function POST(request: NextRequest) {
       resolvedSupplierId = supplierId as string;
     }
 
-    if (typeof measurements !== 'object' || measurements === null) {
-      return badRequest('Medidas inválidas.');
-    }
-
     const requiredFields = ['age', 'height', 'weight', 'chest', 'waist', 'hips'] as const;
-    const parsedMeasurements: Record<(typeof requiredFields)[number], number> = {
-      age: 0,
-      height: 0,
-      weight: 0,
-      chest: 0,
-      waist: 0,
-      hips: 0,
-    };
+    let parsedMeasurements: Record<(typeof requiredFields)[number], number> | undefined;
 
-    for (const field of requiredFields) {
-      const value = (measurements as Record<string, unknown>)[field];
-      const numeric = Number(value);
-      if (!Number.isFinite(numeric)) {
-        return badRequest(`Medida ${field} inválida.`);
+    if (measurements !== undefined && measurements !== null) {
+      if (typeof measurements !== 'object') {
+        return badRequest('Medidas inválidas.');
       }
-      parsedMeasurements[field] = numeric;
+
+      const parsed: Record<(typeof requiredFields)[number], number> = {
+        age: 0,
+        height: 0,
+        weight: 0,
+        chest: 0,
+        waist: 0,
+        hips: 0,
+      };
+
+      for (const field of requiredFields) {
+        const value = (measurements as Record<string, unknown>)[field];
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+          return badRequest(`Medida ${field} inválida.`);
+        }
+        parsed[field] = numeric;
+      }
+
+      parsedMeasurements = parsed;
     }
 
     let resolvedStatus: ReservationStatus | undefined;

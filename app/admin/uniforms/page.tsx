@@ -7,6 +7,7 @@ import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
 import { formatCurrency } from '@/app/lib/format';
+import { sanitizeDecimalInput } from '@/app/lib/input';
 import useAuth from '@/src/hooks/useAuth';
 import {
   type UniformCategory,
@@ -405,9 +406,12 @@ export default function AdminUniformsPage() {
                   id="uniform-price"
                   type="number"
                   min={0}
-                  step={0.5}
+                  step={0.01}
+                  inputMode="decimal"
                   value={formValues.price}
-                  onChange={event => handleChange('price', event.target.value)}
+                  onChange={event =>
+                    handleChange('price', sanitizeDecimalInput(event.target.value, 2))
+                  }
                   required
                   disabled={isFormDisabled}
                 />

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/app/lib/utils';
+import { sanitizeDecimalInput, sanitizeIntegerInput } from '@/app/lib/input';
 import { Input } from '@/app/components/ui/Input';
 import { Button } from '@/app/components/ui/Button';
 import { Alert } from '@/app/components/ui/Alert';
@@ -178,7 +179,9 @@ export function MeasurementsForm({
   const isComplete = Object.values(values).every(value => value.trim() !== '');
 
   function handleChange(field: MeasurementField, nextValue: string) {
-    setValues(prev => ({ ...prev, [field]: nextValue }));
+    const sanitized =
+      field === 'weight' ? sanitizeDecimalInput(nextValue, 2) : sanitizeIntegerInput(nextValue);
+    setValues(prev => ({ ...prev, [field]: sanitized }));
     setSubmitStatus('idle');
   }
 
@@ -235,6 +238,9 @@ export function MeasurementsForm({
         {fields.map(field => {
           const isInvalid = Boolean(errors[field.name]);
           const showError = isInvalid && touched[field.name];
+          const isDecimalField = field.name === 'weight';
+          const step = typeof field.step === 'number' ? field.step : isDecimalField ? 0.01 : 1;
+          const inputMode = isDecimalField ? 'decimal' : 'numeric';
 
           return (
             <label key={field.name} className="flex flex-col gap-xs text-body text-text">
@@ -242,12 +248,12 @@ export function MeasurementsForm({
               <div className="flex items-center gap-sm">
                 <Input
                   type="number"
-                  inputMode="decimal"
+                  inputMode={inputMode}
                   placeholder={field.placeholder}
                   value={values[field.name]}
                   min={field.min}
                   max={field.max}
-                  step={field.step ?? 0.1}
+                  step={step}
                   onChange={event => handleChange(field.name, event.target.value)}
                   onBlur={() => handleBlur(field.name)}
                   aria-invalid={isInvalid}

@@ -295,8 +295,8 @@ export default function AccountPage() {
     await attemptSave();
   };
 
-  const saveProfile = async () => {
-    if (!accessToken) return;
+  const saveProfile = async (): Promise<boolean> => {
+    if (!accessToken) return false;
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -324,21 +324,33 @@ export default function AccountPage() {
       const payload = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         setError(payload?.error ?? 'Não foi possível salvar suas informações.');
-        return;
+        return false;
       }
 
       setSuccess('Informações atualizadas com sucesso.');
       await loadUser();
+      return true;
     } catch (err) {
       console.error('Failed to update profile', err);
       setError('Erro inesperado ao salvar suas informações.');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const attemptSave = async () => {
-    await saveProfile();
+    const ok = await saveProfile();
+    if (!ok) return;
+
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    const id = decodeURIComponent(hash.replace('#', '')).trim();
+    if (id === 'alunos-vinculados') {
+      router.push('/escolas');
+    }
   };
 
   const handleChildChange = (index: number, field: 'name' | 'age' | 'schoolId', value: string) => {

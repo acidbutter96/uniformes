@@ -9,6 +9,7 @@ import SupplierModel from '@/src/lib/models/supplier';
 import UniformModel from '@/src/lib/models/uniform';
 import UserModel from '@/src/lib/models/user';
 import { hashPassword } from '@/src/services/auth.service';
+import type { UniformCategory, UniformGender, UniformItemKind } from '@/src/types/uniform';
 
 interface SeedUser {
   name: string;
@@ -56,9 +57,29 @@ interface SeedUniform {
   name: string;
   description?: string;
   supplierKey: string;
-  sizes: string[];
+  category: UniformCategory;
+  gender: UniformGender;
+  price: number;
+  sizes?: string[];
+  items?: {
+    kind: UniformItemKind;
+    quantity: number;
+    sizes: string[];
+  }[];
   imageSrc?: string;
   imageAlt?: string;
+}
+
+function normalizeSizes(sizes: unknown): string[] {
+  if (!Array.isArray(sizes)) return [];
+  const normalized = sizes.map(value => String(value).trim()).filter(Boolean);
+  return Array.from(new Set(normalized));
+}
+
+function deriveLegacySizesFromItems(items: SeedUniform['items'] | undefined, legacy: string[]) {
+  if (legacy.length > 0) return legacy;
+  const fromItems = items?.flatMap(item => normalizeSizes(item.sizes)) ?? [];
+  return Array.from(new Set(fromItems));
 }
 
 interface SeedReservation {
@@ -213,7 +234,16 @@ const seedUniforms: SeedUniform[] = [
     name: 'Camiseta Escolar',
     description: 'Malha leve com gola reforçada e manga curta.',
     supplierKey: 'atelier-uniformes',
-    sizes: ['PP', 'P', 'M', 'G'],
+    category: 'escolar',
+    gender: 'unissex',
+    price: 49.9,
+    items: [
+      {
+        kind: 'camiseta',
+        quantity: 1,
+        sizes: ['PP', 'P', 'M', 'G'],
+      },
+    ],
     imageSrc:
       'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Camiseta escolar dobrada',
@@ -223,7 +253,16 @@ const seedUniforms: SeedUniform[] = [
     name: 'Jaqueta de Inverno',
     description: 'Jaqueta acolchoada com capuz removível.',
     supplierKey: 'costura-brasil',
-    sizes: ['P', 'M', 'G', 'GG'],
+    category: 'escolar',
+    gender: 'unissex',
+    price: 129.9,
+    items: [
+      {
+        kind: 'jaqueta',
+        quantity: 1,
+        sizes: ['P', 'M', 'G', 'GG'],
+      },
+    ],
     imageSrc:
       'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Jaqueta escolar azul pendurada',
@@ -233,7 +272,16 @@ const seedUniforms: SeedUniform[] = [
     name: 'Calça Moletom',
     description: 'Tecido macio com elástico na cintura e punhos ajustáveis.',
     supplierKey: 'costura-brasil',
-    sizes: ['PP', 'P', 'M', 'G', 'GG'],
+    category: 'escolar',
+    gender: 'unissex',
+    price: 89.9,
+    items: [
+      {
+        kind: 'calca',
+        quantity: 1,
+        sizes: ['36', '38', '40', '42', '44'],
+      },
+    ],
     imageSrc:
       'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Calça de moletom cinza',
@@ -403,11 +451,28 @@ async function upsertSupplier(supplier: SeedSupplier, schoolMap: Map<string, Typ
 }
 
 async function upsertUniform(uniform: SeedUniform) {
+  const normalizedItems = Array.isArray(uniform.items)
+    ? uniform.items
+        .map(item => ({
+          kind: item.kind,
+          quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1,
+          sizes: normalizeSizes(item.sizes),
+        }))
+        .filter(item => item.sizes.length > 0)
+    : [];
+
+  const legacySizes = normalizeSizes(uniform.sizes);
+  const derivedSizes = deriveLegacySizesFromItems(normalizedItems, legacySizes);
+
   const updated = await UniformModel.findOneAndUpdate(
     { name: uniform.name },
     {
       description: uniform.description,
-      sizes: uniform.sizes,
+      category: uniform.category,
+      gender: uniform.gender,
+      price: uniform.price,
+      items: normalizedItems,
+      sizes: derivedSizes,
       imageSrc: uniform.imageSrc,
       imageAlt: uniform.imageAlt,
     },

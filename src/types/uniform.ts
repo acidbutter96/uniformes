@@ -4,13 +4,42 @@ export type UniformCategory = (typeof UNIFORM_CATEGORIES)[number];
 export const UNIFORM_GENDERS = ['masculino', 'feminino', 'unissex'] as const;
 export type UniformGender = (typeof UNIFORM_GENDERS)[number];
 
+export const UNIFORM_ITEM_KINDS = [
+  'camiseta',
+  'blusa',
+  'jaqueta',
+  'calca',
+  'bermuda',
+  'saia',
+  'meia',
+  'acessorio',
+  'outro',
+] as const;
+
+export type UniformItemKind = (typeof UNIFORM_ITEM_KINDS)[number];
+
+export type UniformItemDTO = {
+  kind: UniformItemKind;
+  quantity: number;
+  sizes: string[];
+};
+
 export type UniformDTO = {
   id: string;
   name: string;
   description?: string;
   category: UniformCategory;
   gender: UniformGender;
+  /**
+   * Legacy flat sizes list. Kept for backward compatibility.
+   * Prefer using `items`.
+   */
   sizes: string[];
+  /**
+   * Kit composition: each entry represents an item kind (optionally with quantity > 1)
+   * and its allowed sizes.
+   */
+  items?: UniformItemDTO[];
   price: number;
   imageSrc?: string;
   imageAlt?: string;

@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "seed": "tsx scripts/seed.ts",
     "migrate:cpf": "tsx scripts/add-cpf-unique-index.ts",
-    "migrate:cnpj": "tsx scripts/add-cnpj-unique-index.ts"
+    "migrate:cnpj": "tsx scripts/add-cnpj-unique-index.ts",
+    "migrate:uniform-items": "tsx scripts/migrate-uniform-items.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

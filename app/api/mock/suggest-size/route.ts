@@ -52,7 +52,6 @@ export async function POST(request: Request) {
     }
 
     const { size, score } = recommendSize({
-      age: normalized.age,
       height: normalized.height,
       chest: normalized.chest,
       waist: normalized.waist,

@@ -7,7 +7,12 @@ import UniformModel, {
   UNIFORM_CATEGORIES,
   UNIFORM_GENDERS,
 } from '@/src/lib/models/uniform';
-import type { UniformDTO, UniformCategory, UniformGender } from '@/src/types/uniform';
+import type {
+  UniformDTO,
+  UniformCategory,
+  UniformGender,
+  UniformItemDTO,
+} from '@/src/types/uniform';
 
 export type CreateUniformInput = {
   name: string;
@@ -16,6 +21,7 @@ export type CreateUniformInput = {
   gender: UniformGender;
   price: number;
   sizes?: string[];
+  items?: UniformItemDTO[];
   imageSrc?: string;
   imageAlt?: string;
 };
@@ -24,6 +30,31 @@ export type UpdateUniformInput = Partial<CreateUniformInput>;
 
 type SerializableUniform = UniformDocument;
 type UniformFilter = Parameters<(typeof UniformModel)['find']>[0];
+
+function normalizeItems(items: UniformItemDTO[] | undefined): UniformItemDTO[] | undefined {
+  if (!items) return undefined;
+
+  const normalized = items
+    .map(item => ({
+      kind: item.kind,
+      quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1,
+      sizes: Array.isArray(item.sizes)
+        ? item.sizes.map(size => String(size).trim()).filter(Boolean)
+        : [],
+    }))
+    .filter(item => item.sizes.length > 0);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function deriveLegacySizes(items: UniformItemDTO[] | undefined, legacySizes: string[] | undefined) {
+  if (Array.isArray(legacySizes) && legacySizes.length > 0) {
+    return legacySizes;
+  }
+
+  const fromItems = items?.flatMap(item => item.sizes) ?? [];
+  return Array.from(new Set(fromItems));
+}
 
 function toISOString(value: Date | string) {
   if (value instanceof Date) {
@@ -64,12 +95,16 @@ export async function getUniformById(id: string) {
 
 export async function createUniform(input: CreateUniformInput) {
   await dbConnect();
+
+  const normalizedItems = normalizeItems(input.items);
+
   const created = await UniformModel.create({
     name: input.name.trim(),
     description: input.description?.trim(),
     category: input.category,
     gender: input.gender,
-    sizes: input.sizes ?? [],
+    sizes: deriveLegacySizes(normalizedItems, input.sizes),
+    items: normalizedItems ?? [],
     price: input.price,
     imageSrc: input.imageSrc?.trim(),
     imageAlt: input.imageAlt?.trim(),
@@ -106,6 +141,15 @@ export async function updateUniform(id: string, updates: UpdateUniformInput) {
 
   if (updates.sizes !== undefined) {
     updateQuery.sizes = updates.sizes;
+  }
+
+  if (updates.items !== undefined) {
+    const normalizedItems = normalizeItems(updates.items);
+    updateQuery.items = normalizedItems ?? [];
+
+    if (updates.sizes === undefined) {
+      updateQuery.sizes = deriveLegacySizes(normalizedItems, undefined);
+    }
   }
 
   if (updates.price !== undefined) {

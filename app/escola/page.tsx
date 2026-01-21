@@ -54,7 +54,9 @@ export default function SchoolStepPage() {
               data?: { children?: Array<{ _id?: string; schoolId?: string }> };
             };
 
-            const children = Array.isArray(mePayload?.data?.children) ? mePayload.data.children : [];
+            const children = Array.isArray(mePayload?.data?.children)
+              ? mePayload.data.children
+              : [];
             const matchedChild = children.find(c => String(c?._id ?? '') === String(state.childId));
             const latestSchoolId = String(matchedChild?.schoolId ?? '').trim();
 
@@ -196,7 +198,12 @@ export default function SchoolStepPage() {
             </Card>
 
             <div className="flex flex-col gap-sm">
-              <Button type="button" size="lg" disabled={!school || isLoading || !!error} onClick={handleConfirmYes}>
+              <Button
+                type="button"
+                size="lg"
+                disabled={!school || isLoading || !!error}
+                onClick={handleConfirmYes}
+              >
                 Sim, está correta
               </Button>
               <Button type="button" size="lg" variant="secondary" onClick={handleConfirmNo}>

@@ -15,6 +15,12 @@ export interface SuggestionData {
   message: string;
 }
 
+export type SelectedUniformItem = {
+  kind: string;
+  quantity: number;
+  size: string;
+};
+
 export interface OrderFlowState {
   childId?: string;
   schoolId?: string;
@@ -22,6 +28,11 @@ export interface OrderFlowState {
   uniformId?: string;
   measurements?: MeasurementsMap;
   suggestion?: SuggestionData;
+  /**
+   * Selected sizes per kit item.
+   * When absent, fallback to `selectedSize` / suggestion.
+   */
+  selectedItems?: SelectedUniformItem[];
   selectedSize?: string;
   userName?: string;
   orderId?: string;

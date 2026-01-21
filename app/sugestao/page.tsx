@@ -33,7 +33,21 @@ export default function SuggestionPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Record<number, string>>({});
+
+  const ITEM_LABEL: Record<string, string> = {
+    camiseta: 'Camiseta',
+    blusa: 'Blusa',
+    jaqueta: 'Jaqueta',
+    calca: 'Calça',
+    bermuda: 'Bermuda',
+    saia: 'Saia',
+    meia: 'Meia',
+    acessorio: 'Acessório',
+    outro: 'Item',
+  };
+
+  const isNumericKind = (kind: string) => kind === 'calca' || kind === 'bermuda' || kind === 'saia';
 
   useEffect(() => {
     const state = loadOrderFlowState();
@@ -49,7 +63,6 @@ export default function SuggestionPage() {
     }
 
     // Measurements are optional; user may choose size directly.
-    setSelectedSize(state.selectedSize ?? state.suggestion?.suggestion ?? null);
     setOrderState(state);
   }, [router]);
 
@@ -104,30 +117,43 @@ export default function SuggestionPage() {
   useEffect(() => {
     if (!uniform) return;
 
-    const availableSizes = Array.isArray(uniform.sizes) ? uniform.sizes : [];
+    const uniformItems =
+      Array.isArray(uniform.items) && uniform.items.length > 0
+        ? uniform.items
+        : [
+            {
+              kind: 'outro',
+              quantity: 1,
+              sizes: Array.isArray(uniform.sizes) ? uniform.sizes : [],
+            },
+          ];
 
-    setSelectedSize(current => {
-      const candidate =
-        current ?? orderState?.selectedSize ?? orderState?.suggestion?.suggestion ?? null;
+    const persisted = orderState?.selectedItems ?? [];
+    const suggestionSize = orderState?.suggestion?.suggestion ?? null;
 
-      if (candidate && availableSizes.includes(candidate)) {
-        return candidate;
+    const nextSelected: Record<number, string> = {};
+
+    for (const [index, item] of uniformItems.entries()) {
+      const sizes = Array.isArray(item.sizes) ? item.sizes : [];
+
+      const fromPersisted = persisted[index]?.size;
+      if (fromPersisted && sizes.includes(fromPersisted)) {
+        nextSelected[index] = fromPersisted;
+        continue;
       }
 
-      const fallback =
-        (orderState?.suggestion?.suggestion &&
-        availableSizes.includes(orderState.suggestion.suggestion)
-          ? orderState.suggestion.suggestion
-          : availableSizes[0]) ?? null;
-
-      if (fallback && fallback !== orderState?.selectedSize) {
-        saveOrderFlowState({ selectedSize: fallback });
-        setOrderState(prev => (prev ? { ...prev, selectedSize: fallback } : prev));
+      if (suggestionSize && !isNumericKind(item.kind) && sizes.includes(suggestionSize)) {
+        nextSelected[index] = suggestionSize;
+        continue;
       }
 
-      return fallback;
-    });
-  }, [uniform, orderState?.selectedSize, orderState?.suggestion?.suggestion]);
+      if (sizes.length > 0) {
+        nextSelected[index] = sizes[0];
+      }
+    }
+
+    setSelectedItems(nextSelected);
+  }, [uniform, orderState?.selectedItems, orderState?.suggestion?.suggestion]);
 
   useEffect(() => {
     if (loading) return;
@@ -159,21 +185,56 @@ export default function SuggestionPage() {
     ];
   }, [orderState?.measurements]);
 
-  const handleSizeSelect = (size: string) => {
-    setSelectedSize(size);
-    saveOrderFlowState({ selectedSize: size });
-    setOrderState(prev => (prev ? { ...prev, selectedSize: size } : prev));
+  const handleItemSizeSelect = (index: number, size: string) => {
+    setSelectedItems(current => ({ ...current, [index]: size }));
     setSubmitError(null);
   };
 
+  const uniformItems = useMemo(() => {
+    if (!uniform) return [] as Array<{ kind: string; quantity: number; sizes: string[] }>;
+
+    return Array.isArray(uniform.items) && uniform.items.length > 0
+      ? uniform.items
+      : [
+          {
+            kind: 'outro',
+            quantity: 1,
+            sizes: Array.isArray(uniform.sizes) ? uniform.sizes : [],
+          },
+        ];
+  }, [uniform]);
+
+  const hasSuggestionTarget = useMemo(() => {
+    const suggestionSize = orderState?.suggestion?.suggestion;
+    if (!suggestionSize) return false;
+    return uniformItems.some(
+      item => !isNumericKind(item.kind) && (item.sizes ?? []).includes(suggestionSize),
+    );
+  }, [orderState?.suggestion?.suggestion, uniformItems]);
+
   const handleConfirm = async () => {
     if (!orderState) return;
-    const sizeToSubmit = finalSize;
 
-    if (!sizeToSubmit) {
-      setSubmitError('Selecione um tamanho para concluir a reserva.');
+    const selections = uniformItems.map((item, index) => ({
+      kind: item.kind,
+      quantity: item.quantity ?? 1,
+      size: selectedItems[index] ?? null,
+      sizes: item.sizes ?? [],
+    }));
+
+    const missing = selections.find(entry => !entry.size || !entry.sizes.includes(entry.size));
+    if (missing) {
+      setSubmitError('Selecione um tamanho para cada item do kit para concluir a reserva.');
       return;
     }
+
+    const selectionText = selections
+      .map(entry => {
+        const label = ITEM_LABEL[entry.kind] ?? 'Item';
+        const qty = Number(entry.quantity) > 1 ? ` x${entry.quantity}` : '';
+        return `${label}${qty} ${entry.size}`;
+      })
+      .join(' + ');
 
     if (!accessToken) {
       router.replace(`/login?returnTo=${encodeURIComponent('/sugestao')}`);
@@ -182,8 +243,29 @@ export default function SuggestionPage() {
 
     setIsSubmitting(true);
     setSubmitError(null);
-    saveOrderFlowState({ selectedSize: sizeToSubmit });
-    setOrderState(current => (current ? { ...current, selectedSize: sizeToSubmit } : current));
+
+    saveOrderFlowState({
+      selectedItems: selections.map(entry => ({
+        kind: entry.kind,
+        quantity: entry.quantity,
+        size: String(entry.size),
+      })),
+      selectedSize: selectionText,
+    });
+
+    setOrderState(current =>
+      current
+        ? {
+            ...current,
+            selectedItems: selections.map(entry => ({
+              kind: entry.kind,
+              quantity: entry.quantity,
+              size: String(entry.size),
+            })),
+            selectedSize: selectionText,
+          }
+        : current,
+    );
 
     // New flow: go to supplier selection step
     router.push('/fornecedor');
@@ -191,8 +273,19 @@ export default function SuggestionPage() {
   };
 
   const suggestion = orderState?.suggestion;
-  const finalSize = selectedSize ?? orderState?.selectedSize ?? suggestion?.suggestion ?? null;
-  const sizeOptions = uniform?.sizes ?? [];
+  const finalSize =
+    orderState?.selectedSize ??
+    (uniformItems.length > 0
+      ? uniformItems
+          .map((item, index) => {
+            const label = ITEM_LABEL[item.kind] ?? 'Item';
+            const qty = Number(item.quantity) > 1 ? ` x${item.quantity}` : '';
+            const size = selectedItems[index];
+            return size ? `${label}${qty} ${size}` : null;
+          })
+          .filter(Boolean)
+          .join(' + ')
+      : null);
 
   return (
     <main className="min-h-screen bg-background text-text">
@@ -248,42 +341,75 @@ export default function SuggestionPage() {
               </div>
             </div>
 
-            {sizeOptions.length > 0 && (
-              <div className="flex flex-col gap-xs">
+            {uniformItems.length > 0 && (
+              <div className="flex flex-col gap-md">
                 <div className="flex flex-col gap-xxs">
                   <h3 className="text-caption font-medium uppercase tracking-wide text-text-muted">
-                    Escolha o tamanho para reservar
+                    Escolha os tamanhos do kit
                   </h3>
                   <p className="text-body text-text-muted">
-                    A sugestão é apenas um guia. Se preferir, selecione outro tamanho abaixo antes
-                    de confirmar.
+                    Se o uniforme tiver mais de uma peça, selecione o tamanho de cada item.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-sm">
-                  {sizeOptions.map(size => {
-                    const isActive = finalSize === size;
-                    const isSuggested = suggestion?.suggestion === size;
+
+                <div className="space-y-md">
+                  {uniformItems.map((item, index) => {
+                    const sizes = Array.isArray(item.sizes) ? item.sizes : [];
+                    const selected = selectedItems[index] ?? null;
+                    const label = ITEM_LABEL[item.kind] ?? 'Item';
+                    const qty = Number(item.quantity) > 1 ? `x${item.quantity}` : null;
 
                     return (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => handleSizeSelect(size)}
-                        disabled={isSubmitting}
-                        aria-pressed={isActive}
-                        className={cn(
-                          'min-w-[64px] rounded-card border px-md py-xs text-body font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                          isActive
-                            ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                            : 'border-border bg-surface text-text hover:border-primary/50',
-                          isSubmitting && 'opacity-60',
-                        )}
+                      <div
+                        key={`${item.kind}-${index}`}
+                        className="rounded-card bg-background p-md"
                       >
-                        <span>{size}</span>
-                        {isSuggested && (
-                          <span className="ml-1 text-caption text-text-muted">(sugerido)</span>
-                        )}
-                      </button>
+                        <div className="flex items-baseline justify-between gap-sm">
+                          <h4 className="text-body font-semibold text-text">
+                            {label}{' '}
+                            {qty ? (
+                              <span className="text-caption text-text-muted">{qty}</span>
+                            ) : null}
+                          </h4>
+                          <span className="text-caption text-text-muted">
+                            {selected ? `Selecionado: ${selected}` : 'Selecione um tamanho'}
+                          </span>
+                        </div>
+
+                        <div className="mt-sm flex flex-wrap gap-sm">
+                          {sizes.map(size => {
+                            const isActive = selected === size;
+                            const isSuggested =
+                              suggestion?.suggestion === size &&
+                              !isNumericKind(item.kind) &&
+                              hasSuggestionTarget;
+
+                            return (
+                              <button
+                                key={size}
+                                type="button"
+                                onClick={() => handleItemSizeSelect(index, size)}
+                                disabled={isSubmitting}
+                                aria-pressed={isActive}
+                                className={cn(
+                                  'min-w-[64px] rounded-card border px-md py-xs text-body font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                                  isActive
+                                    ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                                    : 'border-border bg-surface text-text hover:border-primary/50',
+                                  isSubmitting && 'opacity-60',
+                                )}
+                              >
+                                <span>{size}</span>
+                                {isSuggested && (
+                                  <span className="ml-1 text-caption text-text-muted">
+                                    (sugerido)
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -378,7 +504,7 @@ export default function SuggestionPage() {
                   <dt className="text-text-muted">Tamanho escolhido</dt>
                   <dd className="font-medium">{finalSize ?? '—'}</dd>
                 </div>
-                {suggestion && (
+                {suggestion && hasSuggestionTarget && (
                   <div className="flex justify-between">
                     <dt className="text-text-muted">Tamanho sugerido</dt>
                     <dd className="font-medium">{suggestion.suggestion}</dd>

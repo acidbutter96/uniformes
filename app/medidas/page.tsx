@@ -42,6 +42,14 @@ export default function MeasurementsPage() {
   const [childId, setChildId] = useState<string | null>(null);
   const [child, setChild] = useState<{ name: string; age: number } | null>(null);
 
+  const isKit =
+    Array.isArray(uniform?.items) &&
+    uniform.items.length > 0 &&
+    (uniform.items.length > 1 ||
+      uniform.items.some(
+        item => item.kind === 'calca' || item.kind === 'bermuda' || item.kind === 'saia',
+      ));
+
   useEffect(() => {
     const state = loadOrderFlowState();
 
@@ -176,13 +184,38 @@ export default function MeasurementsPage() {
   }, [authLoading, user, accessToken, childId, router]);
 
   const handleAdvance = () => {
+    if (isKit) {
+      router.push('/sugestao');
+      return;
+    }
+
     if (!recommendation || recommendation.size === 'MANUAL') return;
     router.push('/sugestao');
   };
 
   const handleChooseSizeDirect = () => {
+    if (isKit) {
+      saveOrderFlowState({
+        measurements: undefined,
+        suggestion: undefined,
+        selectedSize: undefined,
+        selectedItems: undefined,
+      });
+      setMeasurementValues(null);
+      setRecommendation(null);
+      setEngineMessage(null);
+      setSelectedSize(null);
+      router.push('/sugestao');
+      return;
+    }
+
     // Clear measurement-based data (user chose manual size).
-    saveOrderFlowState({ measurements: undefined, suggestion: undefined, selectedSize: undefined });
+    saveOrderFlowState({
+      measurements: undefined,
+      suggestion: undefined,
+      selectedSize: undefined,
+      selectedItems: undefined,
+    });
     setMeasurementValues(null);
     setRecommendation(null);
     setEngineMessage(null);
@@ -192,7 +225,7 @@ export default function MeasurementsPage() {
 
   const handleChooseMeasurements = () => {
     // Clear manual size (user wants suggestion by measurements).
-    saveOrderFlowState({ selectedSize: undefined });
+    saveOrderFlowState({ selectedSize: undefined, selectedItems: undefined });
     setSelectedSize(null);
     setInputMode('measurements');
     requestAnimationFrame(() => {
@@ -202,7 +235,9 @@ export default function MeasurementsPage() {
   };
 
   const sizeOptions =
-    Array.isArray(uniform?.sizes) && uniform?.sizes.length > 0 ? uniform.sizes : FALLBACK_SIZES;
+    !isKit && Array.isArray(uniform?.sizes) && uniform?.sizes.length > 0
+      ? uniform.sizes
+      : FALLBACK_SIZES;
 
   const handleSizeSelect = (size: string) => {
     setSelectedSize(size);
@@ -210,6 +245,11 @@ export default function MeasurementsPage() {
   };
 
   const handleAdvanceWithSize = () => {
+    if (isKit) {
+      router.push('/sugestao');
+      return;
+    }
+
     if (!selectedSize) return;
     router.push('/sugestao');
   };
@@ -224,15 +264,16 @@ export default function MeasurementsPage() {
             <Card className="flex flex-col gap-sm">
               <h2 className="text-h3 font-heading">Como você prefere informar o tamanho?</h2>
               <p className="text-body text-text-muted">
-                Você pode preencher as medidas para receber uma sugestão automática, ou escolher o
-                tamanho manualmente.
+                {isKit
+                  ? 'Este uniforme possui mais de um item. Você escolherá os tamanhos por peça na próxima etapa.'
+                  : 'Você pode preencher as medidas para receber uma sugestão automática, ou escolher o tamanho manualmente.'}
               </p>
               <div className="flex flex-col gap-sm sm:flex-row">
                 <Button variant="secondary" type="button" onClick={handleChooseSizeDirect}>
-                  Escolher tamanho direto
+                  {isKit ? 'Escolher tamanhos do kit' : 'Escolher tamanho direto'}
                 </Button>
                 <Button variant="primary" type="button" onClick={handleChooseMeasurements}>
-                  Informar medidas (recomendado)
+                  {isKit ? 'Informar medidas (opcional)' : 'Informar medidas (recomendado)'}
                 </Button>
               </div>
             </Card>
@@ -242,41 +283,45 @@ export default function MeasurementsPage() {
                 <div className="flex flex-col gap-xxs">
                   <h2 className="text-h3 font-heading">Escolha o tamanho</h2>
                   <p className="text-body text-text-muted">
-                    Se preferir, escolha o tamanho manualmente e avance.
+                    {isKit
+                      ? 'Para kits, a escolha de tamanhos acontece na próxima etapa (por item).'
+                      : 'Se preferir, escolha o tamanho manualmente e avance.'}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-sm">
-                  {sizeOptions.map(size => {
-                    const isActive = selectedSize === size;
+                {!isKit && (
+                  <div className="flex flex-wrap gap-sm">
+                    {sizeOptions.map(size => {
+                      const isActive = selectedSize === size;
 
-                    return (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => handleSizeSelect(size)}
-                        aria-pressed={isActive}
-                        className={cn(
-                          'min-w-[64px] rounded-card border px-md py-xs text-body font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                          isActive
-                            ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                            : 'border-border bg-surface text-text hover:border-primary/50',
-                        )}
-                      >
-                        {size}
-                      </button>
-                    );
-                  })}
-                </div>
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => handleSizeSelect(size)}
+                          aria-pressed={isActive}
+                          className={cn(
+                            'min-w-[64px] rounded-card border px-md py-xs text-body font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                            isActive
+                              ? 'border-primary bg-primary/10 text-primary shadow-sm'
+                              : 'border-border bg-surface text-text hover:border-primary/50',
+                          )}
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="flex flex-col gap-sm sm:flex-row">
                   <Button
                     type="button"
                     variant="primary"
                     onClick={handleAdvanceWithSize}
-                    disabled={!selectedSize}
+                    disabled={!isKit && !selectedSize}
                   >
-                    Avançar
+                    {isKit ? 'Ir para escolha do kit' : 'Avançar'}
                   </Button>
                   <Button type="button" variant="secondary" onClick={handleChooseMeasurements}>
                     Prefiro informar medidas
@@ -363,18 +408,22 @@ export default function MeasurementsPage() {
                 <div className="flex flex-col gap-sm">
                   <div className="flex items-baseline justify-between">
                     <span className="text-caption text-text-muted">Tamanho selecionado</span>
-                    <span className="text-h4 font-heading text-text">{selectedSize ?? '—'}</span>
+                    <span className="text-h4 font-heading text-text">
+                      {isKit ? 'Kit' : (selectedSize ?? '—')}
+                    </span>
                   </div>
                   <p className="text-body text-text-muted">
-                    Selecione um tamanho para avançar para a confirmação.
+                    {isKit
+                      ? 'Você selecionará os tamanhos por item na próxima etapa.'
+                      : 'Selecione um tamanho para avançar para a confirmação.'}
                   </p>
                   <Button
                     variant="primary"
                     fullWidth
                     onClick={handleAdvanceWithSize}
-                    disabled={!selectedSize}
+                    disabled={!isKit && !selectedSize}
                   >
-                    Avançar para confirmação
+                    {isKit ? 'Ir para escolha do kit' : 'Avançar para confirmação'}
                   </Button>
                 </div>
               ) : recommendation ? (
@@ -431,8 +480,12 @@ export default function MeasurementsPage() {
                   })()}
 
                   {recommendation.size === 'MANUAL' ? (
-                    <Button variant="secondary" fullWidth onClick={handleChooseSizeDirect}>
-                      Escolher tamanho manualmente
+                    <Button
+                      variant={isKit ? 'primary' : 'secondary'}
+                      fullWidth
+                      onClick={isKit ? handleAdvance : handleChooseSizeDirect}
+                    >
+                      {isKit ? 'Avançar para escolha do kit' : 'Escolher tamanho manualmente'}
                     </Button>
                   ) : (
                     <Button variant="primary" fullWidth onClick={handleAdvance}>

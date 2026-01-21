@@ -47,7 +47,10 @@ export default function SupplierSelectStep() {
       router.replace('/uniformes');
       return;
     }
-    if (!(orderState.selectedSize ?? orderState.suggestion?.suggestion)) {
+    const hasSelectedItems =
+      Array.isArray(orderState.selectedItems) && orderState.selectedItems.length > 0;
+
+    if (!(orderState.selectedSize || hasSelectedItems || orderState.suggestion?.suggestion)) {
       router.replace('/sugestao');
       return;
     }
@@ -86,7 +89,17 @@ export default function SupplierSelectStep() {
     return [...sameCity, ...others];
   }, [suppliers, userCity]);
 
-  const finalSize = orderState.selectedSize ?? orderState.suggestion?.suggestion ?? null;
+  const finalSize =
+    orderState.selectedSize ??
+    (Array.isArray(orderState.selectedItems) && orderState.selectedItems.length > 0
+      ? orderState.selectedItems
+          .map(entry => {
+            const label = typeof entry.kind === 'string' ? entry.kind : 'item';
+            const qty = Number(entry.quantity) > 1 ? ` x${entry.quantity}` : '';
+            return `${label}${qty} ${entry.size}`;
+          })
+          .join(' + ')
+      : (orderState.suggestion?.suggestion ?? null));
 
   const handleConfirm = async () => {
     if (!finalSize) {

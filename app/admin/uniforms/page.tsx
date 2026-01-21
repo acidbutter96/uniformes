@@ -15,6 +15,8 @@ import {
   type UniformGender,
   UNIFORM_CATEGORIES,
   UNIFORM_GENDERS,
+  UNIFORM_ITEM_KINDS,
+  type UniformItemKind,
 } from '@/src/types/uniform';
 
 const CATEGORY_LABEL: Record<UniformCategory, string> = {
@@ -29,11 +31,52 @@ const GENDER_LABEL: Record<UniformGender, string> = {
   unissex: 'Unissex',
 };
 
+const ITEM_KIND_LABEL: Record<UniformItemKind, string> = {
+  camiseta: 'Camiseta',
+  blusa: 'Blusa',
+  jaqueta: 'Jaqueta',
+  calca: 'Calça',
+  bermuda: 'Bermuda',
+  saia: 'Saia',
+  meia: 'Meia',
+  acessorio: 'Acessório',
+  outro: 'Outro',
+};
+
+function isNumericSizingKind(kind: UniformItemKind) {
+  return kind === 'calca' || kind === 'bermuda' || kind === 'saia';
+}
+
+function getDefaultSizesTextForKind(kind: UniformItemKind) {
+  return isNumericSizingKind(kind) ? '34, 36, 38, 40, 42, 44' : 'PP, P, M, G, GG';
+}
+
+function formatUniformItemsSummary(uniform: UniformDTO) {
+  const items = Array.isArray(uniform.items) ? uniform.items : [];
+  if (items.length === 0) {
+    return uniform.sizes.join(', ');
+  }
+
+  return items
+    .map(item => {
+      const qty = Number(item.quantity) > 1 ? ` x${item.quantity}` : '';
+      const label = ITEM_KIND_LABEL[item.kind];
+      return `${label}${qty}: ${(item.sizes ?? []).join(', ')}`;
+    })
+    .join(' | ');
+}
+
+type UniformItemFormValues = {
+  kind: UniformItemKind;
+  quantity: number;
+  sizesText: string;
+};
+
 type UniformFormValues = {
   name: string;
   category: UniformCategory;
   gender: UniformGender;
-  sizesText: string;
+  items: UniformItemFormValues[];
   price: number;
   description: string;
   imageSrc: string;
@@ -44,7 +87,13 @@ const createEmptyForm = (): UniformFormValues => ({
   name: '',
   category: 'escolar',
   gender: 'unissex',
-  sizesText: '',
+  items: [
+    {
+      kind: 'camiseta',
+      quantity: 1,
+      sizesText: getDefaultSizesTextForKind('camiseta'),
+    },
+  ],
   price: 0,
   description: '',
   imageSrc: '',
@@ -138,6 +187,46 @@ export default function AdminUniformsPage() {
     setError(null);
   };
 
+  const handleItemChange = (index: number, patch: Partial<UniformItemFormValues>) => {
+    setFormValues(prev => {
+      const nextItems = prev.items.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+
+        const updated = { ...item, ...patch };
+        if (patch.kind && (!updated.sizesText || !updated.sizesText.trim())) {
+          updated.sizesText = getDefaultSizesTextForKind(patch.kind);
+        }
+
+        if (patch.quantity !== undefined) {
+          updated.quantity = Math.max(1, Math.floor(Number(patch.quantity) || 1));
+        }
+
+        return updated;
+      });
+      return { ...prev, items: nextItems };
+    });
+    setError(null);
+  };
+
+  const handleAddItem = () => {
+    setFormValues(prev => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        { kind: 'camiseta', quantity: 1, sizesText: getDefaultSizesTextForKind('camiseta') },
+      ],
+    }));
+    setError(null);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setFormValues(prev => {
+      if (prev.items.length <= 1) return prev;
+      return { ...prev, items: prev.items.filter((_, itemIndex) => itemIndex !== index) };
+    });
+    setError(null);
+  };
+
   const resetForm = () => {
     setEditingId(null);
     setFormValues(createEmptyForm());
@@ -158,9 +247,19 @@ export default function AdminUniformsPage() {
       return;
     }
 
-    const sizes = parseSizes(formValues.sizesText);
-    if (sizes.length === 0) {
-      setError('Adicione pelo menos um tamanho.');
+    const resolvedItems = formValues.items
+      .map(item => {
+        const sizes = parseSizes(item.sizesText);
+        return {
+          kind: item.kind,
+          quantity: Math.max(1, Math.floor(Number(item.quantity) || 1)),
+          sizes,
+        };
+      })
+      .filter(item => item.sizes.length > 0);
+
+    if (resolvedItems.length === 0) {
+      setError('Adicione pelo menos um item com tamanhos.');
       return;
     }
 
@@ -177,7 +276,7 @@ export default function AdminUniformsPage() {
         name: formValues.name,
         category: formValues.category,
         gender: formValues.gender,
-        sizes,
+        items: resolvedItems,
         price: formValues.price,
         description: formValues.description.trim() || undefined,
         imageSrc: formValues.imageSrc.trim() || undefined,
@@ -211,12 +310,29 @@ export default function AdminUniformsPage() {
     if (!target) return;
 
     setEditingId(id);
+
+    const targetItems = Array.isArray(target.items) && target.items.length > 0 ? target.items : [];
+    const itemsForForm: UniformItemFormValues[] =
+      targetItems.length > 0
+        ? targetItems.map(item => ({
+            kind: item.kind,
+            quantity: item.quantity,
+            sizesText: (item.sizes ?? []).join(', '),
+          }))
+        : [
+            {
+              kind: 'outro',
+              quantity: 1,
+              sizesText: target.sizes.join(', '),
+            },
+          ];
+
     setFormValues({
       name: target.name,
       category: target.category,
       gender: target.gender,
       price: target.price,
-      sizesText: target.sizes.join(', '),
+      items: itemsForForm,
       description: target.description ?? '',
       imageSrc: target.imageSrc ?? '',
       imageAlt: target.imageAlt ?? '',
@@ -281,7 +397,9 @@ export default function AdminUniformsPage() {
                       <Badge tone="accent">{CATEGORY_LABEL[uniform.category]}</Badge>
                     </td>
                     <td className="px-4 py-3 text-neutral-600">{GENDER_LABEL[uniform.gender]}</td>
-                    <td className="px-4 py-3 text-neutral-600">{uniform.sizes.join(', ')}</td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {formatUniformItemsSummary(uniform)}
+                    </td>
                     <td className="px-4 py-3 text-neutral-600">{formatCurrency(uniform.price)}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-xs">
@@ -384,18 +502,103 @@ export default function AdminUniformsPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="uniform-sizes" className="text-sm font-medium text-neutral-700">
-                  Tamanhos (separados por vírgula)
-                </label>
-                <Input
-                  id="uniform-sizes"
-                  value={formValues.sizesText}
-                  onChange={event => handleChange('sizesText', event.target.value)}
-                  placeholder="Ex: PP, P, M, G, GG"
-                  required
-                  disabled={isFormDisabled}
-                />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-sm">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-neutral-700">Itens do kit</span>
+                    <span className="text-xs text-neutral-500">
+                      Defina os tipos de peças e os tamanhos de cada uma.
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAddItem}
+                    disabled={isFormDisabled}
+                  >
+                    Adicionar item
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {formValues.items.map((item, index) => (
+                    <div
+                      key={`${item.kind}-${index}`}
+                      className="rounded-card border border-border bg-surface p-3"
+                    >
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-neutral-600">Tipo</label>
+                          <select
+                            value={item.kind}
+                            onChange={event => {
+                              handleItemChange(index, {
+                                kind: event.target.value as UniformItemKind,
+                              });
+                            }}
+                            className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-primary/40"
+                            disabled={isFormDisabled}
+                          >
+                            {UNIFORM_ITEM_KINDS.map(option => (
+                              <option key={option} value={option}>
+                                {ITEM_KIND_LABEL[option]}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-neutral-600">Quantidade</label>
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            inputMode="numeric"
+                            value={item.quantity}
+                            onChange={event =>
+                              handleItemChange(index, { quantity: Number(event.target.value) || 1 })
+                            }
+                            disabled={isFormDisabled}
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-3">
+                          <label className="text-xs font-medium text-neutral-600">
+                            Tamanhos (separados por vírgula)
+                          </label>
+                          <Input
+                            value={item.sizesText}
+                            onChange={event => {
+                              handleItemChange(index, { sizesText: event.target.value });
+                            }}
+                            placeholder={
+                              isNumericSizingKind(item.kind)
+                                ? 'Ex: 34, 36, 38, 40'
+                                : 'Ex: PP, P, M, G, GG'
+                            }
+                            required
+                            disabled={isFormDisabled}
+                          />
+                        </div>
+                      </div>
+
+                      {formValues.items.length > 1 && (
+                        <div className="mt-2 flex justify-end">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveItem(index)}
+                            disabled={isFormDisabled}
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-1">

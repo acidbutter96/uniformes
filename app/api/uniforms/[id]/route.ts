@@ -4,7 +4,51 @@ import { ensureAdminAccess } from '@/app/api/utils/admin-auth';
 import { badRequest, notFound, ok, serverError } from '@/app/api/utils/responses';
 import { UNIFORM_CATEGORIES, UNIFORM_GENDERS } from '@/src/lib/models/uniform';
 import { deleteUniform, updateUniform } from '@/src/services/uniform.service';
-import type { UniformCategory, UniformGender } from '@/src/types/uniform';
+import { UNIFORM_ITEM_KINDS } from '@/src/types/uniform';
+import type { UniformCategory, UniformGender, UniformItemDTO } from '@/src/types/uniform';
+
+function parseUniformItems(value: unknown): UniformItemDTO[] {
+  if (!Array.isArray(value)) {
+    throw new Error('Itens devem ser uma lista.');
+  }
+
+  const parsed = value
+    .map(item => {
+      if (!item || typeof item !== 'object') {
+        throw new Error('Item inválido.');
+      }
+
+      const kind = (item as Record<string, unknown>).kind;
+      const quantity = (item as Record<string, unknown>).quantity;
+      const sizes = (item as Record<string, unknown>).sizes;
+
+      if (typeof kind !== 'string' || !UNIFORM_ITEM_KINDS.includes(kind as never)) {
+        throw new Error('Tipo de item inválido.');
+      }
+
+      const resolvedQuantity = quantity === undefined ? 1 : Number(quantity);
+      if (!Number.isFinite(resolvedQuantity) || resolvedQuantity < 1) {
+        throw new Error('Quantidade inválida.');
+      }
+
+      if (!Array.isArray(sizes) || !sizes.every(size => typeof size === 'string' && size.trim())) {
+        throw new Error('Tamanhos do item devem ser uma lista de strings.');
+      }
+
+      return {
+        kind: kind as UniformItemDTO['kind'],
+        quantity: Math.floor(resolvedQuantity),
+        sizes: (sizes as string[]).map(size => size.trim()).filter(Boolean),
+      } satisfies UniformItemDTO;
+    })
+    .filter(item => item.sizes.length > 0);
+
+  if (parsed.length === 0) {
+    throw new Error('Informe ao menos um item com tamanhos.');
+  }
+
+  return parsed;
+}
 
 type ParamsPromise = Promise<Record<string, string | string[] | undefined>>;
 
@@ -42,16 +86,18 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
       return badRequest('Payload inválido.');
     }
 
-    const { name, description, category, gender, price, sizes, imageSrc, imageAlt } = payload as {
-      name?: unknown;
-      description?: unknown;
-      category?: unknown;
-      gender?: unknown;
-      price?: unknown;
-      sizes?: unknown;
-      imageSrc?: unknown;
-      imageAlt?: unknown;
-    };
+    const { name, description, category, gender, price, sizes, items, imageSrc, imageAlt } =
+      payload as {
+        name?: unknown;
+        description?: unknown;
+        category?: unknown;
+        gender?: unknown;
+        price?: unknown;
+        sizes?: unknown;
+        items?: unknown;
+        imageSrc?: unknown;
+        imageAlt?: unknown;
+      };
 
     const updates: Record<string, unknown> = {};
 
@@ -99,6 +145,14 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
         return badRequest('Tamanhos devem ser uma lista de strings.');
       }
       updates.sizes = sizes;
+    }
+
+    if (items !== undefined) {
+      try {
+        updates.items = parseUniformItems(items);
+      } catch (error) {
+        return badRequest(error instanceof Error ? error.message : 'Itens inválidos.');
+      }
     }
 
     if (imageSrc !== undefined) {

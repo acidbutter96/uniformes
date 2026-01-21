@@ -5,7 +5,15 @@ import {
   type UniformGender,
   UNIFORM_CATEGORIES,
   UNIFORM_GENDERS,
+  UNIFORM_ITEM_KINDS,
+  type UniformItemKind,
 } from '@/src/types/uniform';
+
+export interface UniformItemDocument {
+  kind: UniformItemKind;
+  quantity: number;
+  sizes: string[];
+}
 
 export interface UniformDocument extends Document {
   name: string;
@@ -13,12 +21,33 @@ export interface UniformDocument extends Document {
   category: UniformCategory;
   gender: UniformGender;
   sizes: string[];
+  items?: UniformItemDocument[];
   price: number;
   imageSrc?: string;
   imageAlt?: string;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const UniformItemSchema = new Schema<UniformItemDocument>(
+  {
+    kind: {
+      type: String,
+      enum: UNIFORM_ITEM_KINDS,
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+    sizes: {
+      type: [String],
+      default: [],
+    },
+  },
+  { _id: false },
+);
 
 const UniformSchema = new Schema<UniformDocument>(
   {
@@ -43,6 +72,10 @@ const UniformSchema = new Schema<UniformDocument>(
     },
     sizes: {
       type: [String],
+      default: [],
+    },
+    items: {
+      type: [UniformItemSchema],
       default: [],
     },
     price: {

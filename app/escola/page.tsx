@@ -9,6 +9,7 @@ import { Card } from '@/app/components/ui/Card';
 import type { School } from '@/app/lib/models/school';
 import type { Supplier } from '@/app/lib/models/supplier';
 import { loadOrderFlowState, saveOrderFlowState } from '@/app/lib/storage/order-flow';
+import useAuth from '@/src/hooks/useAuth';
 
 const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
   const ids = Array.isArray(supplier.schoolIds)
@@ -22,6 +23,7 @@ const supplierSupportsSchool = (supplier: Supplier, schoolId: string) => {
 
 export default function SchoolStepPage() {
   const router = useRouter();
+  const { user, accessToken, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [school, setSchool] = useState<School | null>(null);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
@@ -29,8 +31,44 @@ export default function SchoolStepPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (loading) return;
+      if (!user) {
+        router.replace(`/login?returnTo=${encodeURIComponent('/escola')}`);
+        return;
+      }
+
       const state = loadOrderFlowState();
-      if (!state.schoolId) {
+      let effectiveSchoolId = state.schoolId;
+
+      // Always try to refresh the schoolId from the latest user data when we have a childId.
+      // This prevents stale order-flow state when the user updates the child's school on /conta.
+      if (accessToken && state.childId) {
+        try {
+          const meRes = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            cache: 'no-store',
+          });
+
+          if (meRes.ok) {
+            const mePayload = (await meRes.json().catch(() => ({}))) as {
+              data?: { children?: Array<{ _id?: string; schoolId?: string }> };
+            };
+
+            const children = Array.isArray(mePayload?.data?.children) ? mePayload.data.children : [];
+            const matchedChild = children.find(c => String(c?._id ?? '') === String(state.childId));
+            const latestSchoolId = String(matchedChild?.schoolId ?? '').trim();
+
+            if (latestSchoolId && latestSchoolId !== effectiveSchoolId) {
+              saveOrderFlowState({ schoolId: latestSchoolId });
+              effectiveSchoolId = latestSchoolId;
+            }
+          }
+        } catch (error) {
+          console.error('Failed to refresh user data', error);
+        }
+      }
+
+      if (!effectiveSchoolId) {
         // If we don't have a school from the selected child, user must update account data.
         router.replace('/conta');
         return;
@@ -40,8 +78,8 @@ export default function SchoolStepPage() {
         const [schoolsResponse, suppliersResponse] = await Promise.all([
           // Need the school's data, but API does not expose GET /api/schools/[id].
           // Fetch all and filter client-side.
-          fetch('/api/schools?all=true'),
-          fetch('/api/suppliers'),
+          fetch('/api/schools?all=true', { cache: 'no-store' }),
+          fetch('/api/suppliers', { cache: 'no-store' }),
         ]);
 
         if (!schoolsResponse.ok || !suppliersResponse.ok) {
@@ -54,7 +92,7 @@ export default function SchoolStepPage() {
         const schools = schoolsPayload.data ?? [];
         const suppliers = suppliersPayload.data ?? [];
 
-        const matchedSchool = schools.find(item => item.id === state.schoolId) ?? null;
+        const matchedSchool = schools.find(item => item.id === effectiveSchoolId) ?? null;
         if (!matchedSchool) {
           setError('Não encontramos a escola vinculada ao aluno. Atualize os dados da conta.');
           setSchool(null);
@@ -73,7 +111,7 @@ export default function SchoolStepPage() {
     };
 
     fetchData();
-  }, []);
+  }, [loading, user, accessToken, router]);
 
   const handleConfirmYes = () => {
     if (!school) return;

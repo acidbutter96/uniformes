@@ -317,7 +317,7 @@ export default function AccountPage() {
           // include only valid children
           children: childrenState
             .filter(c => c.name?.trim() && Number.isFinite(c.age) && c.age >= 0 && c.schoolId)
-            .map(c => ({ name: c.name.trim(), age: c.age, schoolId: c.schoolId })),
+            .map(c => ({ id: c.id, name: c.name.trim(), age: c.age, schoolId: c.schoolId })),
         }),
       });
 

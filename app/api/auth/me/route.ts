@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Types } from 'mongoose';
 
 import { verifyAccessToken, isValidCpf } from '@/src/services/auth.service';
 import { getById, updateUser } from '@/src/services/user.service';
@@ -84,19 +85,31 @@ export async function PATCH(request: Request) {
     // Allow updating children (replace entire children array)
     if (Array.isArray(body?.children)) {
       const raw = body.children as unknown[];
-      const parsed: Array<{ name: string; age: number; schoolId: string }> = [];
+      const parsed: Array<{ _id?: string; name: string; age: number; schoolId: string }> = [];
       for (const item of raw) {
         if (!item || typeof item !== 'object') {
           return NextResponse.json({ error: 'Dados de aluno inválidos.' }, { status: 400 });
         }
         const it = item as Record<string, unknown>;
+        const id = typeof it.id === 'string' && it.id.trim() ? it.id.trim() : undefined;
         const name = typeof it.name === 'string' ? it.name.trim() : '';
         const age = Number(it.age);
-        const schoolId = typeof it.schoolId === 'string' ? it.schoolId : '';
-        if (!name || !Number.isFinite(age) || age < 0 || !schoolId) {
+        const schoolId = typeof it.schoolId === 'string' ? it.schoolId.trim() : '';
+
+        if (id && !Types.ObjectId.isValid(id)) {
           return NextResponse.json({ error: 'Dados de aluno inválidos.' }, { status: 400 });
         }
-        parsed.push({ name, age, schoolId });
+
+        if (!schoolId || !Types.ObjectId.isValid(schoolId)) {
+          return NextResponse.json({ error: 'Dados de aluno inválidos.' }, { status: 400 });
+        }
+
+        if (!name || !Number.isFinite(age) || age < 0) {
+          return NextResponse.json({ error: 'Dados de aluno inválidos.' }, { status: 400 });
+        }
+
+        // Preserve the child's _id when provided so flows can keep referring to the same child.
+        parsed.push({ _id: id, name, age, schoolId });
       }
       allowed.children = parsed as unknown as typeof allowed.children;
     }

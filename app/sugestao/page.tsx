@@ -10,6 +10,8 @@ import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
 import { cn } from '@/app/lib/utils';
+import { pickAvailablePantsSize, recommendPantsSize } from '@/app/lib/sizeEngine';
+import { PANTS_SIZES } from '@/app/lib/pantsSizeTable';
 import type { School } from '@/app/lib/models/school';
 import type { Uniform } from '@/app/lib/models/uniform';
 import {
@@ -48,6 +50,12 @@ export default function SuggestionPage() {
   };
 
   const isNumericKind = (kind: string) => kind === 'calca' || kind === 'bermuda' || kind === 'saia';
+
+  const looksLikePantsSizes = (sizes: unknown) => {
+    if (!Array.isArray(sizes) || sizes.length === 0) return false;
+    const normalized = sizes.map(v => String(v).trim()).filter(Boolean);
+    return normalized.some(value => (PANTS_SIZES as readonly string[]).includes(value));
+  };
 
   useEffect(() => {
     const state = loadOrderFlowState();
@@ -117,12 +125,23 @@ export default function SuggestionPage() {
   useEffect(() => {
     if (!uniform) return;
 
+    const measurements = orderState?.measurements;
+    const pantsSuggestion = measurements
+      ? recommendPantsSize({
+          height: measurements.height,
+          waist: measurements.waist,
+          hips: measurements.hips,
+        })
+      : null;
+    const suggestedPantsSize =
+      pantsSuggestion && pantsSuggestion.size !== 'MANUAL' ? pantsSuggestion.size : null;
+
     const uniformItems =
       Array.isArray(uniform.items) && uniform.items.length > 0
         ? uniform.items
         : [
             {
-              kind: 'outro',
+              kind: looksLikePantsSizes(uniform.sizes) ? 'calca' : 'outro',
               quantity: 1,
               sizes: Array.isArray(uniform.sizes) ? uniform.sizes : [],
             },
@@ -147,13 +166,23 @@ export default function SuggestionPage() {
         continue;
       }
 
+      if (suggestedPantsSize && isNumericKind(item.kind)) {
+        nextSelected[index] = pickAvailablePantsSize(sizes, suggestedPantsSize);
+        continue;
+      }
+
       if (sizes.length > 0) {
         nextSelected[index] = sizes[0];
       }
     }
 
     setSelectedItems(nextSelected);
-  }, [uniform, orderState?.selectedItems, orderState?.suggestion?.suggestion]);
+  }, [
+    uniform,
+    orderState?.measurements,
+    orderState?.selectedItems,
+    orderState?.suggestion?.suggestion,
+  ]);
 
   useEffect(() => {
     if (loading) return;
@@ -197,12 +226,23 @@ export default function SuggestionPage() {
       ? uniform.items
       : [
           {
-            kind: 'outro',
+            kind: looksLikePantsSizes(uniform.sizes) ? 'calca' : 'outro',
             quantity: 1,
             sizes: Array.isArray(uniform.sizes) ? uniform.sizes : [],
           },
         ];
   }, [uniform]);
+
+  const suggestedPantsSize = useMemo(() => {
+    const measurements = orderState?.measurements;
+    if (!measurements) return null;
+    const pants = recommendPantsSize({
+      height: measurements.height,
+      waist: measurements.waist,
+      hips: measurements.hips,
+    });
+    return pants.size === 'MANUAL' ? null : pants.size;
+  }, [orderState?.measurements]);
 
   const hasSuggestionTarget = useMemo(() => {
     const suggestionSize = orderState?.suggestion?.suggestion;
@@ -379,10 +419,9 @@ export default function SuggestionPage() {
                         <div className="mt-sm flex flex-wrap gap-sm">
                           {sizes.map(size => {
                             const isActive = selected === size;
-                            const isSuggested =
-                              suggestion?.suggestion === size &&
-                              !isNumericKind(item.kind) &&
-                              hasSuggestionTarget;
+                            const isSuggested = isNumericKind(item.kind)
+                              ? suggestedPantsSize === size
+                              : suggestion?.suggestion === size && hasSuggestionTarget;
 
                             return (
                               <button

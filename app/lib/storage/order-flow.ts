@@ -3,6 +3,7 @@
 const STORAGE_KEY = 'uniformes:order-flow';
 
 export type MeasurementsMap = {
+  age?: number;
   height: number;
   chest: number;
   waist: number;

@@ -48,7 +48,7 @@ function isNumericSizingKind(kind: UniformItemKind) {
 }
 
 function getDefaultSizesTextForKind(kind: UniformItemKind) {
-  return isNumericSizingKind(kind) ? '34, 36, 38, 40, 42, 44' : 'PP, P, M, G, GG';
+  return isNumericSizingKind(kind) ? '2, 4, 6, 8, 10, 12, 14' : 'PP, P, M, G, GG';
 }
 
 function formatUniformItemsSummary(uniform: UniformDTO) {
@@ -574,7 +574,7 @@ export default function AdminUniformsPage() {
                             }}
                             placeholder={
                               isNumericSizingKind(item.kind)
-                                ? 'Ex: 34, 36, 38, 40'
+                                ? 'Ex: 2, 4, 6, 8, 10, 12, 14'
                                 : 'Ex: PP, P, M, G, GG'
                             }
                             required

@@ -279,7 +279,7 @@ const seedUniforms: SeedUniform[] = [
       {
         kind: 'calca',
         quantity: 1,
-        sizes: ['36', '38', '40', '42', '44'],
+        sizes: ['2', '4', '6', '8', '10', '12', '14'],
       },
     ],
     imageSrc:

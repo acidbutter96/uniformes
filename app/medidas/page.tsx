@@ -9,7 +9,15 @@ import { Card } from '@/app/components/ui/Card';
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 import { cn } from '@/app/lib/utils';
-import { MAX_SCORE, type RecommendSizeResult } from '@/app/lib/sizeEngine';
+import {
+  MAX_PANTS_SCORE,
+  MAX_SCORE,
+  pickAvailablePantsSize,
+  recommendPantsSize,
+  type RecommendPantsSizeResult,
+  type RecommendSizeResult,
+} from '@/app/lib/sizeEngine';
+import { PANTS_SIZES } from '@/app/lib/pantsSizeTable';
 import type { Uniform } from '@/app/lib/models/uniform';
 import type { School } from '@/app/lib/models/school';
 import {
@@ -23,9 +31,24 @@ import useAuth from '@/src/hooks/useAuth';
 type InputMode = 'choice' | 'size' | 'measurements';
 
 const FALLBACK_SIZES = ['PP', 'P', 'M', 'G', 'GG'];
+const FALLBACK_PANTS_SIZES = [...PANTS_SIZES];
 
 function isKnownSize(value: string): value is 'PP' | 'P' | 'M' | 'G' | 'GG' {
   return value === 'PP' || value === 'P' || value === 'M' || value === 'G' || value === 'GG';
+}
+
+function isNumericKind(kind: string) {
+  return kind === 'calca' || kind === 'bermuda' || kind === 'saia';
+}
+
+function isPantsSize(value: string) {
+  return (PANTS_SIZES as readonly string[]).includes(value);
+}
+
+function looksLikePantsSizes(sizes: string[] | undefined) {
+  if (!Array.isArray(sizes) || sizes.length === 0) return false;
+  const normalized = sizes.map(v => String(v).trim()).filter(Boolean);
+  return normalized.some(isPantsSize);
 }
 
 export default function MeasurementsPage() {
@@ -33,6 +56,9 @@ export default function MeasurementsPage() {
   const { user, accessToken, loading: authLoading } = useAuth();
 
   const [recommendation, setRecommendation] = useState<RecommendSizeResult | null>(null);
+  const [pantsRecommendation, setPantsRecommendation] = useState<RecommendPantsSizeResult | null>(
+    null,
+  );
   const [engineMessage, setEngineMessage] = useState<string | null>(null);
   const [measurementValues, setMeasurementValues] = useState<MeasurementsMap | null>(null);
   const [uniform, setUniform] = useState<Uniform | null>(null);
@@ -42,13 +68,28 @@ export default function MeasurementsPage() {
   const [childId, setChildId] = useState<string | null>(null);
   const [child, setChild] = useState<{ name: string; age: number } | null>(null);
 
+  const [pickedPantsSize, setPickedPantsSize] = useState<string | null>(null);
+
+  const structuredItems = Array.isArray(uniform?.items) ? uniform.items : [];
+  const hasStructuredItems = structuredItems.length > 0;
+
+  const hasPantsItem =
+    (hasStructuredItems && structuredItems.some(item => isNumericKind(String(item.kind ?? '')))) ||
+    (!hasStructuredItems && looksLikePantsSizes(uniform?.sizes));
+
+  const pantsAvailableSizes = hasStructuredItems
+    ? structuredItems.find(item => isNumericKind(String(item.kind ?? '')))?.sizes
+    : uniform?.sizes;
+
   const isKit =
-    Array.isArray(uniform?.items) &&
-    uniform.items.length > 0 &&
-    (uniform.items.length > 1 ||
-      uniform.items.some(
-        item => item.kind === 'calca' || item.kind === 'bermuda' || item.kind === 'saia',
-      ));
+    hasStructuredItems &&
+    (structuredItems.length > 1 || structuredItems.some(item => Number(item.quantity) > 1));
+
+  const isPantsUniform =
+    (hasStructuredItems &&
+      structuredItems.length === 1 &&
+      isNumericKind(String(structuredItems[0]?.kind ?? ''))) ||
+    (!hasStructuredItems && looksLikePantsSizes(uniform?.sizes));
 
   useEffect(() => {
     const state = loadOrderFlowState();
@@ -189,6 +230,12 @@ export default function MeasurementsPage() {
       return;
     }
 
+    if (isPantsUniform) {
+      if (!selectedSize) return;
+      router.push('/sugestao');
+      return;
+    }
+
     if (!recommendation || recommendation.size === 'MANUAL') return;
     router.push('/sugestao');
   };
@@ -203,6 +250,8 @@ export default function MeasurementsPage() {
       });
       setMeasurementValues(null);
       setRecommendation(null);
+      setPantsRecommendation(null);
+      setPickedPantsSize(null);
       setEngineMessage(null);
       setSelectedSize(null);
       router.push('/sugestao');
@@ -218,6 +267,8 @@ export default function MeasurementsPage() {
     });
     setMeasurementValues(null);
     setRecommendation(null);
+    setPantsRecommendation(null);
+    setPickedPantsSize(null);
     setEngineMessage(null);
     setSelectedSize(null);
     setInputMode('size');
@@ -227,6 +278,8 @@ export default function MeasurementsPage() {
     // Clear manual size (user wants suggestion by measurements).
     saveOrderFlowState({ selectedSize: undefined, selectedItems: undefined });
     setSelectedSize(null);
+    setPantsRecommendation(null);
+    setPickedPantsSize(null);
     setInputMode('measurements');
     requestAnimationFrame(() => {
       const el = document.getElementById('measurements-form');
@@ -237,7 +290,9 @@ export default function MeasurementsPage() {
   const sizeOptions =
     !isKit && Array.isArray(uniform?.sizes) && uniform?.sizes.length > 0
       ? uniform.sizes
-      : FALLBACK_SIZES;
+      : isPantsUniform
+        ? FALLBACK_PANTS_SIZES
+        : FALLBACK_SIZES;
 
   const handleSizeSelect = (size: string) => {
     setSelectedSize(size);
@@ -334,9 +389,57 @@ export default function MeasurementsPage() {
               <MeasurementsForm
                 id="measurements-form"
                 onRecommendation={(next, data) => {
+                  if (isPantsUniform) {
+                    const measurementsMap: MeasurementsMap = {
+                      age: typeof child?.age === 'number' ? child.age : undefined,
+                      height: Number(data.height),
+                      chest: Number(data.chest),
+                      waist: Number(data.waist),
+                      hips: Number(data.hips),
+                    };
+
+                    setMeasurementValues(measurementsMap);
+
+                    const pants = recommendPantsSize({
+                      height: measurementsMap.height,
+                      waist: measurementsMap.waist,
+                      hips: measurementsMap.hips,
+                    });
+
+                    setRecommendation(null);
+                    setPantsRecommendation(pants);
+
+                    if (pants.size === 'MANUAL') {
+                      const message = 'Ajuste manual recomendado para maior precisão.';
+                      setEngineMessage(message);
+                      setSelectedSize(null);
+                      saveOrderFlowState({
+                        measurements: measurementsMap,
+                        suggestion: undefined,
+                        selectedSize: undefined,
+                      });
+                      return;
+                    }
+
+                    const picked = pickAvailablePantsSize(sizeOptions, pants.size);
+                    const message =
+                      'Sugestão de tamanho da calça calculada com base nas medidas informadas.';
+                    setEngineMessage(message);
+                    setSelectedSize(picked);
+
+                    saveOrderFlowState({
+                      measurements: measurementsMap,
+                      suggestion: undefined,
+                      selectedSize: picked,
+                    });
+                    return;
+                  }
+
                   setRecommendation(next);
+                  setPantsRecommendation(null);
 
                   const measurementsMap: MeasurementsMap = {
+                    age: typeof child?.age === 'number' ? child.age : undefined,
                     height: Number(data.height),
                     chest: Number(data.chest),
                     waist: Number(data.waist),
@@ -360,6 +463,26 @@ export default function MeasurementsPage() {
 
                   setEngineMessage(suggestionData.message);
                   saveOrderFlowState({ measurements: measurementsMap, suggestion: suggestionData });
+
+                  if (!hasPantsItem) {
+                    setPantsRecommendation(null);
+                    setPickedPantsSize(null);
+                    return;
+                  }
+
+                  const pants = recommendPantsSize({
+                    height: measurementsMap.height,
+                    waist: measurementsMap.waist,
+                    hips: measurementsMap.hips,
+                  });
+                  setPantsRecommendation(pants);
+
+                  if (pants.size === 'MANUAL') {
+                    setPickedPantsSize(null);
+                    return;
+                  }
+
+                  setPickedPantsSize(pickAvailablePantsSize(pantsAvailableSizes, pants.size));
                 }}
                 submitLabel="Sugerir tamanho"
                 successMessage="Sugestão enviada!"
@@ -436,6 +559,14 @@ export default function MeasurementsPage() {
                         : recommendation.size}
                     </span>
                   </div>
+
+                  {pickedPantsSize && (
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-caption text-text-muted">Calça sugerida</span>
+                      <span className="text-h4 font-heading text-text">{pickedPantsSize}</span>
+                    </div>
+                  )}
+
                   <p className="text-body text-text">
                     {engineMessage ?? 'Sugestão calculada com base nas medidas informadas.'}
                   </p>
@@ -480,6 +611,74 @@ export default function MeasurementsPage() {
                   })()}
 
                   {recommendation.size === 'MANUAL' ? (
+                    <Button
+                      variant={isKit ? 'primary' : 'secondary'}
+                      fullWidth
+                      onClick={isKit ? handleAdvance : handleChooseSizeDirect}
+                    >
+                      {isKit ? 'Avançar para escolha do kit' : 'Escolher tamanho manualmente'}
+                    </Button>
+                  ) : (
+                    <Button variant="primary" fullWidth onClick={handleAdvance}>
+                      Avançar para confirmação
+                    </Button>
+                  )}
+                </div>
+              ) : pantsRecommendation ? (
+                <div className="flex flex-col gap-sm">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-caption text-text-muted">Tamanho sugerido (calça)</span>
+                    <span className="text-h4 font-heading text-text">
+                      {pantsRecommendation.size === 'MANUAL'
+                        ? 'Ajuste manual recomendado'
+                        : pantsRecommendation.size}
+                    </span>
+                  </div>
+                  <p className="text-body text-text">
+                    {engineMessage ?? 'Sugestão calculada com base nas medidas informadas.'}
+                  </p>
+                  {(() => {
+                    const ratio =
+                      MAX_PANTS_SCORE > 0 ? pantsRecommendation.score / MAX_PANTS_SCORE : 0;
+                    const clamped = Math.max(0, Math.min(1, ratio));
+                    const percent = Math.round(clamped * 100);
+
+                    const barColor =
+                      clamped < 0.45
+                        ? 'bg-red-500'
+                        : clamped < 0.75
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500';
+
+                    return (
+                      <div className="space-y-xxs">
+                        <div className="flex items-center justify-between">
+                          <span
+                            className="text-caption text-text-muted"
+                            title={`${percent}%`}
+                            aria-label={`Precisão da sugestão: ${percent}%`}
+                          >
+                            Precisão da sugestão
+                          </span>
+                          <span className="sr-only">{percent}%</span>
+                        </div>
+                        <div
+                          className="h-2 w-full overflow-hidden rounded-full bg-border"
+                          role="progressbar"
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-valuenow={percent}
+                        >
+                          <div
+                            className={cn('h-full transition-[width] duration-300', barColor)}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {pantsRecommendation.size === 'MANUAL' ? (
                     <Button
                       variant={isKit ? 'primary' : 'secondary'}
                       fullWidth

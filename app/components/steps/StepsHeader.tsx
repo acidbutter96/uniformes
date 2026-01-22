@@ -16,6 +16,8 @@ export interface StepsHeaderProps {
 
 export function StepsHeader({ currentStep, className }: StepsHeaderProps) {
   const activeStep = Math.min(Math.max(currentStep, 1), steps.length);
+  const progressPercent = (activeStep / steps.length) * 100;
+  const activeStepLabel = steps[activeStep - 1]?.label ?? '';
 
   return (
     <div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] px-md">
@@ -23,7 +25,30 @@ export function StepsHeader({ currentStep, className }: StepsHeaderProps) {
         aria-label="Etapas do processo"
         className={cn('w-full rounded-card bg-surface p-md shadow-soft', className)}
       >
-        <ol className="grid gap-sm md:grid-cols-6 md:gap-md">
+        <div className="md:hidden">
+          <div className="flex items-center justify-between gap-md">
+            <span className="text-body font-semibold text-text">{activeStepLabel}</span>
+            <span className="text-body text-text-muted">
+              {activeStep}/{steps.length}
+            </span>
+          </div>
+
+          <div
+            className="mt-sm h-2 w-full overflow-hidden rounded-full bg-border"
+            role="progressbar"
+            aria-label="Progresso das etapas"
+            aria-valuemin={1}
+            aria-valuenow={activeStep}
+            aria-valuemax={steps.length}
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width]"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+
+        <ol className="hidden gap-sm md:grid md:grid-cols-6 md:gap-md">
           {steps.map((step, index) => {
             const stepNumber = index + 1;
             const isActive = stepNumber === activeStep;

@@ -35,7 +35,7 @@ export default function SuggestionPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Record<number, string>>({});
+  const [selectedItems, setSelectedItems] = useState<Record<string, string>>({});
 
   const ITEM_LABEL: Record<string, string> = {
     camiseta: 'Camiseta',
@@ -141,6 +141,7 @@ export default function SuggestionPage() {
         ? uniform.items
         : [
             {
+              id: undefined,
               kind: looksLikePantsSizes(uniform.sizes) ? 'calca' : 'outro',
               quantity: 1,
               sizes: Array.isArray(uniform.sizes) ? uniform.sizes : [],
@@ -150,29 +151,32 @@ export default function SuggestionPage() {
     const persisted = orderState?.selectedItems ?? [];
     const suggestionSize = orderState?.suggestion?.suggestion ?? null;
 
-    const nextSelected: Record<number, string> = {};
+    const nextSelected: Record<string, string> = {};
 
     for (const [index, item] of uniformItems.entries()) {
+      const itemKey = item.id ?? String(index);
       const sizes = Array.isArray(item.sizes) ? item.sizes : [];
 
-      const fromPersisted = persisted[index]?.size;
+      const fromPersisted = persisted.find(
+        entry => entry.uniformItemId && entry.uniformItemId === item.id,
+      )?.size;
       if (fromPersisted && sizes.includes(fromPersisted)) {
-        nextSelected[index] = fromPersisted;
+        nextSelected[itemKey] = fromPersisted;
         continue;
       }
 
       if (suggestionSize && !isNumericKind(item.kind) && sizes.includes(suggestionSize)) {
-        nextSelected[index] = suggestionSize;
+        nextSelected[itemKey] = suggestionSize;
         continue;
       }
 
       if (suggestedPantsSize && isNumericKind(item.kind)) {
-        nextSelected[index] = pickAvailablePantsSize(sizes, suggestedPantsSize);
+        nextSelected[itemKey] = pickAvailablePantsSize(sizes, suggestedPantsSize);
         continue;
       }
 
       if (sizes.length > 0) {
-        nextSelected[index] = sizes[0];
+        nextSelected[itemKey] = sizes[0];
       }
     }
 
@@ -215,17 +219,21 @@ export default function SuggestionPage() {
   }, [orderState?.measurements]);
 
   const handleItemSizeSelect = (index: number, size: string) => {
-    setSelectedItems(current => ({ ...current, [index]: size }));
+    const item = uniformItems[index];
+    const itemKey = item?.id ?? String(index);
+    setSelectedItems(current => ({ ...current, [itemKey]: size }));
     setSubmitError(null);
   };
 
   const uniformItems = useMemo(() => {
-    if (!uniform) return [] as Array<{ kind: string; quantity: number; sizes: string[] }>;
+    if (!uniform)
+      return [] as Array<{ id?: string; kind: string; quantity: number; sizes: string[] }>;
 
     return Array.isArray(uniform.items) && uniform.items.length > 0
       ? uniform.items
       : [
           {
+            id: undefined,
             kind: looksLikePantsSizes(uniform.sizes) ? 'calca' : 'outro',
             quantity: 1,
             sizes: Array.isArray(uniform.sizes) ? uniform.sizes : [],
@@ -256,9 +264,10 @@ export default function SuggestionPage() {
     if (!orderState) return;
 
     const selections = uniformItems.map((item, index) => ({
+      uniformItemId: item.id,
       kind: item.kind,
       quantity: item.quantity ?? 1,
-      size: selectedItems[index] ?? null,
+      size: selectedItems[item.id ?? String(index)] ?? null,
       sizes: item.sizes ?? [],
     }));
 
@@ -286,6 +295,7 @@ export default function SuggestionPage() {
 
     saveOrderFlowState({
       selectedItems: selections.map(entry => ({
+        uniformItemId: entry.uniformItemId,
         kind: entry.kind,
         quantity: entry.quantity,
         size: String(entry.size),
@@ -298,6 +308,7 @@ export default function SuggestionPage() {
         ? {
             ...current,
             selectedItems: selections.map(entry => ({
+              uniformItemId: entry.uniformItemId,
               kind: entry.kind,
               quantity: entry.quantity,
               size: String(entry.size),
@@ -320,7 +331,7 @@ export default function SuggestionPage() {
           .map((item, index) => {
             const label = ITEM_LABEL[item.kind] ?? 'Item';
             const qty = Number(item.quantity) > 1 ? ` x${item.quantity}` : '';
-            const size = selectedItems[index];
+            const size = selectedItems[item.id ?? String(index)];
             return size ? `${label}${qty} ${size}` : null;
           })
           .filter(Boolean)

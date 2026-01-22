@@ -17,6 +17,10 @@ export interface SuggestionData {
 }
 
 export type SelectedUniformItem = {
+  /**
+   * References the uniform subdocument _id for this kit item.
+   */
+  uniformItemId?: string;
   kind: string;
   quantity: number;
   size: string;

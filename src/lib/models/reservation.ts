@@ -15,6 +15,7 @@ export interface ReservationDocument extends Document {
   childId: Types.ObjectId;
   schoolId: Types.ObjectId;
   uniformId: Types.ObjectId;
+  uniformItemSelections?: { uniform_item_id: Types.ObjectId; size: string }[];
   supplierId?: Types.ObjectId | null;
   measurements?: ReservationMeasurements;
   suggestedSize: string;
@@ -54,6 +55,21 @@ const MeasurementsSchema = new Schema<ReservationMeasurements>(
   { _id: false },
 );
 
+const UniformItemSelectionSchema = new Schema<{ uniform_item_id: Types.ObjectId; size: string }>(
+  {
+    uniform_item_id: {
+      type: Schema.Types.ObjectId,
+      required: true,
+    },
+    size: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  { _id: false },
+);
+
 const ReservationSchema = new Schema<ReservationDocument>(
   {
     userName: {
@@ -79,6 +95,11 @@ const ReservationSchema = new Schema<ReservationDocument>(
       type: Schema.Types.ObjectId,
       ref: 'Uniform',
       required: true,
+    },
+    uniformItemSelections: {
+      type: [UniformItemSelectionSchema],
+      required: false,
+      default: undefined,
     },
     supplierId: {
       type: Schema.Types.ObjectId,

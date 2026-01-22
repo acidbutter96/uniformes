@@ -20,6 +20,7 @@ export type CreateReservationInput = {
   childId: string;
   schoolId: string;
   uniformId: string;
+  uniformItemSelections?: { uniform_item_id: string; size: string }[];
   supplierId?: string;
   measurements?: ReservationMeasurements;
   suggestedSize: string;
@@ -48,9 +49,20 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     schoolId: Types.ObjectId;
     uniformId: Types.ObjectId;
     supplierId?: Types.ObjectId | null;
+    uniformItemSelections?: Array<{ uniform_item_id: Types.ObjectId; size: string }>;
   };
 
-  const { _id, userId, childId, schoolId, uniformId, createdAt, updatedAt, ...rest } = plain;
+  const {
+    _id,
+    userId,
+    childId,
+    schoolId,
+    uniformId,
+    uniformItemSelections,
+    createdAt,
+    updatedAt,
+    ...rest
+  } = plain;
 
   return {
     id: _id.toString(),
@@ -59,6 +71,12 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     schoolId: schoolId.toString(),
     uniformId: uniformId.toString(),
     supplierId: plain.supplierId ? plain.supplierId.toString() : undefined,
+    uniformItemSelections: Array.isArray(uniformItemSelections)
+      ? uniformItemSelections.map(entry => ({
+          uniform_item_id: entry.uniform_item_id.toString(),
+          size: String(entry.size),
+        }))
+      : undefined,
     ...rest,
     createdAt: toISOString(createdAt),
     updatedAt: toISOString(updatedAt),
@@ -86,6 +104,35 @@ export async function listReservations(filter: ReservationFilter = {}) {
 export async function createReservation(input: CreateReservationInput) {
   await dbConnect();
   await ensureReferencesExists(input.schoolId, input.uniformId);
+
+  if (input.uniformItemSelections && input.uniformItemSelections.length > 0) {
+    type UniformLean = { items?: Array<{ _id?: Types.ObjectId }> };
+    const uniform = await UniformModel.findById(input.uniformId)
+      .select({ items: 1 })
+      .lean<UniformLean>()
+      .exec();
+    const uniformItems = Array.isArray(uniform?.items) ? uniform.items : [];
+
+    const expectedIds = new Set(
+      uniformItems.map(item => (item._id ? item._id.toString() : null)).filter(Boolean) as string[],
+    );
+
+    const providedIds = new Set(
+      input.uniformItemSelections.map(entry => String(entry.uniform_item_id)),
+    );
+
+    if (expectedIds.size > 0) {
+      for (const id of providedIds) {
+        if (!expectedIds.has(id)) {
+          throw new Error('Itens selecionados não pertencem ao uniforme informado.');
+        }
+      }
+
+      if (expectedIds.size !== providedIds.size) {
+        throw new Error('Selecione um tamanho para cada item do uniforme.');
+      }
+    }
+  }
 
   // Enforce reservation limit by the number of children in the user document
   const user = await UserModel.findById(input.userId).lean().exec();
@@ -145,6 +192,13 @@ export async function createReservation(input: CreateReservationInput) {
     status,
     value,
   };
+
+  if (input.uniformItemSelections && input.uniformItemSelections.length > 0) {
+    reservationPayload.uniformItemSelections = input.uniformItemSelections.map(entry => ({
+      uniform_item_id: new Types.ObjectId(entry.uniform_item_id),
+      size: String(entry.size).trim(),
+    }));
+  }
 
   if (input.measurements) {
     reservationPayload.measurements = input.measurements;

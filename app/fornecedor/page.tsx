@@ -121,6 +121,16 @@ export default function SupplierSelectStep() {
     saveOrderFlowState({ supplierId: selectedSupplierId });
     setOrderState(current => ({ ...current, supplierId: selectedSupplierId! }));
 
+    const uniformItemSelections =
+      Array.isArray(orderState.selectedItems) && orderState.selectedItems.length > 0
+        ? orderState.selectedItems
+            .filter(entry => typeof entry.uniformItemId === 'string' && entry.uniformItemId.trim())
+            .map(entry => ({
+              uniform_item_id: String(entry.uniformItemId),
+              size: String(entry.size),
+            }))
+        : undefined;
+
     try {
       const response = await fetch('/api/reservations', {
         method: 'POST',
@@ -137,6 +147,9 @@ export default function SupplierSelectStep() {
           supplierId: selectedSupplierId,
           ...(orderState.measurements ? { measurements: orderState.measurements } : {}),
           suggestedSize: finalSize,
+          ...(uniformItemSelections && uniformItemSelections.length > 0
+            ? { uniformItemSelections }
+            : {}),
         }),
       });
 

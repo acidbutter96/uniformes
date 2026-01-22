@@ -1,4 +1,5 @@
 export type UniformItem = {
+  id?: string;
   kind: string;
   quantity: number;
   sizes: string[];

@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       supplierId,
       measurements,
       suggestedSize,
+      uniformItemSelections,
       status,
       value,
     } = payload as {
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
       supplierId?: unknown;
       measurements?: unknown;
       suggestedSize?: unknown;
+      uniformItemSelections?: unknown;
       status?: unknown;
       value?: unknown;
     };
@@ -102,6 +104,35 @@ export async function POST(request: NextRequest) {
 
     if (typeof suggestedSize !== 'string' || !suggestedSize.trim()) {
       return badRequest('Tamanho sugerido é obrigatório.');
+    }
+
+    let parsedUniformItemSelections: Array<{ uniform_item_id: string; size: string }> | undefined;
+    if (uniformItemSelections !== undefined && uniformItemSelections !== null) {
+      if (!Array.isArray(uniformItemSelections)) {
+        return badRequest('Itens selecionados inválidos.');
+      }
+
+      const parsed: Array<{ uniform_item_id: string; size: string }> = [];
+      for (const entry of uniformItemSelections) {
+        if (!entry || typeof entry !== 'object') {
+          return badRequest('Itens selecionados inválidos.');
+        }
+
+        const uniform_item_id = (entry as Record<string, unknown>).uniform_item_id;
+        const size = (entry as Record<string, unknown>).size;
+
+        if (typeof uniform_item_id !== 'string' || !Types.ObjectId.isValid(uniform_item_id)) {
+          return badRequest('uniform_item_id inválido.');
+        }
+
+        if (typeof size !== 'string' || !size.trim()) {
+          return badRequest('Tamanho do item inválido.');
+        }
+
+        parsed.push({ uniform_item_id, size: size.trim() });
+      }
+
+      parsedUniformItemSelections = parsed.length > 0 ? parsed : undefined;
     }
     let resolvedSupplierId: string | undefined;
     if (supplierId !== undefined && supplierId !== null) {
@@ -167,6 +198,7 @@ export async function POST(request: NextRequest) {
       supplierId: resolvedSupplierId,
       measurements: parsedMeasurements,
       suggestedSize,
+      uniformItemSelections: parsedUniformItemSelections,
       status: resolvedStatus,
       value: resolvedValue,
     });

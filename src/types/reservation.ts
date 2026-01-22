@@ -15,6 +15,7 @@ export type ReservationDTO = {
   childId: string;
   schoolId: string;
   uniformId: string;
+  uniformItemSelections?: { uniform_item_id: string; size: string }[];
   measurements?: ReservationMeasurementsDTO;
   suggestedSize: string;
   status: ReservationStatus;

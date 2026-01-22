@@ -1,4 +1,4 @@
-import mongoose, { Schema, type Document, type Model } from 'mongoose';
+import mongoose, { Schema, Types, type Document, type Model } from 'mongoose';
 
 import {
   type UniformCategory,
@@ -10,6 +10,7 @@ import {
 } from '@/src/types/uniform';
 
 export interface UniformItemDocument {
+  _id: Types.ObjectId;
   kind: UniformItemKind;
   quantity: number;
   sizes: string[];
@@ -46,7 +47,7 @@ const UniformItemSchema = new Schema<UniformItemDocument>(
       default: [],
     },
   },
-  { _id: false },
+  { _id: true },
 );
 
 const UniformSchema = new Schema<UniformDocument>(

@@ -69,13 +69,29 @@ export function serializeUniform(doc: SerializableUniform): UniformDTO {
   const plain = doc.toObject() as UniformDocument & {
     _id: Types.ObjectId;
     __v?: unknown;
+    items?: Array<{
+      _id?: Types.ObjectId;
+      kind: UniformItemDTO['kind'];
+      quantity: number;
+      sizes: string[];
+    }>;
   };
 
-  const { _id, createdAt, updatedAt, ...rest } = plain;
+  const { _id, createdAt, updatedAt, items, ...rest } = plain;
+
+  const serializedItems = Array.isArray(items)
+    ? items.map(item => ({
+        id: item._id ? item._id.toString() : undefined,
+        kind: item.kind,
+        quantity: item.quantity,
+        sizes: Array.isArray(item.sizes) ? item.sizes : [],
+      }))
+    : undefined;
 
   return {
     id: _id.toString(),
     ...rest,
+    items: serializedItems,
     createdAt: toISOString(createdAt),
     updatedAt: toISOString(updatedAt),
   } satisfies UniformDTO;

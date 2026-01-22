@@ -11,12 +11,14 @@ import { Alert } from '@/app/components/ui/Alert';
 import { cn } from '@/app/lib/utils';
 import { saveOrderFlowState, clearOrderFlowState } from '@/app/lib/storage/order-flow';
 import useAuth from '@/src/hooks/useAuth';
+import type { ReservationDTO } from '@/src/types/reservation';
 
 interface ChildInfo {
   id?: string;
   name: string;
   age: number;
   schoolId: string;
+  hasReservation?: boolean;
 }
 
 export default function SelectChildStepPage() {
@@ -51,24 +53,45 @@ export default function SelectChildStepPage() {
           schoolId?: unknown;
         };
 
-        const response = await fetch('/api/auth/me', {
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error('Falha ao carregar usuário.');
-        const payload = await response.json();
-        const rawChildren: RawChild[] = Array.isArray(payload?.data?.children)
-          ? (payload.data.children as RawChild[])
+        const [meResponse, reservationsResponse] = await Promise.all([
+          fetch('/api/auth/me', {
+            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+            signal: controller.signal,
+          }),
+          fetch('/api/reservations?scope=me', {
+            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+            signal: controller.signal,
+          }),
+        ]);
+
+        if (!meResponse.ok) throw new Error('Falha ao carregar usuário.');
+        const mePayload = await meResponse.json();
+        const rawChildren: RawChild[] = Array.isArray(mePayload?.data?.children)
+          ? (mePayload.data.children as RawChild[])
           : [];
+
+        const reservedChildIds = new Set<string>();
+        if (reservationsResponse.ok) {
+          const reservationsPayload = (await reservationsResponse.json()) as {
+            data: ReservationDTO[];
+          };
+          for (const reservation of reservationsPayload.data ?? []) {
+            if (typeof reservation?.childId === 'string' && reservation.childId.trim()) {
+              reservedChildIds.add(reservation.childId);
+            }
+          }
+        }
 
         const parsed: ChildInfo[] = rawChildren
           .map((child: RawChild) => {
             const c = child;
+            const id = typeof c?._id === 'string' ? c._id : undefined;
             return {
-              id: typeof c?._id === 'string' ? c._id : undefined,
+              id,
               name: String(c?.name ?? ''),
               age: Number(c?.age ?? 0),
               schoolId: String(c?.schoolId ?? ''),
+              hasReservation: id ? reservedChildIds.has(id) : false,
             };
           })
           .filter((c: ChildInfo) => c.name && Number.isFinite(c.age) && c.age >= 0);
@@ -98,6 +121,11 @@ export default function SelectChildStepPage() {
     }
 
     const child = children[selectedIndex];
+
+    if (child.hasReservation) {
+      setError('Este aluno já possui uma reserva e não pode iniciar outra no momento.');
+      return;
+    }
 
     // Save initial flow state using child's school and id
     const schoolId = child.schoolId || undefined;
@@ -130,19 +158,32 @@ export default function SelectChildStepPage() {
               <ul className="flex flex-col gap-sm">
                 {children.map((child, idx) => {
                   const selected = idx === selectedIndex;
+                  const disabled = Boolean(child.hasReservation);
                   return (
                     <li key={`${child.name}-${idx}`}>
                       <button
                         type="button"
-                        onClick={() => setSelectedIndex(idx)}
+                        onClick={() => {
+                          if (!disabled) setSelectedIndex(idx);
+                        }}
+                        disabled={disabled}
                         className={cn(
                           'flex w-full flex-col gap-xxs rounded-card border px-md py-sm text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                          selected
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-surface text-text hover:border-primary/40',
+                          disabled
+                            ? 'cursor-not-allowed border-border bg-surface/60 text-text-muted opacity-80'
+                            : selected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-surface text-text hover:border-primary/40',
                         )}
                       >
-                        <span className="text-body font-semibold">{child.name}</span>
+                        <div className="flex flex-wrap items-center justify-between gap-xs">
+                          <span className="text-body font-semibold">{child.name}</span>
+                          {disabled && (
+                            <span className="rounded-full bg-border px-xs py-xxs text-[11px] font-medium text-text-muted">
+                              Reserva já realizada
+                            </span>
+                          )}
+                        </div>
                         <span className="text-caption text-text-muted">{child.age} anos</span>
                       </button>
                     </li>

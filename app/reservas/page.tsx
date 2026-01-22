@@ -159,6 +159,19 @@ export default function UserReservationsPage() {
     [reservations],
   );
 
+  const hasEligibleChild = useMemo(() => {
+    type UserChild = { _id?: string };
+    const children = Array.isArray(user?.children) ? (user.children as UserChild[]) : [];
+    const childIds = children
+      .map(child => (typeof child?._id === 'string' ? child._id : null))
+      .filter((id): id is string => Boolean(id));
+
+    if (childIds.length === 0) return true;
+
+    const reservedIds = new Set(reservations.map(r => r.childId));
+    return childIds.some(id => !reservedIds.has(id));
+  }, [reservations, user?.children]);
+
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-xl px-md py-2xl">
@@ -170,9 +183,25 @@ export default function UserReservationsPage() {
         </header>
 
         <div className="flex flex-wrap gap-md">
-          <Link href="/alunos" className={buttonClasses({ variant: 'primary', size: 'md' })}>
-            Iniciar nova reserva
-          </Link>
+          {hasEligibleChild ? (
+            <Link href="/alunos" className={buttonClasses({ variant: 'primary', size: 'md' })}>
+              Iniciar nova reserva
+            </Link>
+          ) : (
+            <div className="flex flex-col gap-xs">
+              <span
+                className={
+                  buttonClasses({ variant: 'primary', size: 'md' }) +
+                  ' pointer-events-none opacity-60'
+                }
+              >
+                Iniciar nova reserva
+              </span>
+              <span className="text-caption text-text-muted">
+                Todos os alunos já possuem uma reserva.
+              </span>
+            </div>
+          )}
         </div>
 
         {error && <Alert tone="danger" description={error} />}

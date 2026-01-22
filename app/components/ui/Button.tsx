@@ -46,6 +46,9 @@ export function buttonClasses({
     sizeClasses[size],
     fullWidth && 'w-full',
     className,
+    // Disabled styling (global): visually inactive and non-interactive.
+    // Kept at the end so it overrides variant colors.
+    'disabled:cursor-not-allowed disabled:bg-border disabled:text-text-muted disabled:shadow-none disabled:ring-border disabled:hover:bg-border disabled:hover:text-text-muted',
   );
 }
 

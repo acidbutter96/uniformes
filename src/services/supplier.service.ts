@@ -4,6 +4,7 @@ import type { UpdateQuery } from 'mongoose';
 import dbConnect from '@/src/lib/database';
 import SchoolModel from '@/src/lib/models/school';
 import SupplierModel, { type SupplierDocument } from '@/src/lib/models/supplier';
+import UserModel from '@/src/lib/models/user';
 import type { SupplierDTO } from '@/src/types/supplier';
 
 export type CreateSupplierInput = {
@@ -68,7 +69,69 @@ async function resolveSchoolIds(ids: string[] = []) {
 export async function listSuppliers(filter: SupplierFilter = { status: 'active' }) {
   await dbConnect();
   const results = await SupplierModel.find(filter).sort({ name: 1 }).exec();
-  return results.map(serializeSupplier);
+
+  const suppliers = results.map(serializeSupplier);
+  const supplierObjectIds = suppliers
+    .map(s => {
+      try {
+        return new Types.ObjectId(s.id);
+      } catch {
+        return null;
+      }
+    })
+    .filter((id): id is Types.ObjectId => id !== null);
+
+  if (supplierObjectIds.length === 0) {
+    return suppliers;
+  }
+
+  type SupplierUserLean = {
+    supplierId?: Types.ObjectId | null;
+    address?: {
+      street?: string;
+      number?: string;
+      district?: string;
+      city?: string;
+      state?: string;
+    };
+  };
+
+  const supplierUsers = await UserModel.find({
+    role: 'supplier',
+    supplierId: { $in: supplierObjectIds },
+  })
+    .select({ supplierId: 1, address: 1 })
+    .lean<SupplierUserLean[]>()
+    .exec();
+
+  const supplierAddressById = new Map<string, { address?: string; city?: string }>();
+  for (const u of supplierUsers) {
+    const supplierId = u?.supplierId ? u.supplierId.toString() : null;
+    if (!supplierId) continue;
+    if (supplierAddressById.has(supplierId)) continue;
+
+    const street = (u.address?.street ?? '').trim();
+    const number = (u.address?.number ?? '').trim();
+    const district = (u.address?.district ?? '').trim();
+    const city = (u.address?.city ?? '').trim();
+    const state = (u.address?.state ?? '').trim();
+
+    const addressParts = [street, number].filter(Boolean);
+    const addressBase = addressParts.join(', ');
+    const address = [addressBase, district].filter(Boolean).join(' - ') || undefined;
+    const cityLabel = city ? `${city}${state ? ` - ${state}` : ''}` : undefined;
+
+    supplierAddressById.set(supplierId, { address, city: cityLabel });
+  }
+
+  return suppliers.map(s => {
+    const extra = supplierAddressById.get(s.id);
+    return {
+      ...s,
+      address: extra?.address,
+      city: extra?.city,
+    };
+  });
 }
 
 export async function getSupplierById(id: string) {

@@ -1,6 +1,8 @@
 export type SupplierDTO = {
   id: string;
   name: string;
+  city?: string;
+  address?: string;
   cnpj?: string;
   specialty?: string;
   leadTimeDays?: number;

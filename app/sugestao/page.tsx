@@ -405,16 +405,14 @@ export default function SuggestionPage() {
 
                 <div className="space-y-md">
                   {uniformItems.map((item, index) => {
+                    const itemKey = item.id ?? String(index);
                     const sizes = Array.isArray(item.sizes) ? item.sizes : [];
-                    const selected = selectedItems[index] ?? null;
+                    const selected = selectedItems[itemKey] ?? null;
                     const label = ITEM_LABEL[item.kind] ?? 'Item';
                     const qty = Number(item.quantity) > 1 ? `x${item.quantity}` : null;
 
                     return (
-                      <div
-                        key={`${item.kind}-${index}`}
-                        className="rounded-card bg-background p-md"
-                      >
+                      <div key={itemKey} className="rounded-card bg-background p-md">
                         <div className="flex items-baseline justify-between gap-sm">
                           <h4 className="text-body font-semibold text-text">
                             {label}{' '}

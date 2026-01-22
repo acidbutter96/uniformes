@@ -163,12 +163,13 @@ export async function createReservation(input: CreateReservationInput) {
   }
 
   // Enforce only one reservation per child
-  const existingForChild = await ReservationModel.countDocuments({
-    userId: input.userId,
+  const reservationYear = new Date().getUTCFullYear();
+  const existingForChildYear = await ReservationModel.countDocuments({
     childId: childObjectId,
+    reservationYear,
   }).exec();
-  if (existingForChild > 0) {
-    throw new Error('Já existe uma reserva para esta criança.');
+  if (existingForChildYear > 0) {
+    throw new Error('Já existe uma reserva para esta criança neste ano.');
   }
 
   const status = input.status ?? 'aguardando';
@@ -189,6 +190,7 @@ export async function createReservation(input: CreateReservationInput) {
     uniformId: new Types.ObjectId(input.uniformId),
     supplierId: input.supplierId ? new Types.ObjectId(input.supplierId) : undefined,
     suggestedSize: input.suggestedSize.trim(),
+    reservationYear,
     status,
     value,
   };

@@ -14,7 +14,8 @@
     "migrate:cnpj": "tsx scripts/add-cnpj-unique-index.ts",
     "migrate:uniform-items": "tsx scripts/migrate-uniform-items.ts",
     "migrate:uniform-item-ids": "tsx scripts/migrate-uniform-item-ids.ts",
-    "migrate:reservation-uniform-items": "tsx scripts/migrate-reservation-uniform-items.ts"
+    "migrate:reservation-uniform-items": "tsx scripts/migrate-reservation-uniform-items.ts",
+    "migrate:reservation-year": "tsx scripts/migrate-reservation-year.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -19,6 +19,7 @@ export interface ReservationDocument extends Document {
   supplierId?: Types.ObjectId | null;
   measurements?: ReservationMeasurements;
   suggestedSize: string;
+  reservationYear: number;
   status: ReservationStatus;
   value: number;
   createdAt: Date;
@@ -115,6 +116,13 @@ const ReservationSchema = new Schema<ReservationDocument>(
       required: true,
       trim: true,
     },
+    reservationYear: {
+      type: Number,
+      required: true,
+      min: 1970,
+      max: 9999,
+      default: () => new Date().getUTCFullYear(),
+    },
     status: {
       type: String,
       enum: RESERVATION_STATUSES,
@@ -128,6 +136,8 @@ const ReservationSchema = new Schema<ReservationDocument>(
   },
   { timestamps: true },
 );
+
+ReservationSchema.index({ childId: 1, reservationYear: 1 }, { unique: true });
 
 const ReservationModel: Model<ReservationDocument> =
   mongoose.models.Reservation ||

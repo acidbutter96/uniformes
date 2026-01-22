@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/app/lib/utils';
 import { sanitizeIntegerInput } from '@/app/lib/input';
-import { MAX_SCORE, recommendSize, type RecommendSizeResult } from '@/app/lib/sizeEngine';
+import { MAX_SCORE, type RecommendSizeResult } from '@/app/lib/sizeEngine';
 import type { MeasurementField, MeasurementsData } from '@/app/lib/measurements';
 import { Input } from '@/app/components/ui/Input';
 import { Button } from '@/app/components/ui/Button';
@@ -22,6 +22,11 @@ interface MeasurementsFormProps {
   successMessage?: string;
   errorMessage?: string;
   defaultValues?: Partial<MeasurementsData>;
+
+  autoSuggest?: boolean;
+  suggestEndpoint?: string;
+  suggestDebounceMs?: number;
+  showSubmitButton?: boolean;
 }
 
 type FieldConfig = {
@@ -88,6 +93,10 @@ const initialTouched: Record<MeasurementField, boolean> = {
   hips: false,
 };
 
+function isLetterSize(value: string): value is 'PP' | 'P' | 'M' | 'G' | 'GG' {
+  return value === 'PP' || value === 'P' || value === 'M' || value === 'G' || value === 'GG';
+}
+
 export function MeasurementsForm({
   id,
   onSubmit,
@@ -99,6 +108,10 @@ export function MeasurementsForm({
   successMessage = 'Medidas salvas!',
   errorMessage = 'Não foi possível salvar as medidas. Tente novamente.',
   defaultValues,
+  autoSuggest = false,
+  suggestEndpoint = '/api/suggest-size',
+  suggestDebounceMs = 350,
+  showSubmitButton = true,
 }: MeasurementsFormProps) {
   const [values, setValues] = useState(initialValues);
   const [touched, setTouched] = useState(initialTouched);
@@ -106,6 +119,10 @@ export function MeasurementsForm({
     'idle',
   );
   const [recommendation, setRecommendation] = useState<RecommendSizeResult | null>(null);
+
+  const autoControllerRef = useRef<AbortController | null>(null);
+  const autoDebounceRef = useRef<number | null>(null);
+  const lastAutoPayloadRef = useRef<string>('');
 
   useEffect(() => {
     if (!defaultValues) {
@@ -177,6 +194,92 @@ export function MeasurementsForm({
   const hasErrors = Object.values(errors).some(Boolean);
   const isComplete = Object.values(values).every(value => value.trim() !== '');
 
+  const parsedPayload = useMemo(() => {
+    if (!isComplete || hasErrors) return null;
+
+    return fields.reduce<MeasurementsData>((acc, field) => {
+      acc[field.name] = Number(values[field.name]);
+      return acc;
+    }, {} as MeasurementsData);
+  }, [hasErrors, isComplete, values]);
+
+  useEffect(() => {
+    if (!autoSuggest) {
+      return;
+    }
+
+    if (!parsedPayload) {
+      setRecommendation(null);
+      return;
+    }
+
+    const payloadKey = JSON.stringify(parsedPayload);
+    if (payloadKey === lastAutoPayloadRef.current) {
+      return;
+    }
+
+    if (autoDebounceRef.current) {
+      window.clearTimeout(autoDebounceRef.current);
+      autoDebounceRef.current = null;
+    }
+
+    autoDebounceRef.current = window.setTimeout(async () => {
+      autoControllerRef.current?.abort();
+      const controller = new AbortController();
+      autoControllerRef.current = controller;
+
+      try {
+        const response = await fetch(suggestEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsedPayload),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          // Ignore 422 (user is still typing / incomplete fields).
+          if (response.status === 422) {
+            setRecommendation(null);
+            return;
+          }
+
+          throw new Error('Sugestão indisponível.');
+        }
+
+        const data = (await response.json().catch(() => ({}))) as {
+          size?: string;
+          score?: number;
+        };
+
+        const size = typeof data.size === 'string' ? data.size : 'MANUAL';
+        const score = typeof data.score === 'number' ? data.score : 0;
+
+        const nextRecommendation: RecommendSizeResult = {
+          size: isLetterSize(size) ? size : 'MANUAL',
+          score,
+        };
+
+        setRecommendation(nextRecommendation);
+        onRecommendation?.(nextRecommendation, parsedPayload);
+        lastAutoPayloadRef.current = payloadKey;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        console.error('Failed to auto-suggest size', error);
+      }
+    }, suggestDebounceMs);
+
+    return () => {
+      if (autoDebounceRef.current) {
+        window.clearTimeout(autoDebounceRef.current);
+        autoDebounceRef.current = null;
+      }
+      autoControllerRef.current?.abort();
+      autoControllerRef.current = null;
+    };
+  }, [autoSuggest, onRecommendation, parsedPayload, suggestDebounceMs, suggestEndpoint]);
+
   function handleChange(field: MeasurementField, nextValue: string) {
     const sanitized = sanitizeIntegerInput(nextValue);
     setValues(prev => ({ ...prev, [field]: sanitized }));
@@ -189,6 +292,12 @@ export function MeasurementsForm({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (autoSuggest) {
+      // In auto mode we don't submit; suggestion is fetched as user types.
+      return;
+    }
+
     const allTouched = fields.reduce<Record<MeasurementField, boolean>>(
       (acc, { name }) => ({ ...acc, [name]: true }),
       {} as Record<MeasurementField, boolean>,
@@ -203,10 +312,6 @@ export function MeasurementsForm({
       acc[field.name] = Number(values[field.name]);
       return acc;
     }, {} as MeasurementsData);
-
-    const nextRecommendation = recommendSize(payload);
-    setRecommendation(nextRecommendation);
-    onRecommendation?.(nextRecommendation, payload);
 
     setSubmitStatus('loading');
 
@@ -302,12 +407,14 @@ export function MeasurementsForm({
 
       <div className="flex flex-col gap-sm md:flex-row md:items-center md:justify-between">
         <p className="text-caption text-text-muted">Todos os campos são obrigatórios.</p>
-        <Button type="submit" disabled={!isComplete || hasErrors || submitStatus === 'loading'}>
-          {submitStatus === 'loading' ? 'Enviando…' : submitLabel}
-        </Button>
+        {!autoSuggest && showSubmitButton && (
+          <Button type="submit" disabled={!isComplete || hasErrors || submitStatus === 'loading'}>
+            {submitStatus === 'loading' ? 'Enviando…' : submitLabel}
+          </Button>
+        )}
       </div>
 
-      {submitStatus === 'success' && (
+      {!autoSuggest && submitStatus === 'success' && (
         <Alert
           tone="success"
           heading={successMessage}
@@ -315,7 +422,7 @@ export function MeasurementsForm({
         />
       )}
 
-      {submitStatus === 'error' && (
+      {!autoSuggest && submitStatus === 'error' && (
         <Alert
           tone="danger"
           heading={errorMessage}

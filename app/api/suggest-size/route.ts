@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
+
 import { MAX_SCORE, recommendSize } from '@/app/lib/sizeEngine';
 
-interface MeasurementsPayload {
-  age?: number;
+type MeasurementsPayload = {
   height?: number;
   chest?: number;
   waist?: number;
   hips?: number;
-}
+};
 
 function sanitizeNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -26,10 +26,9 @@ function sanitizeNumber(value: unknown): number | undefined {
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as MeasurementsPayload;
+    const payload = (await request.json().catch(() => ({}))) as MeasurementsPayload;
 
     const normalized: MeasurementsPayload = {
-      age: sanitizeNumber(payload.age),
       height: sanitizeNumber(payload.height),
       chest: sanitizeNumber(payload.chest),
       waist: sanitizeNumber(payload.waist),
@@ -52,14 +51,16 @@ export async function POST(request: Request) {
       hips: normalized.hips,
     });
 
-    const suggestion = size === 'MANUAL' ? 'M' : size;
-    const confidence = score / MAX_SCORE;
     const message =
-      size === 'MANUAL' ? 'Ajuste manual recomendado.' : `Recomendamos o tamanho ${suggestion}.`;
+      size === 'MANUAL'
+        ? 'Ajuste manual recomendado para maior precisão.'
+        : 'Sugestão calculada com base nas medidas informadas.';
 
     return NextResponse.json({
-      suggestion,
-      confidence,
+      size,
+      score,
+      maxScore: MAX_SCORE,
+      confidence: MAX_SCORE > 0 ? score / MAX_SCORE : 0,
       message,
     });
   } catch (error) {

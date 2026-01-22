@@ -388,6 +388,8 @@ export default function MeasurementsPage() {
             {inputMode === 'measurements' && (
               <MeasurementsForm
                 id="measurements-form"
+                autoSuggest
+                showSubmitButton={false}
                 onRecommendation={(next, data) => {
                   if (isPantsUniform) {
                     const measurementsMap: MeasurementsMap = {

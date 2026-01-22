@@ -7,6 +7,7 @@ import { StepsHeader } from '@/app/components/steps/StepsHeader';
 import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 import { Card } from '@/app/components/ui/Card';
+import { Modal, ModalFooter } from '@/app/components/ui/Modal';
 import { cn } from '@/app/lib/utils';
 import {
   loadOrderFlowState,
@@ -34,6 +35,10 @@ export default function SupplierSelectStep() {
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [uniformName, setUniformName] = useState<string | null>(null);
+  const [childName, setChildName] = useState<string | null>(null);
 
   const userCity = (user?.address?.city as string | undefined)?.trim() || '';
 
@@ -83,6 +88,75 @@ export default function SupplierSelectStep() {
     }
   }, [loading, user, router]);
 
+  useEffect(() => {
+    if (loading) return;
+    if (!accessToken) return;
+    if (!orderState.childId) return;
+
+    const controller = new AbortController();
+    async function loadChild() {
+      try {
+        const response = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          data?: { children?: Array<{ _id?: string; name?: string }> };
+        };
+        const children = Array.isArray(payload.data?.children) ? payload.data?.children : [];
+        const matched = children.find(c => c?._id === orderState.childId);
+        setChildName(matched?.name?.trim() || null);
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          console.error('Failed to load child for reservation confirmation', err);
+        }
+      }
+    }
+    loadChild();
+    return () => controller.abort();
+  }, [accessToken, loading, orderState.childId]);
+
+  useEffect(() => {
+    if (!orderState.schoolId) return;
+    const controller = new AbortController();
+    async function loadSchool() {
+      try {
+        const response = await fetch('/api/schools', { signal: controller.signal });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { data?: Array<{ id: string; name: string }> };
+        const matched = payload.data?.find(s => s.id === orderState.schoolId);
+        setSchoolName(matched?.name?.trim() || null);
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          console.error('Failed to load school for reservation confirmation', err);
+        }
+      }
+    }
+    loadSchool();
+    return () => controller.abort();
+  }, [orderState.schoolId]);
+
+  useEffect(() => {
+    if (!orderState.uniformId) return;
+    const controller = new AbortController();
+    async function loadUniform() {
+      try {
+        const response = await fetch('/api/uniforms', { signal: controller.signal });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { data?: Array<{ id: string; name: string }> };
+        const matched = payload.data?.find(u => u.id === orderState.uniformId);
+        setUniformName(matched?.name?.trim() || null);
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          console.error('Failed to load uniform for reservation confirmation', err);
+        }
+      }
+    }
+    loadUniform();
+    return () => controller.abort();
+  }, [orderState.uniformId]);
+
   const sortedSuppliers = useMemo(() => {
     const sameCity = suppliers.filter(s => (s.city ?? '').toLowerCase() === userCity.toLowerCase());
     const others = suppliers.filter(s => (s.city ?? '').toLowerCase() !== userCity.toLowerCase());
@@ -101,7 +175,46 @@ export default function SupplierSelectStep() {
           .join(' + ')
       : (orderState.suggestion?.suggestion ?? null));
 
-  const handleConfirm = async () => {
+  const selectedSupplierName = useMemo(() => {
+    return suppliers.find(s => s.id === selectedSupplierId)?.name ?? null;
+  }, [suppliers, selectedSupplierId]);
+
+  const uniformItemSelections = useMemo(() => {
+    return Array.isArray(orderState.selectedItems) && orderState.selectedItems.length > 0
+      ? orderState.selectedItems
+          .filter(entry => typeof entry.uniformItemId === 'string' && entry.uniformItemId.trim())
+          .map(entry => ({
+            uniform_item_id: String(entry.uniformItemId),
+            size: String(entry.size),
+          }))
+      : undefined;
+  }, [orderState.selectedItems]);
+
+  const measurementsSummary = useMemo(() => {
+    if (!orderState.measurements) return null;
+    const { height, chest, waist, hips } = orderState.measurements;
+    return `${height}cm altura • ${chest}cm tórax • ${waist}cm cintura • ${hips}cm quadril`;
+  }, [orderState.measurements]);
+
+  const canConfirmSupplier = Boolean(selectedSupplierId);
+
+  const handleOpenConfirm = () => {
+    setError(null);
+
+    if (!finalSize) {
+      setError('Selecione um tamanho anteriormente.');
+      router.replace('/sugestao');
+      return;
+    }
+    if (!selectedSupplierId) {
+      setError('Selecione um fornecedor para continuar.');
+      return;
+    }
+
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmReservation = async () => {
     if (!finalSize) {
       setError('Selecione um tamanho anteriormente.');
       router.replace('/sugestao');
@@ -120,16 +233,6 @@ export default function SupplierSelectStep() {
     setError(null);
     saveOrderFlowState({ supplierId: selectedSupplierId });
     setOrderState(current => ({ ...current, supplierId: selectedSupplierId! }));
-
-    const uniformItemSelections =
-      Array.isArray(orderState.selectedItems) && orderState.selectedItems.length > 0
-        ? orderState.selectedItems
-            .filter(entry => typeof entry.uniformItemId === 'string' && entry.uniformItemId.trim())
-            .map(entry => ({
-              uniform_item_id: String(entry.uniformItemId),
-              size: String(entry.size),
-            }))
-        : undefined;
 
     try {
       const response = await fetch('/api/reservations', {
@@ -168,6 +271,7 @@ export default function SupplierSelectStep() {
       const message = err instanceof Error ? err.message : 'Erro ao registrar a reserva.';
       setError(message);
     } finally {
+      setIsConfirmOpen(false);
       setIsSubmitting(false);
     }
   };
@@ -226,10 +330,10 @@ export default function SupplierSelectStep() {
               </span>
               <Button
                 size="lg"
-                onClick={handleConfirm}
-                disabled={isSubmitting || !selectedSupplierId}
+                onClick={handleOpenConfirm}
+                disabled={isSubmitting || !canConfirmSupplier}
               >
-                {isSubmitting ? 'Confirmando...' : 'Confirmar fornecedor e reservar'}
+                Confirmar fornecedor
               </Button>
             </div>
           </Card>
@@ -244,14 +348,79 @@ export default function SupplierSelectStep() {
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-text-muted">Fornecedor escolhido</dt>
-                  <dd className="font-medium">
-                    {sortedSuppliers.find(s => s.id === selectedSupplierId)?.name ?? '—'}
-                  </dd>
+                  <dd className="font-medium">{selectedSupplierName ?? '—'}</dd>
                 </div>
               </dl>
             </Card>
           </aside>
         </section>
+
+        <Modal
+          open={isConfirmOpen}
+          onClose={() => (isSubmitting ? null : setIsConfirmOpen(false))}
+          title="Confirmar reserva"
+          description="Revise os dados antes de confirmar. Após confirmar a reserva, não será mais possível alterá-la."
+          footer={
+            <ModalFooter>
+              <Button
+                variant="secondary"
+                onClick={() => setIsConfirmOpen(false)}
+                disabled={isSubmitting}
+              >
+                Voltar
+              </Button>
+              <Button onClick={handleConfirmReservation} disabled={isSubmitting}>
+                {isSubmitting ? 'Confirmando...' : 'Confirmar reserva'}
+              </Button>
+            </ModalFooter>
+          }
+        >
+          <div className="flex flex-col gap-md text-body text-text">
+            <div className="rounded-card bg-background px-md py-sm">
+              <div className="flex flex-col gap-xs">
+                <div className="flex justify-between gap-md">
+                  <span className="text-text-muted">Aluno</span>
+                  <span className="font-semibold">{childName ?? orderState.childId ?? '—'}</span>
+                </div>
+                <div className="flex justify-between gap-md">
+                  <span className="text-text-muted">Escola</span>
+                  <span className="font-semibold">{schoolName ?? orderState.schoolId ?? '—'}</span>
+                </div>
+                <div className="flex justify-between gap-md">
+                  <span className="text-text-muted">Uniforme</span>
+                  <span className="font-semibold">
+                    {uniformName ?? orderState.uniformId ?? '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-md">
+                  <span className="text-text-muted">Fornecedor</span>
+                  <span className="font-semibold">{selectedSupplierName ?? '—'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-card bg-background px-md py-sm">
+              <div className="flex flex-col gap-xs">
+                <div className="flex justify-between gap-md">
+                  <span className="text-text-muted">Tamanho</span>
+                  <span className="font-semibold">{finalSize}</span>
+                </div>
+                {measurementsSummary && (
+                  <div className="flex justify-between gap-md">
+                    <span className="text-text-muted">Medidas</span>
+                    <span className="font-semibold">{measurementsSummary}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Alert
+              tone="danger"
+              title="Atenção"
+              description="Ao confirmar a reserva, não será possível alterá-la depois."
+            />
+          </div>
+        </Modal>
       </div>
     </main>
   );

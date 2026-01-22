@@ -214,6 +214,10 @@ export async function POST(request: NextRequest) {
       return badRequest(error.message);
     }
 
+    if (error instanceof Error && error.message.includes('Limite de reservas')) {
+      return badRequest(error.message);
+    }
+
     return serverError('Não foi possível registrar a reserva. Tente novamente.');
   }
 }

@@ -43,6 +43,12 @@ export default function SelectChildStepPage() {
       return;
     }
 
+    const role = typeof user?.role === 'string' ? user.role : null;
+    if (role === 'admin' || role === 'supplier') {
+      router.replace('/admin/dashboard');
+      return;
+    }
+
     const controller = new AbortController();
     async function loadCurrentUser() {
       try {

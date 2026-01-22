@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { Card } from '@/app/components/ui/Card';
-import { buttonClasses } from '@/app/components/ui/Button';
+import HomePrimaryCta from '@/app/components/layout/HomePrimaryCta';
 
 const governmentPoints = [
   'Visão clara da demanda de cada escola.',
@@ -66,9 +66,7 @@ export default function Home() {
               </p>
             </div>
             <div className="flex flex-col gap-sm sm:flex-row sm:items-center">
-              <Link href="/reservas" className={buttonClasses({ className: 'px-lg py-sm' })}>
-                Reservar uniforme
-              </Link>
+              <HomePrimaryCta />
               <Link
                 href="/sobre"
                 className="inline-flex items-center justify-center gap-xs px-lg py-sm text-body font-semibold text-primary transition-colors hover:text-primary/80"

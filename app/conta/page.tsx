@@ -49,9 +49,86 @@ export default function AccountPage() {
     Array<{ id?: string; name: string; age: number; schoolId?: string }>
   >([]);
   const [supplierSchoolIds, setSupplierSchoolIds] = useState<string[]>([]);
+  const [initialSupplierSchoolIds, setInitialSupplierSchoolIds] = useState<string[]>([]);
   const [schoolQuery, setSchoolQuery] = useState('');
   const [schoolError, setSchoolError] = useState<string | null>(null);
   const [savingSchools, setSavingSchools] = useState(false);
+
+  const normalizedInitialSupplierSchoolIds = useMemo(() => {
+    const set = new Set(initialSupplierSchoolIds.filter(Boolean));
+    return Array.from(set).sort();
+  }, [initialSupplierSchoolIds]);
+
+  const supplierSchoolsDirty = useMemo(() => {
+    const current = Array.from(new Set(supplierSchoolIds.filter(Boolean))).sort();
+    if (current.length !== normalizedInitialSupplierSchoolIds.length) return true;
+    for (let i = 0; i < current.length; i += 1) {
+      if (current[i] !== normalizedInitialSupplierSchoolIds[i]) return true;
+    }
+    return false;
+  }, [normalizedInitialSupplierSchoolIds, supplierSchoolIds]);
+
+  const initialChildren = useMemo(() => {
+    const raw = Array.isArray(user?.children)
+      ? (user.children as NonNullable<AuthUser['children']>)
+      : [];
+    return raw
+      .map(c => ({
+        id: c._id ? String(c._id) : undefined,
+        name: String(c.name ?? ''),
+        age: Number(c.age ?? 0),
+        schoolId: String(c.schoolId ?? ''),
+      }))
+      .filter(c => c.name && Number.isFinite(c.age) && c.age >= 0);
+  }, [user?.children]);
+
+  const childrenDirty = useMemo(() => {
+    const normalize = (
+      list: Array<{ id?: string; name: string; age: number; schoolId?: string }>,
+    ) =>
+      list
+        .map((child, idx) => ({
+          key: typeof child.id === 'string' && child.id.trim() ? child.id : `idx:${idx}`,
+          name: String(child.name ?? ''),
+          age: Number(child.age ?? 0),
+          schoolId: String(child.schoolId ?? ''),
+        }))
+        .sort((a, b) => a.key.localeCompare(b.key));
+
+    const a = normalize(initialChildren);
+    const b = normalize(childrenState);
+
+    if (a.length !== b.length) return true;
+    for (let i = 0; i < a.length; i += 1) {
+      if (
+        a[i].key !== b[i].key ||
+        a[i].name !== b[i].name ||
+        a[i].age !== b[i].age ||
+        a[i].schoolId !== b[i].schoolId
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }, [childrenState, initialChildren]);
+
+  const profileDirty = useMemo(() => {
+    if (form.email !== initial.email) return true;
+    if (cpfIsEmpty && form.cpf !== initial.cpf) return true;
+
+    const a = form.address;
+    const b = initial.address;
+
+    return (
+      a.cep !== b.cep ||
+      a.street !== b.street ||
+      a.number !== b.number ||
+      a.complement !== b.complement ||
+      a.district !== b.district ||
+      a.city !== b.city ||
+      a.state !== b.state
+    );
+  }, [cpfIsEmpty, form.address, form.cpf, form.email, initial.address, initial.cpf, initial.email]);
 
   useEffect(() => {
     setForm(initial);
@@ -103,7 +180,9 @@ export default function AccountPage() {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const payload = (await res.json().catch(() => ({}))) as { data?: { schoolIds?: string[] } };
-        setSupplierSchoolIds(payload?.data?.schoolIds ?? []);
+        const loaded = payload?.data?.schoolIds ?? [];
+        setSupplierSchoolIds(loaded);
+        setInitialSupplierSchoolIds(loaded);
       } catch (err) {
         console.error('Failed to load supplier schools', err);
       }
@@ -116,19 +195,8 @@ export default function AccountPage() {
   // Load current user's children into local state
   useEffect(() => {
     if (!user) return;
-    const raw = Array.isArray(user?.children)
-      ? (user.children as NonNullable<AuthUser['children']>)
-      : [];
-    const parsed = raw
-      .map(c => ({
-        id: c._id ? String(c._id) : undefined,
-        name: String(c.name ?? ''),
-        age: Number(c.age ?? 0),
-        schoolId: String(c.schoolId ?? ''),
-      }))
-      .filter(c => c.name && Number.isFinite(c.age) && c.age >= 0);
-    setChildrenState(parsed);
-  }, [user]);
+    setChildrenState(initialChildren);
+  }, [initialChildren, user]);
 
   const handleChange = useCallback(
     (field: 'name' | 'email' | 'cpf' | `address.${AddressKey}`, value: string) => {
@@ -383,6 +451,7 @@ export default function AccountPage() {
 
   const saveSupplierSchools = async () => {
     if (!accessToken) return;
+    if (!supplierSchoolsDirty) return;
     setSavingSchools(true);
     setSchoolError(null);
     try {
@@ -400,6 +469,7 @@ export default function AccountPage() {
         return;
       }
       setSuccess('Escolas atendidas atualizadas com sucesso.');
+      setInitialSupplierSchoolIds(supplierSchoolIds);
     } catch (err) {
       console.error('Failed to update supplier schools', err);
       setSchoolError('Erro inesperado ao salvar escolas atendidas.');
@@ -702,7 +772,10 @@ export default function AccountPage() {
                   </ul>
                 </div>
                 <div>
-                  <Button onClick={saveSupplierSchools} disabled={savingSchools || !accessToken}>
+                  <Button
+                    onClick={saveSupplierSchools}
+                    disabled={savingSchools || !accessToken || !supplierSchoolsDirty}
+                  >
                     {savingSchools ? 'Salvando...' : 'Salvar escolas atendidas'}
                   </Button>
                 </div>
@@ -716,7 +789,13 @@ export default function AccountPage() {
               <Button
                 onClick={attemptSave}
                 size="md"
-                disabled={saving || !user || Boolean(cpfError)}
+                disabled={
+                  saving ||
+                  !user ||
+                  !accessToken ||
+                  Boolean(cpfError) ||
+                  (!profileDirty && !childrenDirty)
+                }
               >
                 {saving ? 'Salvando...' : 'Salvar alterações'}
               </Button>

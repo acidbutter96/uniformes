@@ -10,6 +10,7 @@ import { Input } from '@/app/components/ui/Input';
 
 export default function AdminSettingsPage() {
   const [maxChildren, setMaxChildren] = useState<string>('7');
+  const [initialMaxChildren, setInitialMaxChildren] = useState<string>('7');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -20,12 +21,20 @@ export default function AdminSettingsPage() {
         if (res.ok) {
           const data = await res.json();
           if (typeof data?.maxChildrenPerUser === 'number') {
-            setMaxChildren(String(data.maxChildrenPerUser));
+            const loaded = String(data.maxChildrenPerUser);
+            setMaxChildren(loaded);
+            setInitialMaxChildren(loaded);
           }
         }
       } catch {}
     })();
   }, []);
+
+  const parsedMaxChildren = Number(maxChildren);
+  const canSave =
+    Number.isFinite(parsedMaxChildren) &&
+    parsedMaxChildren >= 1 &&
+    maxChildren.trim() !== initialMaxChildren.trim();
 
   const save = async () => {
     setMessage(null);
@@ -75,7 +84,7 @@ export default function AdminSettingsPage() {
               />
             </div>
             <div className="mt-4">
-              <Button onClick={save} disabled={loading}>
+              <Button onClick={save} disabled={loading || !canSave}>
                 {loading ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>

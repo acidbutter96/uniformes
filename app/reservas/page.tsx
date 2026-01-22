@@ -54,6 +54,11 @@ export default function UserReservationsPage() {
       return;
     }
 
+    if (role === 'supplier') {
+      router.replace('/admin/dashboard');
+      return;
+    }
+
     const controller = new AbortController();
 
     async function loadReservations() {

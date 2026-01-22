@@ -62,6 +62,10 @@ function LoginView() {
       return '/admin/dashboard';
     }
 
+    if (role === 'supplier') {
+      return '/admin/dashboard';
+    }
+
     // Para usuários comuns, sempre começar o fluxo em /alunos
     return '/alunos';
   };

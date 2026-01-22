@@ -2,6 +2,8 @@ import { verifyAccessToken } from '@/src/services/auth.service';
 import { Types } from 'mongoose';
 import { listReservations } from '@/src/services/reservation.service';
 import { ok, unauthorized, forbidden, serverError } from '@/app/api/utils/responses';
+import dbConnect from '@/src/lib/database';
+import UserModel from '@/src/lib/models/user';
 
 type TokenPayload = {
   role?: string;
@@ -35,7 +37,19 @@ export async function GET(request: Request) {
         if (!Types.ObjectId.isValid(payload.sub)) {
           return unauthorized();
         }
-        const data = await listReservations({ supplierId: new Types.ObjectId(payload.sub) });
+
+        await dbConnect();
+        const user = await UserModel.findById(payload.sub).select({ supplierId: 1 }).lean().exec();
+        const supplierId =
+          user && typeof user === 'object' && 'supplierId' in user
+            ? ((user as { supplierId?: Types.ObjectId | null }).supplierId ?? null)
+            : null;
+
+        if (!supplierId) {
+          return ok([]);
+        }
+
+        const data = await listReservations({ supplierId });
         return ok(data);
       }
 

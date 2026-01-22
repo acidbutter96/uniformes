@@ -18,10 +18,13 @@ const STATUS_TONE: Record<ReservationStatus, 'success' | 'warning' | 'accent'> =
 };
 
 export default function AdminDashboardPage() {
-  const { accessToken, loading: authLoading } = useAuth();
+  const { accessToken, loading: authLoading, user } = useAuth();
   const [reservations, setReservations] = useState<ReservationDTO[]>([]);
   const [schools, setSchools] = useState<SchoolDTO[]>([]);
+  const [supplierSchoolIds, setSupplierSchoolIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const role = typeof user?.role === 'string' ? user.role : null;
 
   useEffect(() => {
     async function load() {
@@ -42,12 +45,24 @@ export default function AdminDashboardPage() {
         const resJson = await resRes.json().catch(() => null);
         const reservationsData = resJson?.data ?? [];
 
+        let supplierSchoolIdsData: string[] = [];
+        if (role === 'supplier') {
+          const supplierSchoolsRes = await fetch('/api/suppliers/me/schools', {
+            headers,
+            cache: 'no-store',
+          });
+          const supplierSchoolsJson = await supplierSchoolsRes.json().catch(() => null);
+          supplierSchoolIdsData = supplierSchoolsJson?.data?.schoolIds ?? [];
+        }
+
         setSchools(schoolsData);
         setReservations(reservationsData);
+        setSupplierSchoolIds(supplierSchoolIdsData);
       } catch (err) {
         console.error('Failed to load dashboard data', err);
         setSchools([]);
         setReservations([]);
+        setSupplierSchoolIds([]);
       } finally {
         setLoading(false);
       }
@@ -57,7 +72,7 @@ export default function AdminDashboardPage() {
     if (!authLoading) {
       load();
     }
-  }, [accessToken, authLoading]);
+  }, [accessToken, authLoading, role]);
 
   const totalReservations = reservations.length;
   const awaitingReservations = reservations.filter(
@@ -65,6 +80,12 @@ export default function AdminDashboardPage() {
   ).length;
   const totalValue = reservations.reduce((sum, reservation) => sum + (reservation.value ?? 0), 0);
   const activeSchools = schools.filter((school: SchoolDTO) => school.status === 'ativo').length;
+
+  const supplierSchoolsCount = supplierSchoolIds.length;
+  const activeSupplierSchools = schools.filter(
+    (school: SchoolDTO) =>
+      school.status === 'ativo' && supplierSchoolIds.includes(String(school.id ?? '')),
+  ).length;
   const schoolLookup = new Map(schools.map((school: SchoolDTO) => [school.id, school]));
 
   const resolveSchoolLabel = (id: string) => {
@@ -81,24 +102,35 @@ export default function AdminDashboardPage() {
         <header className="flex flex-col gap-4 border-b border-neutral-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-500">
-              Administração
+              {role === 'supplier' ? 'Fornecedor' : 'Administração'}
             </p>
             <h1 className="mt-2 text-3xl font-semibold text-neutral-900">Visão geral</h1>
             <p className="text-sm text-neutral-500">
-              Monitoramento de reservas, fornecedores e escolas integradas.
+              {role === 'supplier'
+                ? 'Monitoramento das suas reservas e escolas atendidas.'
+                : 'Monitoramento de reservas, fornecedores e escolas integradas.'}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button variant="secondary">Exportar dados</Button>
-            <Link href="/admin/invites" className={buttonClasses({ size: 'md' })}>
-              Convites fornecedores
-            </Link>
-            <Link
-              href="/admin/settings"
-              className={buttonClasses({ size: 'md', variant: 'ghost' })}
-            >
-              Configurações
-            </Link>
+            {role === 'admin' && (
+              <Link href="/admin/invites" className={buttonClasses({ size: 'md' })}>
+                Convites fornecedores
+              </Link>
+            )}
+            {role === 'supplier' && (
+              <Link href="/admin/escolas-atendidas" className={buttonClasses({ size: 'md' })}>
+                Escolas atendidas
+              </Link>
+            )}
+            {role === 'admin' && (
+              <Link
+                href="/admin/settings"
+                className={buttonClasses({ size: 'md', variant: 'ghost' })}
+              >
+                Configurações
+              </Link>
+            )}
           </div>
         </header>
 
@@ -115,11 +147,19 @@ export default function AdminDashboardPage() {
             delta={`${awaitingReservations} aguardando ação`}
             tone="warning"
           />
-          <MetricCard
-            title="Escolas ativas"
-            value={String(activeSchools)}
-            delta="Meta: 50 escolas"
-          />
+          {role === 'supplier' ? (
+            <MetricCard
+              title="Escolas atendidas"
+              value={String(supplierSchoolsCount)}
+              delta={`${activeSupplierSchools} ativas`}
+            />
+          ) : (
+            <MetricCard
+              title="Escolas ativas"
+              value={String(activeSchools)}
+              delta="Meta: 50 escolas"
+            />
+          )}
           <MetricCard title="SLA médio" value="92%" delta="+3% vs. meta" tone="success" />
         </section>
 

@@ -11,6 +11,7 @@ export interface Uniform {
   description: string;
   sizes: string[];
   items?: UniformItem[];
+  price: number;
   imageSrc?: string;
   imageAlt?: string;
 }

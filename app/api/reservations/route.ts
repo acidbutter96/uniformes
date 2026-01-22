@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
     if ('response' in authResult) {
       return authResult.response;
     }
-
     const payload = await request.json().catch(() => null);
     if (!payload) {
       return badRequest('Payload inválido.');
@@ -66,7 +65,6 @@ export async function POST(request: NextRequest) {
       suggestedSize,
       uniformItemSelections,
       status,
-      value,
     } = payload as {
       userName?: unknown;
       childId?: unknown;
@@ -77,7 +75,6 @@ export async function POST(request: NextRequest) {
       suggestedSize?: unknown;
       uniformItemSelections?: unknown;
       status?: unknown;
-      value?: unknown;
     };
 
     if (typeof userName !== 'string' || !userName.trim()) {
@@ -165,8 +162,6 @@ export async function POST(request: NextRequest) {
         }
         parsed[field] = numeric;
       }
-
-      parsedMeasurements = parsed;
     }
 
     let resolvedStatus: ReservationStatus | undefined;
@@ -180,15 +175,6 @@ export async function POST(request: NextRequest) {
       resolvedStatus = status as ReservationStatus;
     }
 
-    let resolvedValue: number | undefined;
-    if (value !== undefined) {
-      const numericValue = Number(value);
-      if (!Number.isFinite(numericValue) || numericValue < 0) {
-        return badRequest('Valor da reserva inválido.');
-      }
-      resolvedValue = numericValue;
-    }
-
     const created = await createReservation({
       userName,
       userId: userObjectId.toString(),
@@ -200,7 +186,6 @@ export async function POST(request: NextRequest) {
       suggestedSize,
       uniformItemSelections: parsedUniformItemSelections,
       status: resolvedStatus,
-      value: resolvedValue,
     });
 
     return ok(created, { status: 201 });

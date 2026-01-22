@@ -28,6 +28,7 @@ export const uniforms: Uniform[] = [
     name: 'Camiseta Escolar',
     description: 'Malha leve com gola reforçada e manga curta.',
     sizes: ['PP', 'P', 'M', 'G'],
+    price: 49.9,
     imageSrc:
       'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Camiseta escolar dobrada',
@@ -37,6 +38,7 @@ export const uniforms: Uniform[] = [
     name: 'Jaqueta de Inverno',
     description: 'Jaqueta acolchoada com capuz removível.',
     sizes: ['P', 'M', 'G', 'GG'],
+    price: 139.9,
     imageSrc:
       'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Jaqueta escolar azul pendurada',
@@ -46,6 +48,7 @@ export const uniforms: Uniform[] = [
     name: 'Calça Moletom',
     description: 'Tecido macio com elástico na cintura e punhos ajustáveis.',
     sizes: ['PP', 'P', 'M', 'G', 'GG'],
+    price: 79.9,
     imageSrc:
       'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?auto=format&fit=crop&w=800&q=80',
     imageAlt: 'Calça de moletom cinza',

@@ -25,7 +25,6 @@ export type CreateReservationInput = {
   measurements?: ReservationMeasurements;
   suggestedSize: string;
   status?: ReservationStatus;
-  value?: number;
 };
 
 type SerializableReservation = ReservationDocument;
@@ -50,6 +49,7 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     uniformId: Types.ObjectId;
     supplierId?: Types.ObjectId | null;
     uniformItemSelections?: Array<{ uniform_item_id: Types.ObjectId; size: string }>;
+    value?: unknown;
   };
 
   const {
@@ -59,10 +59,13 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     schoolId,
     uniformId,
     uniformItemSelections,
+    value,
     createdAt,
     updatedAt,
     ...rest
   } = plain;
+
+  const resolvedValue = Number(value ?? 0);
 
   return {
     id: _id.toString(),
@@ -77,6 +80,7 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
           size: String(entry.size),
         }))
       : undefined,
+    value: Number.isFinite(resolvedValue) && resolvedValue >= 0 ? resolvedValue : 0,
     ...rest,
     createdAt: toISOString(createdAt),
     updatedAt: toISOString(updatedAt),
@@ -105,12 +109,30 @@ export async function createReservation(input: CreateReservationInput) {
   await dbConnect();
   await ensureReferencesExists(input.schoolId, input.uniformId);
 
+  const uniformForPrice = await UniformModel.findById(input.uniformId)
+    .select({ price: 1 })
+    .lean<{ price: number }>()
+    .exec();
+
+  if (!uniformForPrice) {
+    throw new Error('Uniforme não encontrado.');
+  }
+
+  const uniformPrice = Number(uniformForPrice.price ?? 0);
+  if (!Number.isFinite(uniformPrice) || uniformPrice < 0) {
+    throw new Error('Preço do uniforme inválido.');
+  }
+
   if (input.uniformItemSelections && input.uniformItemSelections.length > 0) {
     type UniformLean = { items?: Array<{ _id?: Types.ObjectId }> };
     const uniform = await UniformModel.findById(input.uniformId)
       .select({ items: 1 })
       .lean<UniformLean>()
       .exec();
+    if (!uniform) {
+      throw new Error('Uniforme não encontrado.');
+    }
+
     const uniformItems = Array.isArray(uniform?.items) ? uniform.items : [];
 
     const expectedIds = new Set(
@@ -177,11 +199,6 @@ export async function createReservation(input: CreateReservationInput) {
     throw new Error('Status de reserva inválido.');
   }
 
-  const value = input.value ?? 0;
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error('Valor da reserva inválido.');
-  }
-
   const reservationPayload: Record<string, unknown> = {
     userName: input.userName.trim(),
     userId: new Types.ObjectId(input.userId),
@@ -192,7 +209,7 @@ export async function createReservation(input: CreateReservationInput) {
     suggestedSize: input.suggestedSize.trim(),
     reservationYear,
     status,
-    value,
+    value: uniformPrice,
   };
 
   if (input.uniformItemSelections && input.uniformItemSelections.length > 0) {

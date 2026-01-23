@@ -20,6 +20,7 @@ const adminNav = [
 const supplierNav = [
   { href: '/admin/dashboard', label: 'Dashboard' },
   { href: '/admin/escolas-atendidas', label: 'Escolas atendidas' },
+  { href: '/admin/reservations', label: 'Reservas' },
 ];
 
 const userNav = [{ href: '/sobre', label: 'Como funciona' }];

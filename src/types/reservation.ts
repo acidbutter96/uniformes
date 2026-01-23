@@ -5,7 +5,18 @@ export type ReservationMeasurementsDTO = {
   hips: number;
 };
 
-export const RESERVATION_STATUSES = ['em-producao', 'enviado', 'aguardando'] as const;
+// Prefer the supplier workflow statuses. Legacy statuses are kept for backward compatibility.
+export const RESERVATION_STATUSES = [
+  'aguardando',
+  'recebida',
+  'em-processamento',
+  'finalizada',
+  'entregue',
+  'cancelada',
+  // legacy
+  'em-producao',
+  'enviado',
+] as const;
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 
 export type ReservationDTO = {

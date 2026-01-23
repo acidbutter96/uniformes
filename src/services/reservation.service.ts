@@ -67,6 +67,14 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
 
   const resolvedValue = Number(value ?? 0);
 
+  const candidateStatus =
+    typeof (plain as unknown as { status?: unknown }).status === 'string'
+      ? ((plain as unknown as { status?: string }).status as string)
+      : 'aguardando';
+  const status = RESERVATION_STATUSES.includes(candidateStatus as ReservationStatus)
+    ? (candidateStatus as ReservationStatus)
+    : 'aguardando';
+
   return {
     id: _id.toString(),
     userId: userId.toString(),
@@ -82,6 +90,7 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
       : undefined,
     value: Number.isFinite(resolvedValue) && resolvedValue >= 0 ? resolvedValue : 0,
     ...rest,
+    status,
     createdAt: toISOString(createdAt),
     updatedAt: toISOString(updatedAt),
   } satisfies ReservationDTO;

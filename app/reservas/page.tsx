@@ -16,12 +16,24 @@ import type { ReservationDTO, ReservationStatus } from '@/src/types/reservation'
 
 const STATUS_LABELS: Record<ReservationStatus, string> = {
   aguardando: 'Aguardando',
+  recebida: 'Recebida',
+  'em-processamento': 'Em processamento',
+  finalizada: 'Finalizada',
+  entregue: 'Entregue',
+  cancelada: 'Cancelada',
+  // legacy
   'em-producao': 'Em produção',
   enviado: 'Enviado',
 };
 
 const STATUS_TONES: Record<ReservationStatus, 'warning' | 'accent' | 'success'> = {
   aguardando: 'warning',
+  recebida: 'accent',
+  'em-processamento': 'accent',
+  finalizada: 'success',
+  entregue: 'success',
+  cancelada: 'warning',
+  // legacy
   'em-producao': 'accent',
   enviado: 'success',
 };
@@ -55,7 +67,7 @@ export default function UserReservationsPage() {
     }
 
     if (role === 'supplier') {
-      router.replace('/admin/dashboard');
+      router.replace('/admin/reservations');
       return;
     }
 

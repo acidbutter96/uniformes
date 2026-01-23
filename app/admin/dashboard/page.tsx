@@ -12,8 +12,14 @@ import type { ReservationStatus, ReservationDTO } from '@/src/types/reservation'
 import type { SchoolDTO } from '@/src/types/school';
 
 const STATUS_TONE: Record<ReservationStatus, 'success' | 'warning' | 'accent'> = {
-  enviado: 'success',
   aguardando: 'warning',
+  recebida: 'accent',
+  'em-processamento': 'accent',
+  finalizada: 'success',
+  entregue: 'success',
+  cancelada: 'warning',
+  // legacy
+  enviado: 'success',
   'em-producao': 'accent',
 };
 

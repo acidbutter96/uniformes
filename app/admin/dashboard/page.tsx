@@ -7,9 +7,20 @@ import Link from 'next/link';
 import { Button, buttonClasses } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/app/lib/format';
+import DashboardCharts from '@/app/components/dashboard/DashboardCharts';
 import useAuth from '@/src/hooks/useAuth';
 import type { ReservationStatus, ReservationDTO } from '@/src/types/reservation';
 import type { SchoolDTO } from '@/src/types/school';
+
+type DashboardAnalyticsPayload = {
+  dashboardChartsEnabled: boolean;
+  rangeDays: number;
+  cfd: Array<Record<string, unknown>>;
+  throughput: Array<{ date: string; entregues: number; canceladas: number }>;
+  cycleTime: Array<{ date: string; count: number; medianDays: number; p90Days: number }>;
+  agingWip: Array<{ bucket: string; count: number }>;
+  staleByStatus: Array<{ status: ReservationStatus; count: number }>;
+};
 
 const STATUS_TONE: Record<ReservationStatus, 'success' | 'warning' | 'accent'> = {
   aguardando: 'warning',
@@ -28,6 +39,8 @@ export default function AdminDashboardPage() {
   const [reservations, setReservations] = useState<ReservationDTO[]>([]);
   const [schools, setSchools] = useState<SchoolDTO[]>([]);
   const [supplierSchoolIds, setSupplierSchoolIds] = useState<string[]>([]);
+  const [dashboardChartsEnabled, setDashboardChartsEnabled] = useState(false);
+  const [analytics, setAnalytics] = useState<DashboardAnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
   const role = typeof user?.role === 'string' ? user.role : null;
@@ -64,11 +77,27 @@ export default function AdminDashboardPage() {
         setSchools(schoolsData);
         setReservations(reservationsData);
         setSupplierSchoolIds(supplierSchoolIdsData);
+
+        const analyticsRes = await fetch('/api/admin/dashboard/analytics?days=30', {
+          headers,
+          cache: 'no-store',
+        });
+        const analyticsJson: unknown = await analyticsRes.json().catch(() => null);
+        const rawData =
+          analyticsJson && typeof analyticsJson === 'object' && 'data' in analyticsJson
+            ? (analyticsJson as { data?: unknown }).data
+            : null;
+        const payload = (rawData ?? null) as DashboardAnalyticsPayload | null;
+        const enabled = Boolean(payload?.dashboardChartsEnabled);
+        setDashboardChartsEnabled(enabled);
+        setAnalytics(enabled ? payload : null);
       } catch (err) {
         console.error('Failed to load dashboard data', err);
         setSchools([]);
         setReservations([]);
         setSupplierSchoolIds([]);
+        setDashboardChartsEnabled(false);
+        setAnalytics(null);
       } finally {
         setLoading(false);
       }
@@ -168,6 +197,17 @@ export default function AdminDashboardPage() {
           )}
           <MetricCard title="SLA médio" value="92%" delta="+3% vs. meta" tone="success" />
         </section>
+
+        {dashboardChartsEnabled && analytics && (
+          <DashboardCharts
+            rangeDays={Number(analytics.rangeDays) || 30}
+            cfd={analytics.cfd}
+            throughput={analytics.throughput}
+            cycleTime={analytics.cycleTime}
+            agingWip={analytics.agingWip}
+            staleByStatus={analytics.staleByStatus}
+          />
+        )}
 
         <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card">
           <header className="flex items-center justify-between">

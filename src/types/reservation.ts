@@ -35,6 +35,7 @@ export type ReservationDTO = {
   userName: string;
   userId: string;
   childId: string;
+  childName?: string;
   schoolId: string;
   uniformId: string;
   uniformItemSelections?: { uniform_item_id: string; size: string }[];

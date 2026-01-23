@@ -62,6 +62,22 @@ export default function AdminDashboardPage() {
 
   const role = typeof user?.role === 'string' ? user.role : null;
 
+  const companyName = (() => {
+    const supplierName =
+      role === 'supplier' &&
+      user &&
+      typeof (user as { supplier?: { name?: unknown } }).supplier?.name === 'string'
+        ? String((user as { supplier?: { name?: string } }).supplier?.name)
+        : null;
+    if (supplierName) return supplierName;
+
+    const fromEnv =
+      typeof process !== 'undefined' && typeof process.env.NEXT_PUBLIC_COMPANY_NAME === 'string'
+        ? process.env.NEXT_PUBLIC_COMPANY_NAME
+        : null;
+    return fromEnv?.trim() || 'Uniformes';
+  })();
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -189,23 +205,49 @@ export default function AdminDashboardPage() {
     return `${school.name} — ${school.city}`;
   };
 
-  const emittedAtLabel = new Intl.DateTimeFormat('pt-BR', {
-    dateStyle: 'short',
-    timeStyle: 'medium',
-  }).format(new Date());
+  const emittedAtLabel = (() => {
+    const now = new Date();
+    const pad2 = (value: number) => String(value).padStart(2, '0');
+    return `${pad2(now.getDate())}/${pad2(now.getMonth() + 1)}/${now.getFullYear()} - ${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+  })();
+
+  const formatMeasurements = (measurements: ReservationDTO['measurements'] | undefined) => {
+    if (!measurements || typeof measurements !== 'object') return '';
+    const m = measurements as Partial<Record<'height' | 'chest' | 'waist' | 'hips', number>>;
+
+    const parts: string[] = [];
+    const pushIf = (label: string, value: unknown) => {
+      const n = typeof value === 'number' ? value : Number(value);
+      if (!Number.isFinite(n) || n <= 0) return;
+      parts.push(`${label}: ${n}`);
+    };
+
+    pushIf('Alt', m.height);
+    pushIf('Peito', m.chest);
+    pushIf('Cint', m.waist);
+    pushIf('Quadril', m.hips);
+
+    return parts.join(' | ');
+  };
 
   const exportReservationsFlow = async (format: ExportFormat) => {
     const rows = reservations.map(r => {
       const school = schoolLookup.get(r.schoolId);
       return {
         id: r.id,
+        responsavel: r.userName,
+        aluno: (typeof r.childName === 'string' && r.childName.trim()) ? r.childName.trim() : 'Aluno não identificado',
         escola: school?.name ?? r.schoolId,
         cidade: school?.city ?? '',
         status: r.status,
         atualizadoEm: r.updatedAt,
+        medidas: formatMeasurements(r.measurements),
+        tamanho: r.suggestedSize,
         valor: r.value ?? 0,
       };
     });
+
+    const total = rows.reduce((sum, row) => sum + (Number(row.valor) || 0), 0);
 
     const filenameBase = `fluxo-reservas_${new Date().toISOString().replaceAll(':', '-')}`;
 
@@ -213,6 +255,7 @@ export default function AdminDashboardPage() {
       const payload = {
         emittedAt: new Date().toISOString(),
         count: rows.length,
+        total,
         rows,
       };
       downloadBlob({
@@ -223,10 +266,32 @@ export default function AdminDashboardPage() {
     }
 
     if (format === 'csv') {
-      const headers = ['id', 'escola', 'cidade', 'status', 'atualizadoEm', 'valor'];
+      const headers = [
+        'id',
+        'responsavel',
+        'aluno',
+        'escola',
+        'cidade',
+        'status',
+        'atualizadoEm',
+        'medidas',
+        'tamanho',
+        'valor',
+      ];
       const csv = toCsv({
         headers,
-        rows: rows.map(r => [r.id, r.escola, r.cidade, r.status, r.atualizadoEm, r.valor]),
+        rows: rows.map(r => [
+          r.id,
+          r.responsavel,
+          r.aluno,
+          r.escola,
+          r.cidade,
+          r.status,
+          r.atualizadoEm,
+          r.medidas,
+          r.tamanho,
+          r.valor,
+        ]),
       });
       downloadBlob({
         blob: new Blob([csv], { type: 'text/csv;charset=utf-8' }),
@@ -237,17 +302,25 @@ export default function AdminDashboardPage() {
 
     const pdfBytes = await generateReservationsFlowPdf({
       title: 'Relatório — Fluxo de reservas',
+      companyName,
       emittedAtLabel,
       logoUrl: '/images/logo.png',
-      headers: ['Reserva', 'Escola', 'Cidade', 'Status', 'Atualizado', 'Valor'],
-      rows: rows.map(r => [
-        r.id,
-        r.escola,
-        r.cidade,
-        String(r.status).replaceAll('-', ' '),
-        formatDate(r.atualizadoEm),
-        formatCurrency(r.valor),
-      ]),
+      orientation: 'landscape',
+      columnAlign: ['left', 'left', 'left', 'left', 'left', 'left', 'right'],
+      headers: ['Responsável', 'Aluno', 'Escola', 'Status', 'Atualizado', 'Medidas', 'Valor'],
+      rows: [
+        ...rows.map(r => [
+          r.responsavel,
+          r.aluno,
+          r.escola,
+          String(r.status).replaceAll('-', ' '),
+          formatDate(r.atualizadoEm),
+          r.medidas,
+          formatCurrency(r.valor),
+        ]),
+        ['', '', '', '', '', 'TOTAL', formatCurrency(total)],
+      ],
+      boldRowIndexes: [rows.length],
     });
 
     downloadBlob({

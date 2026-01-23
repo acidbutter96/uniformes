@@ -31,17 +31,24 @@ export function toCsv(params: { headers: string[]; rows: unknown[][] }) {
 
 export async function generateReservationsFlowPdf(params: {
   title: string;
+  companyName?: string;
   emittedAtLabel: string;
   logoUrl?: string;
   headers: string[];
   rows: string[][];
+  orientation?: 'portrait' | 'landscape';
+  columnAlign?: Array<'left' | 'right'>;
+  boldRowIndexes?: number[];
 }) {
   const pdfDoc = await PDFDocument.create();
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const pageSize: [number, number] = [595.28, 841.89]; // A4 portrait (pt)
+  const pageSize: [number, number] =
+    params.orientation === 'landscape'
+      ? ([841.89, 595.28] as const) // A4 landscape (pt)
+      : ([595.28, 841.89] as const); // A4 portrait (pt)
   const margin = 48;
 
   const headerColor = rgb(0.07, 0.07, 0.07);
@@ -50,6 +57,57 @@ export async function generateReservationsFlowPdf(params: {
 
   let page = pdfDoc.addPage(pageSize);
   let y = page.getHeight() - margin;
+
+  const pageWidth = page.getWidth();
+
+  const wrapText = (text: string, maxWidth: number, opts: { bold?: boolean } = {}) => {
+    const source = String(text ?? '');
+    if (!source.trim()) return [''];
+
+    const words = source.split(/\s+/g).filter(Boolean);
+    const usedFont = opts.bold ? fontBold : font;
+    const size = 9;
+
+    const lines: string[] = [];
+    let current = '';
+
+    const fits = (value: string) => usedFont.widthOfTextAtSize(value, size) <= maxWidth;
+
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (fits(candidate)) {
+        current = candidate;
+        continue;
+      }
+
+      if (current) {
+        lines.push(current);
+        current = '';
+      }
+
+      // If a single word doesn't fit, hard-break it.
+      if (!fits(word)) {
+        let chunk = '';
+        for (const ch of word) {
+          const next = chunk + ch;
+          if (fits(next)) {
+            chunk = next;
+          } else {
+            lines.push(chunk || ch);
+            chunk = chunk ? ch : '';
+          }
+        }
+        if (chunk) {
+          current = chunk;
+        }
+      } else {
+        current = word;
+      }
+    }
+
+    if (current) lines.push(current);
+    return lines;
+  };
 
   const drawLine = () => {
     page.drawLine({
@@ -81,6 +139,19 @@ export async function generateReservationsFlowPdf(params: {
     }
   }
 
+  if (params.companyName) {
+    const text = params.companyName;
+    const size = 12;
+    const textWidth = fontBold.widthOfTextAtSize(text, size);
+    page.drawText(text, {
+      x: Math.max(margin, pageWidth - margin - textWidth),
+      y: y - 20,
+      size,
+      font: fontBold,
+      color: headerColor,
+    });
+  }
+
   // Header text
   page.drawText(params.title, {
     x: margin,
@@ -107,26 +178,58 @@ export async function generateReservationsFlowPdf(params: {
   const tableWidth = page.getWidth() - margin * 2;
   const colWidth = tableWidth / colCount;
 
+  const align = Array.isArray(params.columnAlign) ? params.columnAlign : [];
+  const boldRowSet = new Set(Array.isArray(params.boldRowIndexes) ? params.boldRowIndexes : []);
+
   const ensureSpace = (needed: number) => {
     if (y - needed > margin) return;
     page = pdfDoc.addPage(pageSize);
     y = page.getHeight() - margin;
   };
 
-  const drawRow = (values: string[], opts: { bold?: boolean } = {}) => {
-    ensureSpace(18);
+  const drawRow = (
+    values: string[],
+    opts: {
+      bold?: boolean;
+    } = {},
+  ) => {
+    const cellMaxWidth = colWidth - 8;
+    const lineHeight = 11;
+    const paddingY = 3;
+
+    const wrapped = Array.from({ length: colCount }).map((_, i) =>
+      wrapText(values[i] ?? '', cellMaxWidth, { bold: opts.bold }),
+    );
+    const maxLines = Math.max(1, ...wrapped.map(lines => lines.length));
+    const rowHeight = paddingY * 2 + maxLines * lineHeight;
+
+    ensureSpace(rowHeight + 6);
+
+    const usedFont = opts.bold ? fontBold : font;
+    const fontSize = 9;
+
     for (let i = 0; i < colCount; i += 1) {
-      const text = values[i] ?? '';
-      page.drawText(text, {
-        x: margin + i * colWidth,
-        y,
-        size: 9,
-        font: opts.bold ? fontBold : font,
-        color: headerColor,
-        maxWidth: colWidth - 6,
-      });
+      const lines = wrapped[i] ?? [''];
+      const xLeft = margin + i * colWidth;
+      const xRight = xLeft + colWidth;
+      const isRight = align[i] === 'right';
+      let yy = y;
+
+      for (const line of lines) {
+        const textWidth = usedFont.widthOfTextAtSize(line, fontSize);
+        const x = isRight ? Math.max(xLeft, xRight - 8 - textWidth) : xLeft;
+        page.drawText(line, {
+          x,
+          y: yy,
+          size: fontSize,
+          font: usedFont,
+          color: headerColor,
+        });
+        yy -= lineHeight;
+      }
     }
-    y -= 14;
+
+    y -= rowHeight;
   };
 
   drawRow(params.headers, { bold: true });
@@ -134,8 +237,9 @@ export async function generateReservationsFlowPdf(params: {
   drawLine();
   y -= 12;
 
-  for (const row of params.rows) {
-    drawRow(row);
+  for (let i = 0; i < params.rows.length; i += 1) {
+    const row = params.rows[i];
+    drawRow(row, { bold: boldRowSet.has(i) });
   }
 
   const bytes = await pdfDoc.save();

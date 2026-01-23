@@ -40,11 +40,34 @@ function parseDays(value: string | null, fallback: number) {
   return Math.min(365, Math.max(7, Math.floor(parsed)));
 }
 
+function parseHours(value: string | null, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(168, Math.max(1, Math.floor(parsed)));
+}
+
+function parseDateParam(value: string | null): Date | null {
+  if (!value) return null;
+  // Accept YYYY-MM-DD (preferred) or ISO-like values.
+  const yyyyMmDd = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  const parsed = new Date(yyyyMmDd ?? value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
 function toUtcDateKey(date: Date) {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
   const day = String(date.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function toUtcHourKey(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hour = String(date.getUTCHours()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:00Z`;
 }
 
 function startOfUtcDay(date: Date) {
@@ -53,9 +76,21 @@ function startOfUtcDay(date: Date) {
   );
 }
 
+function startOfUtcHour(date: Date) {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), 0, 0, 0),
+  );
+}
+
 function endOfUtcDay(date: Date) {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999),
+  );
+}
+
+function endOfUtcHour(date: Date) {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), 59, 59, 999),
   );
 }
 
@@ -159,9 +194,45 @@ export async function GET(request: NextRequest) {
     return forbidden();
   }
 
-  const days = parseDays(request.nextUrl.searchParams.get('days'), 30);
-  const now = new Date();
-  const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const fromParam = request.nextUrl.searchParams.get('from');
+  const toParam = request.nextUrl.searchParams.get('to');
+  const hoursParam = request.nextUrl.searchParams.get('hours');
+
+  const parsedFrom = parseDateParam(fromParam);
+  const parsedTo = parseDateParam(toParam);
+
+  const hasHoursRange = hoursParam !== null;
+  const defaultHours = parseHours(hoursParam, 24);
+
+  const defaultDays = parseDays(request.nextUrl.searchParams.get('days'), 30);
+
+  // Range + bucket granularity
+  const rangeEnd = hasHoursRange
+    ? (parsedTo ?? new Date())
+    : (parsedTo ? endOfUtcDay(parsedTo) : new Date());
+
+  const rangeStart = hasHoursRange
+    ? (parsedFrom ?? new Date(rangeEnd.getTime() - defaultHours * 60 * 60 * 1000))
+    : (parsedFrom
+        ? startOfUtcDay(parsedFrom)
+        : new Date(rangeEnd.getTime() - defaultDays * 24 * 60 * 60 * 1000));
+
+  const now = rangeEnd;
+  const start = rangeStart;
+
+  const bucketUnit: 'hour' | 'day' = hasHoursRange ? 'hour' : 'day';
+  const rangeUnit: 'hours' | 'days' = hasHoursRange ? 'hours' : 'days';
+  const rangeValue = hasHoursRange
+    ? Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (60 * 60 * 1000)))
+    : Math.min(
+        365,
+        Math.max(
+          1,
+          Math.ceil(
+            (endOfUtcDay(now).getTime() - startOfUtcDay(start).getTime()) / (24 * 60 * 60 * 1000),
+          ),
+        ),
+      );
 
   await dbConnect();
 
@@ -194,10 +265,18 @@ export async function GET(request: NextRequest) {
   }
 
   const baseMatch: Record<string, unknown> = {
-    $or: [
-      { createdAt: { $gte: start } },
-      { updatedAt: { $gte: start } },
-      { 'events.at': { $gte: start } },
+    $and: [
+      // Only consider reservations that exist by the end of the selected range
+      { createdAt: { $lte: now } },
+      {
+        // Include anything that changed within the range OR is still open (carry-over)
+        $or: [
+          { createdAt: { $gte: start } },
+          { updatedAt: { $gte: start } },
+          { 'events.at': { $gte: start } },
+          { status: { $nin: ['entregue', 'cancelada'] } },
+        ],
+      },
     ],
   };
 
@@ -210,26 +289,40 @@ export async function GET(request: NextRequest) {
     .lean()
     .exec()) as ReservationLike[];
 
-  // Build bucket days (UTC)
+  // Build buckets (UTC)
   const buckets: Date[] = [];
-  const startDay = startOfUtcDay(start);
-  const endDay = startOfUtcDay(now);
-  for (
-    let cursor = new Date(startDay);
-    cursor.getTime() <= endDay.getTime();
-    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
-  ) {
-    buckets.push(new Date(cursor));
+  if (bucketUnit === 'hour') {
+    const startHour = startOfUtcHour(start);
+    const endHour = startOfUtcHour(now);
+    for (
+      let cursor = new Date(startHour);
+      cursor.getTime() <= endHour.getTime();
+      cursor = new Date(cursor.getTime() + 60 * 60 * 1000)
+    ) {
+      buckets.push(new Date(cursor));
+    }
+  } else {
+    const startDay = startOfUtcDay(start);
+    const endDay = startOfUtcDay(now);
+    for (
+      let cursor = new Date(startDay);
+      cursor.getTime() <= endDay.getTime();
+      cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000)
+    ) {
+      buckets.push(new Date(cursor));
+    }
   }
 
   // CFD
   const cfd = buckets.map(day => {
-    const point: Record<string, unknown> = { date: toUtcDateKey(day) };
+    const point: Record<string, unknown> = {
+      date: bucketUnit === 'hour' ? toUtcHourKey(day) : toUtcDateKey(day),
+    };
     for (const status of OPERATIONS_STATUSES) {
       point[status] = 0;
     }
 
-    const moment = endOfUtcDay(day);
+    const moment = bucketUnit === 'hour' ? endOfUtcHour(day) : endOfUtcDay(day);
 
     for (const r of reservations) {
       const { createdAt, timeline } = buildTimeline(r);
@@ -288,7 +381,7 @@ export async function GET(request: NextRequest) {
   }
 
   const throughput = buckets.map(day => {
-    const key = toUtcDateKey(day);
+    const key = bucketUnit === 'hour' ? toUtcHourKey(day) : toUtcDateKey(day);
     return {
       date: key,
       entregues: throughputDelivered[key] ?? 0,
@@ -297,7 +390,7 @@ export async function GET(request: NextRequest) {
   });
 
   const cycleTime = buckets.map(day => {
-    const key = toUtcDateKey(day);
+    const key = bucketUnit === 'hour' ? toUtcHourKey(day) : toUtcDateKey(day);
     const values = cycleByDay[key] ?? [];
     return {
       date: key,
@@ -363,7 +456,10 @@ export async function GET(request: NextRequest) {
 
   return ok({
     dashboardChartsEnabled: true,
-    rangeDays: days,
+    rangeUnit,
+    rangeValue,
+    bucketUnit,
+    rangeDays: rangeUnit === 'days' ? rangeValue : Math.max(1, Math.ceil(rangeValue / 24)),
     cfd,
     throughput,
     cycleTime,

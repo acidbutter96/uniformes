@@ -18,7 +18,8 @@
     "migrate:reservation-year": "tsx scripts/migrate-reservation-year.ts",
     "migrate:reservation-values": "tsx scripts/migrate-reservation-values.ts",
     "migrate:reservation-events": "tsx scripts/migrate-reservation-events.ts",
-    "migrate:dashboard-charts-flag": "tsx scripts/migrate-dashboard-charts-flag.ts"
+    "migrate:dashboard-charts-flag": "tsx scripts/migrate-dashboard-charts-flag.ts",
+    "migrate:reservation-mocks": "tsx scripts/migrate-reservation-mocks.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

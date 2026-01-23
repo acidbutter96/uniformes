@@ -6,6 +6,7 @@ import MetricCard from '@/app/components/cards/MetricCard';
 import Link from 'next/link';
 import { Button, buttonClasses } from '@/app/components/ui/Button';
 import { Badge } from '@/app/components/ui/Badge';
+import { Input } from '@/app/components/ui/Input';
 import { formatCurrency, formatDate } from '@/app/lib/format';
 import DashboardCharts from '@/app/components/dashboard/DashboardCharts';
 import useAuth from '@/src/hooks/useAuth';
@@ -15,6 +16,9 @@ import type { SchoolDTO } from '@/src/types/school';
 type DashboardAnalyticsPayload = {
   dashboardChartsEnabled: boolean;
   rangeDays: number;
+  rangeUnit?: 'days' | 'hours';
+  rangeValue?: number;
+  bucketUnit?: 'day' | 'hour';
   cfd: Array<Record<string, unknown>>;
   throughput: Array<{ date: string; entregues: number; canceladas: number }>;
   cycleTime: Array<{ date: string; count: number; medianDays: number; p90Days: number }>;
@@ -41,6 +45,12 @@ export default function AdminDashboardPage() {
   const [supplierSchoolIds, setSupplierSchoolIds] = useState<string[]>([]);
   const [dashboardChartsEnabled, setDashboardChartsEnabled] = useState(false);
   const [analytics, setAnalytics] = useState<DashboardAnalyticsPayload | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [rangePresetDays, setRangePresetDays] = useState(7);
+  const [rangePresetHours, setRangePresetHours] = useState(24);
+  const [rangeFrom, setRangeFrom] = useState('');
+  const [rangeTo, setRangeTo] = useState('');
+  const [analyticsQuery, setAnalyticsQuery] = useState('days=7');
   const [loading, setLoading] = useState(true);
 
   const role = typeof user?.role === 'string' ? user.role : null;
@@ -77,27 +87,11 @@ export default function AdminDashboardPage() {
         setSchools(schoolsData);
         setReservations(reservationsData);
         setSupplierSchoolIds(supplierSchoolIdsData);
-
-        const analyticsRes = await fetch('/api/admin/dashboard/analytics?days=30', {
-          headers,
-          cache: 'no-store',
-        });
-        const analyticsJson: unknown = await analyticsRes.json().catch(() => null);
-        const rawData =
-          analyticsJson && typeof analyticsJson === 'object' && 'data' in analyticsJson
-            ? (analyticsJson as { data?: unknown }).data
-            : null;
-        const payload = (rawData ?? null) as DashboardAnalyticsPayload | null;
-        const enabled = Boolean(payload?.dashboardChartsEnabled);
-        setDashboardChartsEnabled(enabled);
-        setAnalytics(enabled ? payload : null);
       } catch (err) {
         console.error('Failed to load dashboard data', err);
         setSchools([]);
         setReservations([]);
         setSupplierSchoolIds([]);
-        setDashboardChartsEnabled(false);
-        setAnalytics(null);
       } finally {
         setLoading(false);
       }
@@ -108,6 +102,72 @@ export default function AdminDashboardPage() {
       load();
     }
   }, [accessToken, authLoading, role]);
+
+  useEffect(() => {
+    async function loadAnalytics() {
+      setAnalyticsLoading(true);
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+        const analyticsRes = await fetch(`/api/admin/dashboard/analytics?${analyticsQuery}`, {
+          headers,
+          cache: 'no-store',
+        });
+
+        const analyticsJson: unknown = await analyticsRes.json().catch(() => null);
+        const rawData =
+          analyticsJson && typeof analyticsJson === 'object' && 'data' in analyticsJson
+            ? (analyticsJson as { data?: unknown }).data
+            : null;
+        const payload = (rawData ?? null) as DashboardAnalyticsPayload | null;
+        const enabled = Boolean(payload?.dashboardChartsEnabled);
+        setDashboardChartsEnabled(enabled);
+        setAnalytics(enabled ? payload : null);
+      } catch (err) {
+        console.error('Failed to load dashboard analytics', err);
+        setDashboardChartsEnabled(false);
+        setAnalytics(null);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      loadAnalytics();
+    }
+  }, [accessToken, authLoading, analyticsQuery]);
+
+  const applyRange = () => {
+    const hasCustom = Boolean(rangeFrom && rangeTo);
+    if (hasCustom) {
+      setAnalyticsQuery(`from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}`);
+      return;
+    }
+    setAnalyticsQuery(`days=${encodeURIComponent(String(rangePresetDays))}`);
+  };
+
+  const applyPresetDays = (days: number) => {
+    setRangeFrom('');
+    setRangeTo('');
+    setRangePresetDays(days);
+    setAnalyticsQuery(`days=${encodeURIComponent(String(days))}`);
+  };
+
+  const applyPresetHours = (hours: number) => {
+    setRangeFrom('');
+    setRangeTo('');
+    setRangePresetHours(hours);
+    setAnalyticsQuery(`hours=${encodeURIComponent(String(hours))}`);
+  };
+
+  const resetRange = () => {
+    setRangeFrom('');
+    setRangeTo('');
+    setRangePresetDays(7);
+    setRangePresetHours(24);
+    setAnalyticsQuery('days=7');
+  };
 
   const totalReservations = reservations.length;
   const awaitingReservations = reservations.filter(
@@ -198,16 +258,172 @@ export default function AdminDashboardPage() {
           <MetricCard title="SLA médio" value="92%" delta="+3% vs. meta" tone="success" />
         </section>
 
-        {dashboardChartsEnabled && analytics && (
-          <DashboardCharts
-            rangeDays={Number(analytics.rangeDays) || 30}
-            cfd={analytics.cfd}
-            throughput={analytics.throughput}
-            cycleTime={analytics.cycleTime}
-            agingWip={analytics.agingWip}
-            staleByStatus={analytics.staleByStatus}
-          />
-        )}
+        <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-900">Séries temporais</h2>
+              <p className="text-sm text-neutral-500">
+                Selecione um range e use o brush para percorrer o período.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:items-end">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetHours(1)}
+                  disabled={analyticsLoading}
+                >
+                  1h
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetHours(6)}
+                  disabled={analyticsLoading}
+                >
+                  6h
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetHours(12)}
+                  disabled={analyticsLoading}
+                >
+                  12h
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetHours(24)}
+                  disabled={analyticsLoading}
+                >
+                  24h
+                </Button>
+                <span className="mx-1 h-6 w-px bg-neutral-200" />
+                <Button variant="outline" size="sm" onClick={() => applyPresetDays(7)} disabled={analyticsLoading}>
+                  Semana
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => applyPresetDays(30)} disabled={analyticsLoading}>
+                  Mês
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => applyPresetDays(90)} disabled={analyticsLoading}>
+                  Trimestre
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => applyPresetDays(365)} disabled={analyticsLoading}>
+                  Ano
+                </Button>
+                <Button variant="ghost" size="sm" onClick={resetRange} disabled={analyticsLoading}>
+                  Reset
+                </Button>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-44">
+                  Range (horas)
+                  <select
+                    className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
+                    value={rangePresetHours}
+                    onChange={e => setRangePresetHours(Number(e.target.value) || 24)}
+                    disabled={Boolean(rangeFrom && rangeTo)}
+                  >
+                    <option value={1}>1</option>
+                    <option value={3}>3</option>
+                    <option value={6}>6</option>
+                    <option value={12}>12</option>
+                    <option value={24}>24</option>
+                    <option value={48}>48</option>
+                    <option value={72}>72</option>
+                    <option value={168}>168</option>
+                  </select>
+                </label>
+
+                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-44">
+                  Range (dias)
+                  <select
+                    className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
+                    value={rangePresetDays}
+                    onChange={e => setRangePresetDays(Number(e.target.value) || 7)}
+                    disabled={Boolean(rangeFrom && rangeTo)}
+                  >
+                    <option value={7}>7</option>
+                    <option value={14}>14</option>
+                    <option value={30}>30</option>
+                    <option value={60}>60</option>
+                    <option value={90}>90</option>
+                    <option value={180}>180</option>
+                    <option value={365}>365</option>
+                  </select>
+                </label>
+
+                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-60">
+                  De (data/hora)
+                  <Input
+                    type="datetime-local"
+                    value={rangeFrom}
+                    onChange={e => setRangeFrom(e.target.value)}
+                  />
+                </label>
+
+                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-60">
+                  Até (data/hora)
+                  <Input
+                    type="datetime-local"
+                    value={rangeTo}
+                    onChange={e => setRangeTo(e.target.value)}
+                  />
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      const hasCustom = Boolean(rangeFrom && rangeTo);
+                      if (hasCustom) {
+                        setAnalyticsQuery(
+                          `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}`,
+                        );
+                        return;
+                      }
+                      // Prefer hours selector when the user changed it most recently via dropdown.
+                      setAnalyticsQuery(`hours=${encodeURIComponent(String(rangePresetHours))}`);
+                    }}
+                    disabled={
+                      analyticsLoading ||
+                      Boolean(rangeFrom && !rangeTo) ||
+                      Boolean(!rangeFrom && rangeTo)
+                    }
+                  >
+                    {analyticsLoading ? 'Atualizando…' : 'Aplicar'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            {dashboardChartsEnabled && analytics ? (
+              <DashboardCharts
+                rangeDays={Number(analytics.rangeDays) || 30}
+                rangeUnit={analytics.rangeUnit}
+                rangeValue={analytics.rangeValue}
+                bucketUnit={analytics.bucketUnit}
+                cfd={analytics.cfd}
+                throughput={analytics.throughput}
+                cycleTime={analytics.cycleTime}
+                agingWip={analytics.agingWip}
+                staleByStatus={analytics.staleByStatus}
+              />
+            ) : (
+              <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-6 text-sm text-neutral-600">
+                {analyticsLoading
+                  ? 'Carregando analytics…'
+                  : 'Gráficos desabilitados nas configurações ou sem dados.'}
+              </div>
+            )}
+          </div>
+        </section>
 
         <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card">
           <header className="flex items-center justify-between">

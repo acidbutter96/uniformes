@@ -5,6 +5,7 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  Brush,
   CartesianGrid,
   Legend,
   Line,
@@ -39,6 +40,9 @@ type AgingPoint = {
 };
 
 type Props = {
+  rangeUnit?: 'days' | 'hours';
+  rangeValue?: number;
+  bucketUnit?: 'day' | 'hour';
   rangeDays: number;
   cfd: CFDPoint[];
   throughput: ThroughputPoint[];
@@ -76,13 +80,30 @@ const CFD_ORDER: Array<ReservationStatus> = [
 
 function axisTickFormatter(value: unknown) {
   if (typeof value !== 'string') return '';
-  // show MM-DD for compactness
+  // Hour key: YYYY-MM-DDTHH:00Z
+  if (value.includes('T')) {
+    const [datePart, timePart] = value.split('T');
+    const parts = datePart?.split('-') ?? [];
+    const hour = (timePart ?? '').slice(0, 2);
+    if (parts.length === 3 && hour) return `${parts[1]}-${parts[2]} ${hour}h`;
+    return value;
+  }
+
+  // Day key: YYYY-MM-DD
   const parts = value.split('-');
   if (parts.length === 3) return `${parts[1]}-${parts[2]}`;
   return value;
 }
 
+function tooltipLabelFormatter(value: unknown) {
+  if (typeof value !== 'string') return '';
+  return value;
+}
+
 export default function DashboardCharts({
+  rangeUnit,
+  rangeValue,
+  bucketUnit,
   rangeDays,
   cfd,
   throughput,
@@ -90,11 +111,18 @@ export default function DashboardCharts({
   agingWip,
   staleByStatus,
 }: Props) {
+  const effectiveUnit = rangeUnit ?? 'days';
+  const effectiveValue =
+    typeof rangeValue === 'number' && Number.isFinite(rangeValue) && rangeValue > 0
+      ? Math.floor(rangeValue)
+      : rangeDays;
+  const label = effectiveUnit === 'hours' ? `últimas ${effectiveValue} horas` : `últimos ${rangeDays} dias`;
+
   return (
     <section className="space-y-6">
       <header className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold text-neutral-900">
-          Operação (últimos {rangeDays} dias)
+          Operação ({label})
         </h2>
         <p className="text-sm text-neutral-500">
           Gráficos construídos a partir do histórico de eventos (criação, mudança de status e
@@ -109,11 +137,15 @@ export default function DashboardCharts({
           </h3>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={cfd} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <AreaChart
+                data={cfd}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                syncId="dashboard"
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="date" tickFormatter={axisTickFormatter} fontSize={12} />
                 <YAxis fontSize={12} allowDecimals={false} />
-                <Tooltip />
+                <Tooltip labelFormatter={tooltipLabelFormatter} />
                 <Legend />
                 {CFD_ORDER.map(status => (
                   <Area
@@ -127,6 +159,13 @@ export default function DashboardCharts({
                     fillOpacity={0.22}
                   />
                 ))}
+                <Brush
+                  dataKey="date"
+                  height={26}
+                  travellerWidth={12}
+                  stroke="#D1D5DB"
+                  tickFormatter={axisTickFormatter}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -141,14 +180,25 @@ export default function DashboardCharts({
           </h3>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={throughput} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <BarChart
+                data={throughput}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                syncId="dashboard"
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="date" tickFormatter={axisTickFormatter} fontSize={12} />
                 <YAxis fontSize={12} allowDecimals={false} />
-                <Tooltip />
+                <Tooltip labelFormatter={tooltipLabelFormatter} />
                 <Legend />
                 <Bar dataKey="entregues" name="Entregues" fill={STATUS_COLORS.entregue} />
                 <Bar dataKey="canceladas" name="Canceladas" fill={STATUS_COLORS.cancelada} />
+                <Brush
+                  dataKey="date"
+                  height={26}
+                  travellerWidth={12}
+                  stroke="#D1D5DB"
+                  tickFormatter={axisTickFormatter}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -158,11 +208,15 @@ export default function DashboardCharts({
           <h3 className="text-sm font-semibold text-neutral-900">Cycle time (dias)</h3>
           <div className="mt-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cycleTime} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <LineChart
+                data={cycleTime}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                syncId="dashboard"
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="date" tickFormatter={axisTickFormatter} fontSize={12} />
                 <YAxis fontSize={12} />
-                <Tooltip />
+                <Tooltip labelFormatter={tooltipLabelFormatter} />
                 <Legend />
                 <Line
                   type="monotone"
@@ -180,6 +234,13 @@ export default function DashboardCharts({
                   strokeWidth={2}
                   strokeDasharray="6 4"
                   dot={false}
+                />
+                <Brush
+                  dataKey="date"
+                  height={26}
+                  travellerWidth={12}
+                  stroke="#D1D5DB"
+                  tickFormatter={axisTickFormatter}
                 />
               </LineChart>
             </ResponsiveContainer>

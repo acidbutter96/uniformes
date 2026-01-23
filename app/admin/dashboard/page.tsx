@@ -12,6 +12,12 @@ import DashboardCharts from '@/app/components/dashboard/DashboardCharts';
 import useAuth from '@/src/hooks/useAuth';
 import type { ReservationStatus, ReservationDTO } from '@/src/types/reservation';
 import type { SchoolDTO } from '@/src/types/school';
+import {
+  downloadBlob,
+  generateReservationsFlowPdf,
+  toCsv,
+  type ExportFormat,
+} from '@/app/lib/exports';
 
 type DashboardAnalyticsPayload = {
   dashboardChartsEnabled: boolean;
@@ -43,6 +49,7 @@ export default function AdminDashboardPage() {
   const [reservations, setReservations] = useState<ReservationDTO[]>([]);
   const [schools, setSchools] = useState<SchoolDTO[]>([]);
   const [supplierSchoolIds, setSupplierSchoolIds] = useState<string[]>([]);
+  const [exportOpen, setExportOpen] = useState(false);
   const [dashboardChartsEnabled, setDashboardChartsEnabled] = useState(false);
   const [analytics, setAnalytics] = useState<DashboardAnalyticsPayload | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -138,20 +145,6 @@ export default function AdminDashboardPage() {
     }
   }, [accessToken, authLoading, analyticsQuery]);
 
-  const applyRange = () => {
-    const hasCustom = Boolean(rangeFrom && rangeTo);
-    if (hasCustom) {
-      const wantsHourBucket = Boolean(rangeFrom.includes('T') || rangeTo.includes('T'));
-      setAnalyticsQuery(
-        `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}${
-          wantsHourBucket ? '&bucket=hour' : ''
-        }`,
-      );
-      return;
-    }
-    setAnalyticsQuery(`days=${encodeURIComponent(String(rangePresetDays))}`);
-  };
-
   const applyPresetDays = (days: number) => {
     setRangeFrom('');
     setRangeTo('');
@@ -196,6 +189,73 @@ export default function AdminDashboardPage() {
     return `${school.name} — ${school.city}`;
   };
 
+  const emittedAtLabel = new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'medium',
+  }).format(new Date());
+
+  const exportReservationsFlow = async (format: ExportFormat) => {
+    const rows = reservations.map(r => {
+      const school = schoolLookup.get(r.schoolId);
+      return {
+        id: r.id,
+        escola: school?.name ?? r.schoolId,
+        cidade: school?.city ?? '',
+        status: r.status,
+        atualizadoEm: r.updatedAt,
+        valor: r.value ?? 0,
+      };
+    });
+
+    const filenameBase = `fluxo-reservas_${new Date().toISOString().replaceAll(':', '-')}`;
+
+    if (format === 'json') {
+      const payload = {
+        emittedAt: new Date().toISOString(),
+        count: rows.length,
+        rows,
+      };
+      downloadBlob({
+        blob: new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }),
+        filename: `${filenameBase}.json`,
+      });
+      return;
+    }
+
+    if (format === 'csv') {
+      const headers = ['id', 'escola', 'cidade', 'status', 'atualizadoEm', 'valor'];
+      const csv = toCsv({
+        headers,
+        rows: rows.map(r => [r.id, r.escola, r.cidade, r.status, r.atualizadoEm, r.valor]),
+      });
+      downloadBlob({
+        blob: new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+        filename: `${filenameBase}.csv`,
+      });
+      return;
+    }
+
+    const pdfBytes = await generateReservationsFlowPdf({
+      title: 'Relatório — Fluxo de reservas',
+      emittedAtLabel,
+      logoUrl: '/images/logo.png',
+      headers: ['Reserva', 'Escola', 'Cidade', 'Status', 'Atualizado', 'Valor'],
+      rows: rows.map(r => [
+        r.id,
+        r.escola,
+        r.cidade,
+        String(r.status).replaceAll('-', ' '),
+        formatDate(r.atualizadoEm),
+        formatCurrency(r.valor),
+      ]),
+    });
+
+    downloadBlob({
+      blob: new Blob([pdfBytes], { type: 'application/pdf' }),
+      filename: `${filenameBase}.pdf`,
+    });
+  };
+
   return (
     <AdminGuard requiredRole={['admin', 'supplier']}>
       <div className="space-y-8">
@@ -211,8 +271,50 @@ export default function AdminDashboardPage() {
                 : 'Monitoramento de reservas, fornecedores e escolas integradas.'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="secondary">Exportar dados</Button>
+          <div className="relative flex flex-wrap gap-3">
+            <div className="relative">
+              <Button
+                variant="secondary"
+                onClick={() => setExportOpen(prev => !prev)}
+                aria-expanded={exportOpen}
+              >
+                Exportar dados
+              </Button>
+              {exportOpen ? (
+                <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-card">
+                  <button
+                    type="button"
+                    className="w-full px-4 py-2 text-left text-sm text-neutral-800 hover:bg-neutral-50"
+                    onClick={async () => {
+                      setExportOpen(false);
+                      await exportReservationsFlow('csv');
+                    }}
+                  >
+                    CSV
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-4 py-2 text-left text-sm text-neutral-800 hover:bg-neutral-50"
+                    onClick={async () => {
+                      setExportOpen(false);
+                      await exportReservationsFlow('json');
+                    }}
+                  >
+                    JSON
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-4 py-2 text-left text-sm text-neutral-800 hover:bg-neutral-50"
+                    onClick={async () => {
+                      setExportOpen(false);
+                      await exportReservationsFlow('pdf');
+                    }}
+                  >
+                    PDF
+                  </button>
+                </div>
+              ) : null}
+            </div>
             {role === 'admin' && (
               <Link href="/admin/invites" className={buttonClasses({ size: 'md' })}>
                 Convites fornecedores
@@ -307,16 +409,36 @@ export default function AdminDashboardPage() {
                   24h
                 </Button>
                 <span className="mx-1 h-6 w-px bg-neutral-200" />
-                <Button variant="outline" size="sm" onClick={() => applyPresetDays(7)} disabled={analyticsLoading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetDays(7)}
+                  disabled={analyticsLoading}
+                >
                   Semana
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => applyPresetDays(30)} disabled={analyticsLoading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetDays(30)}
+                  disabled={analyticsLoading}
+                >
                   Mês
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => applyPresetDays(90)} disabled={analyticsLoading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetDays(90)}
+                  disabled={analyticsLoading}
+                >
                   Trimestre
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => applyPresetDays(365)} disabled={analyticsLoading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetDays(365)}
+                  disabled={analyticsLoading}
+                >
                   Ano
                 </Button>
                 <Button variant="ghost" size="sm" onClick={resetRange} disabled={analyticsLoading}>
@@ -386,7 +508,9 @@ export default function AdminDashboardPage() {
                     onClick={() => {
                       const hasCustom = Boolean(rangeFrom && rangeTo);
                       if (hasCustom) {
-                        const wantsHourBucket = Boolean(rangeFrom.includes('T') || rangeTo.includes('T'));
+                        const wantsHourBucket = Boolean(
+                          rangeFrom.includes('T') || rangeTo.includes('T'),
+                        );
                         setAnalyticsQuery(
                           `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}${
                             wantsHourBucket ? '&bucket=hour' : ''

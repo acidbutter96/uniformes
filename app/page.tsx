@@ -1,7 +1,11 @@
+'use client';
+
 import Link from 'next/link';
 
 import { Card } from '@/app/components/ui/Card';
 import HomePrimaryCta from '@/app/components/layout/HomePrimaryCta';
+import RoleHome from '@/app/components/home/RoleHome';
+import useAuth from '@/src/hooks/useAuth';
 
 const governmentPoints = [
   'Visão clara da demanda de cada escola.',
@@ -47,7 +51,7 @@ const schoolBenefits = [
   'Comunicação direta com fornecedores e planejamento eficiente.',
 ];
 
-export default function Home() {
+function PublicHome() {
   return (
     <main className="min-h-screen bg-background text-text">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-2xl px-md py-2xl">
@@ -221,4 +225,15 @@ export default function Home() {
       </div>
     </main>
   );
+}
+
+export default function Home() {
+  const { user, loading } = useAuth();
+  const role = typeof user?.role === 'string' ? user.role : null;
+
+  if (!loading && (role === 'admin' || role === 'supplier')) {
+    return <RoleHome />;
+  }
+
+  return <PublicHome />;
 }

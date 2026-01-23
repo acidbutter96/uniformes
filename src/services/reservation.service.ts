@@ -10,6 +10,7 @@ import UniformModel from '@/src/lib/models/uniform';
 import UserModel from '@/src/lib/models/user';
 import {
   type ReservationDTO,
+  type ReservationEventDTO,
   type ReservationStatus,
   RESERVATION_STATUSES,
 } from '@/src/types/reservation';
@@ -75,6 +76,69 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     ? (candidateStatus as ReservationStatus)
     : 'aguardando';
 
+  const rawEvents = (plain as unknown as { events?: unknown }).events;
+  let events: ReservationEventDTO[] | undefined;
+
+  if (Array.isArray(rawEvents)) {
+    events = rawEvents
+      .map(entry => {
+        if (!entry || typeof entry !== 'object') {
+          return null;
+        }
+
+        const type = (entry as { type?: unknown }).type;
+        const at = (entry as { at?: unknown }).at;
+        const eventStatus = (entry as { status?: unknown }).status;
+        const actorRole = (entry as { actorRole?: unknown }).actorRole;
+        const actorUserId = (entry as { actorUserId?: unknown }).actorUserId;
+
+        if (typeof type !== 'string') {
+          return null;
+        }
+
+        return {
+          type: type as ReservationEventDTO['type'],
+          at: toISOString(at as Date | string),
+          status:
+            typeof eventStatus === 'string' && RESERVATION_STATUSES.includes(eventStatus as never)
+              ? (eventStatus as ReservationStatus)
+              : undefined,
+          actorRole: typeof actorRole === 'string' ? actorRole : undefined,
+          actorUserId: actorUserId ? String(actorUserId) : undefined,
+        } satisfies ReservationEventDTO;
+      })
+      .filter(Boolean) as ReservationEventDTO[];
+
+    if (events.length === 0) {
+      events = undefined;
+    }
+  }
+
+  // Backward compatibility: older reservations may not have an events array yet.
+  if (!events) {
+    const synthetic: ReservationEventDTO[] = [
+      {
+        type: 'created',
+        at: toISOString(createdAt),
+        status,
+        actorRole: 'system',
+      },
+    ];
+
+    const createdAtIso = toISOString(createdAt);
+    const updatedAtIso = toISOString(updatedAt);
+    if (updatedAtIso !== createdAtIso && status !== 'aguardando') {
+      synthetic.push({
+        type: status === 'cancelada' ? 'cancelled' : 'status_changed',
+        at: updatedAtIso,
+        status,
+        actorRole: 'system',
+      });
+    }
+
+    events = synthetic;
+  }
+
   return {
     id: _id.toString(),
     userId: userId.toString(),
@@ -91,6 +155,7 @@ export function serializeReservation(doc: SerializableReservation): ReservationD
     value: Number.isFinite(resolvedValue) && resolvedValue >= 0 ? resolvedValue : 0,
     ...rest,
     status,
+    events,
     createdAt: toISOString(createdAt),
     updatedAt: toISOString(updatedAt),
   } satisfies ReservationDTO;
@@ -219,6 +284,15 @@ export async function createReservation(input: CreateReservationInput) {
     reservationYear,
     status,
     value: uniformPrice,
+    events: [
+      {
+        type: 'created',
+        at: new Date(),
+        status,
+        actorRole: 'user',
+        actorUserId: new Types.ObjectId(input.userId),
+      },
+    ],
   };
 
   if (input.uniformItemSelections && input.uniformItemSelections.length > 0) {

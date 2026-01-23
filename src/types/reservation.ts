@@ -19,6 +19,17 @@ export const RESERVATION_STATUSES = [
 ] as const;
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number];
 
+export const RESERVATION_EVENT_TYPES = ['created', 'status_changed', 'cancelled'] as const;
+export type ReservationEventType = (typeof RESERVATION_EVENT_TYPES)[number];
+
+export type ReservationEventDTO = {
+  type: ReservationEventType;
+  at: string;
+  status?: ReservationStatus;
+  actorRole?: 'user' | 'supplier' | 'admin' | 'system' | (string & {});
+  actorUserId?: string;
+};
+
 export type ReservationDTO = {
   id: string;
   userName: string;
@@ -30,6 +41,7 @@ export type ReservationDTO = {
   measurements?: ReservationMeasurementsDTO;
   suggestedSize: string;
   status: ReservationStatus;
+  events?: ReservationEventDTO[];
   value: number;
   createdAt: string;
   updatedAt: string;

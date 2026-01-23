@@ -90,6 +90,18 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
 
     const status = nextStatus.trim() as ReservationStatus;
 
+    const actorUserId = Types.ObjectId.isValid(payload.sub)
+      ? new Types.ObjectId(payload.sub)
+      : undefined;
+    const eventType = status === 'cancelada' ? 'cancelled' : 'status_changed';
+    const eventPayload: Record<string, unknown> = {
+      type: eventType,
+      at: new Date(),
+      status,
+      actorRole: typeof payload.role === 'string' ? payload.role : undefined,
+      actorUserId,
+    };
+
     if (payload.role !== 'admin' && payload.role !== 'supplier') {
       return forbidden();
     }
@@ -117,7 +129,7 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
 
       const updated = await ReservationModel.findOneAndUpdate(
         { _id: new Types.ObjectId(id), supplierId },
-        { $set: { status } },
+        { $set: { status }, $push: { events: eventPayload } },
         { new: true },
       ).exec();
 
@@ -130,7 +142,7 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
 
     const updated = await ReservationModel.findByIdAndUpdate(
       id,
-      { $set: { status } },
+      { $set: { status }, $push: { events: eventPayload } },
       { new: true },
     ).exec();
 

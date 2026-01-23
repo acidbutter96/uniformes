@@ -1,6 +1,11 @@
 import mongoose, { Schema, Types, type Document, type Model } from 'mongoose';
 
-import { type ReservationStatus, RESERVATION_STATUSES } from '@/src/types/reservation';
+import {
+  type ReservationEventType,
+  type ReservationStatus,
+  RESERVATION_EVENT_TYPES,
+  RESERVATION_STATUSES,
+} from '@/src/types/reservation';
 
 export interface ReservationMeasurements {
   height: number;
@@ -21,6 +26,13 @@ export interface ReservationDocument extends Document {
   suggestedSize: string;
   reservationYear: number;
   status: ReservationStatus;
+  events?: Array<{
+    type: ReservationEventType;
+    at: Date;
+    status?: ReservationStatus;
+    actorRole?: string;
+    actorUserId?: Types.ObjectId;
+  }>;
   value: number;
   createdAt: Date;
   updatedAt: Date;
@@ -66,6 +78,42 @@ const UniformItemSelectionSchema = new Schema<{ uniform_item_id: Types.ObjectId;
       type: String,
       required: true,
       trim: true,
+    },
+  },
+  { _id: false },
+);
+
+const ReservationEventSchema = new Schema<{
+  type: ReservationEventType;
+  at: Date;
+  status?: ReservationStatus;
+  actorRole?: string;
+  actorUserId?: Types.ObjectId;
+}>(
+  {
+    type: {
+      type: String,
+      required: true,
+      enum: RESERVATION_EVENT_TYPES,
+    },
+    at: {
+      type: Date,
+      required: true,
+      default: () => new Date(),
+    },
+    status: {
+      type: String,
+      required: false,
+      enum: RESERVATION_STATUSES,
+    },
+    actorRole: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    actorUserId: {
+      type: Schema.Types.ObjectId,
+      required: false,
     },
   },
   { _id: false },
@@ -127,6 +175,11 @@ const ReservationSchema = new Schema<ReservationDocument>(
       type: String,
       enum: RESERVATION_STATUSES,
       default: 'aguardando',
+    },
+    events: {
+      type: [ReservationEventSchema],
+      required: false,
+      default: undefined,
     },
     value: {
       type: Number,

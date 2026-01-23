@@ -16,7 +16,8 @@
     "migrate:uniform-item-ids": "tsx scripts/migrate-uniform-item-ids.ts",
     "migrate:reservation-uniform-items": "tsx scripts/migrate-reservation-uniform-items.ts",
     "migrate:reservation-year": "tsx scripts/migrate-reservation-year.ts",
-    "migrate:reservation-values": "tsx scripts/migrate-reservation-values.ts"
+    "migrate:reservation-values": "tsx scripts/migrate-reservation-values.ts",
+    "migrate:reservation-events": "tsx scripts/migrate-reservation-events.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -197,42 +197,55 @@ export async function GET(request: NextRequest) {
   const fromParam = request.nextUrl.searchParams.get('from');
   const toParam = request.nextUrl.searchParams.get('to');
   const hoursParam = request.nextUrl.searchParams.get('hours');
+  const bucketParam = request.nextUrl.searchParams.get('bucket');
 
   const parsedFrom = parseDateParam(fromParam);
   const parsedTo = parseDateParam(toParam);
 
-  const hasHoursRange = hoursParam !== null;
+  const requestedBucket = bucketParam === 'hour' || bucketParam === 'day' ? bucketParam : null;
+  const hasExplicitHours = hoursParam !== null;
+  const hasTimeInParams = Boolean(
+    (typeof fromParam === 'string' && fromParam.includes('T')) ||
+      (typeof toParam === 'string' && toParam.includes('T')),
+  );
+
+  const bucketUnit: 'hour' | 'day' =
+    requestedBucket === 'hour' || hasExplicitHours || hasTimeInParams ? 'hour' : 'day';
+
   const defaultHours = parseHours(hoursParam, 24);
 
   const defaultDays = parseDays(request.nextUrl.searchParams.get('days'), 30);
 
   // Range + bucket granularity
-  const rangeEnd = hasHoursRange
-    ? (parsedTo ?? new Date())
-    : (parsedTo ? endOfUtcDay(parsedTo) : new Date());
+  const rangeEnd =
+    bucketUnit === 'hour'
+      ? (parsedTo ?? new Date())
+      : (parsedTo ? endOfUtcDay(parsedTo) : new Date());
 
-  const rangeStart = hasHoursRange
-    ? (parsedFrom ?? new Date(rangeEnd.getTime() - defaultHours * 60 * 60 * 1000))
-    : (parsedFrom
-        ? startOfUtcDay(parsedFrom)
-        : new Date(rangeEnd.getTime() - defaultDays * 24 * 60 * 60 * 1000));
+  const rangeStart =
+    bucketUnit === 'hour'
+      ? (parsedFrom ?? new Date(rangeEnd.getTime() - defaultHours * 60 * 60 * 1000))
+      : (parsedFrom
+          ? startOfUtcDay(parsedFrom)
+          : new Date(rangeEnd.getTime() - defaultDays * 24 * 60 * 60 * 1000));
 
   const now = rangeEnd;
   const start = rangeStart;
 
-  const bucketUnit: 'hour' | 'day' = hasHoursRange ? 'hour' : 'day';
-  const rangeUnit: 'hours' | 'days' = hasHoursRange ? 'hours' : 'days';
-  const rangeValue = hasHoursRange
-    ? Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (60 * 60 * 1000)))
-    : Math.min(
-        365,
-        Math.max(
-          1,
-          Math.ceil(
-            (endOfUtcDay(now).getTime() - startOfUtcDay(start).getTime()) / (24 * 60 * 60 * 1000),
+  const rangeUnit: 'hours' | 'days' = bucketUnit === 'hour' ? 'hours' : 'days';
+  const rangeValue =
+    bucketUnit === 'hour'
+      ? Math.max(1, Math.ceil((now.getTime() - start.getTime()) / (60 * 60 * 1000)))
+      : Math.min(
+          365,
+          Math.max(
+            1,
+            Math.ceil(
+              (endOfUtcDay(now).getTime() - startOfUtcDay(start).getTime()) /
+                (24 * 60 * 60 * 1000),
+            ),
           ),
-        ),
-      );
+        );
 
   await dbConnect();
 

@@ -7,6 +7,43 @@ import {
   RESERVATION_STATUSES,
 } from '@/src/types/reservation';
 
+function buildSystemStatusEvent(status: ReservationStatus) {
+  const type: ReservationEventType = status === 'cancelada' ? 'cancelled' : 'status_changed';
+  return {
+    type,
+    at: new Date(),
+    status,
+    actorRole: 'system',
+  };
+}
+
+function getStatusFromUpdate(update: unknown): ReservationStatus | null {
+  if (!update || typeof update !== 'object') return null;
+
+  // Pipeline updates are not handled here.
+  if (Array.isArray(update)) return null;
+
+  const direct = (update as { status?: unknown }).status;
+  const setStatus = (update as { $set?: Record<string, unknown> }).$set?.status;
+  const next = (direct ?? setStatus) as unknown;
+
+  if (typeof next === 'string' && (RESERVATION_STATUSES as readonly string[]).includes(next)) {
+    return next as ReservationStatus;
+  }
+
+  return null;
+}
+
+function updateAlreadyPushesEvents(update: unknown) {
+  if (!update || typeof update !== 'object' || Array.isArray(update)) return false;
+  const u = update as {
+    $push?: Record<string, unknown>;
+    $addToSet?: Record<string, unknown>;
+  };
+
+  return Boolean(u.$push?.events) || Boolean(u.$addToSet?.events);
+}
+
 export interface ReservationMeasurements {
   height: number;
   chest: number;
@@ -191,7 +228,72 @@ const ReservationSchema = new Schema<ReservationDocument>(
   { timestamps: true },
 );
 
+ReservationSchema.pre('save', function reservationStatusAudit() {
+  if (this.isNew) return;
+  if (!this.isModified('status')) return;
+
+  const status = this.status;
+  if (!RESERVATION_STATUSES.includes(status)) return;
+
+  const events = Array.isArray(this.events) ? this.events : [];
+
+  // If caller already appended a status event in the same save, don't add a duplicate.
+  if (this.isModified('events') && events.length > 0) {
+    const last = events[events.length - 1];
+    if (
+      last &&
+      typeof last === 'object' &&
+      (last as { status?: unknown }).status === status &&
+      ['status_changed', 'cancelled'].includes(String((last as { type?: unknown }).type ?? ''))
+    ) {
+      this.events = events;
+      return;
+    }
+  }
+
+  events.push(buildSystemStatusEvent(status));
+  this.events = events;
+});
+
+ReservationSchema.pre(
+  ['findOneAndUpdate', 'updateOne', 'updateMany'],
+  function reservationStatusAudit() {
+    const update = this.getUpdate();
+    const nextStatus = getStatusFromUpdate(update);
+    if (!nextStatus) return;
+
+    // If caller already records events, don't duplicate.
+    if (updateAlreadyPushesEvents(update)) return;
+
+    // We only support object updates here (not pipelines).
+    if (!update || typeof update !== 'object' || Array.isArray(update)) return;
+
+    const mutable = update as Record<string, unknown> & { $push?: Record<string, unknown> };
+    const eventPayload = buildSystemStatusEvent(nextStatus);
+
+    if (!mutable.$push) mutable.$push = {};
+
+    const existingPush = mutable.$push.events;
+    if (!existingPush) {
+      mutable.$push.events = eventPayload;
+    } else if (
+      typeof existingPush === 'object' &&
+      existingPush !== null &&
+      '$each' in (existingPush as Record<string, unknown>) &&
+      Array.isArray((existingPush as { $each?: unknown }).$each)
+    ) {
+      (existingPush as { $each: unknown[] }).$each.push(eventPayload);
+    }
+
+    this.setUpdate(mutable);
+  },
+);
+
 ReservationSchema.index({ childId: 1, reservationYear: 1 }, { unique: true });
+
+if (process.env.NODE_ENV === 'development' && mongoose.models.Reservation) {
+  delete mongoose.models.Reservation;
+}
 
 const ReservationModel: Model<ReservationDocument> =
   mongoose.models.Reservation ||

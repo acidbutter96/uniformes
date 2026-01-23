@@ -141,7 +141,12 @@ export default function AdminDashboardPage() {
   const applyRange = () => {
     const hasCustom = Boolean(rangeFrom && rangeTo);
     if (hasCustom) {
-      setAnalyticsQuery(`from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}`);
+      const wantsHourBucket = Boolean(rangeFrom.includes('T') || rangeTo.includes('T'));
+      setAnalyticsQuery(
+        `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}${
+          wantsHourBucket ? '&bucket=hour' : ''
+        }`,
+      );
       return;
     }
     setAnalyticsQuery(`days=${encodeURIComponent(String(rangePresetDays))}`);
@@ -381,8 +386,11 @@ export default function AdminDashboardPage() {
                     onClick={() => {
                       const hasCustom = Boolean(rangeFrom && rangeTo);
                       if (hasCustom) {
+                        const wantsHourBucket = Boolean(rangeFrom.includes('T') || rangeTo.includes('T'));
                         setAnalyticsQuery(
-                          `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}`,
+                          `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}${
+                            wantsHourBucket ? '&bucket=hour' : ''
+                          }`,
                         );
                         return;
                       }

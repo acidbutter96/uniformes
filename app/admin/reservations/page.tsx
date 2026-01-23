@@ -151,9 +151,15 @@ export default function AdminReservationsPage() {
           body: JSON.stringify({ status }),
         });
 
+        const resClone = res.clone();
         const json = await res.json().catch(() => null);
         if (!res.ok) {
-          const message = json?.error ?? 'Não foi possível atualizar o status.';
+          const message =
+            json?.error ?? `Não foi possível atualizar o status. (HTTP ${res.status})`;
+          if (!json?.error) {
+            const text = await resClone.text().catch(() => null);
+            console.error('Status update failed payload:', { status: res.status, json, text });
+          }
           throw new Error(message);
         }
 

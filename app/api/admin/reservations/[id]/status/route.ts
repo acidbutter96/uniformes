@@ -153,6 +153,16 @@ export async function PATCH(request: NextRequest, { params }: { params: ParamsPr
     return ok(serializeReservation(updated));
   } catch (error) {
     console.error('Failed to update reservation status', error);
+    if (process.env.NODE_ENV !== 'production') {
+      const detail =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Erro desconhecido.';
+      return serverError(`Não foi possível atualizar o status. ${detail}`);
+    }
+
     return serverError('Não foi possível atualizar o status.');
   }
 }

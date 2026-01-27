@@ -78,7 +78,15 @@ function startOfUtcDay(date: Date) {
 
 function startOfUtcHour(date: Date) {
   return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), 0, 0, 0),
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours(),
+      0,
+      0,
+      0,
+    ),
   );
 }
 
@@ -90,7 +98,15 @@ function endOfUtcDay(date: Date) {
 
 function endOfUtcHour(date: Date) {
   return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), 59, 59, 999),
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours(),
+      59,
+      59,
+      999,
+    ),
   );
 }
 
@@ -220,14 +236,16 @@ export async function GET(request: NextRequest) {
   const rangeEnd =
     bucketUnit === 'hour'
       ? (parsedTo ?? new Date())
-      : (parsedTo ? endOfUtcDay(parsedTo) : new Date());
+      : parsedTo
+        ? endOfUtcDay(parsedTo)
+        : new Date();
 
   const rangeStart =
     bucketUnit === 'hour'
       ? (parsedFrom ?? new Date(rangeEnd.getTime() - defaultHours * 60 * 60 * 1000))
-      : (parsedFrom
-          ? startOfUtcDay(parsedFrom)
-          : new Date(rangeEnd.getTime() - defaultDays * 24 * 60 * 60 * 1000));
+      : parsedFrom
+        ? startOfUtcDay(parsedFrom)
+        : new Date(rangeEnd.getTime() - defaultDays * 24 * 60 * 60 * 1000);
 
   const now = rangeEnd;
   const start = rangeStart;
@@ -241,8 +259,7 @@ export async function GET(request: NextRequest) {
           Math.max(
             1,
             Math.ceil(
-              (endOfUtcDay(now).getTime() - startOfUtcDay(start).getTime()) /
-                (24 * 60 * 60 * 1000),
+              (endOfUtcDay(now).getTime() - startOfUtcDay(start).getTime()) / (24 * 60 * 60 * 1000),
             ),
           ),
         );

@@ -236,7 +236,10 @@ export default function AdminDashboardPage() {
       return {
         id: r.id,
         responsavel: r.userName,
-        aluno: (typeof r.childName === 'string' && r.childName.trim()) ? r.childName.trim() : 'Aluno não identificado',
+        aluno:
+          typeof r.childName === 'string' && r.childName.trim()
+            ? r.childName.trim()
+            : 'Aluno não identificado',
         escola: school?.name ?? r.schoolId,
         cidade: school?.city ?? '',
         status: r.status,

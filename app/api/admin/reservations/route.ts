@@ -34,7 +34,12 @@ export async function GET(request: Request) {
 
         await dbConnect();
         const childMap = await buildChildNameLookup(data);
-        return ok(data.map(r => ({ ...r, childName: childMap[r.childId] })));
+        return ok(
+          data.map(r => ({
+            ...r,
+            childName: childMap[r.childId],
+          })),
+        );
       }
 
       if (payload.role === 'supplier') {
@@ -56,7 +61,12 @@ export async function GET(request: Request) {
         const data = await listReservations({ supplierId });
 
         const childMap = await buildChildNameLookup(data);
-        return ok(data.map(r => ({ ...r, childName: childMap[r.childId] })));
+        return ok(
+          data.map(r => ({
+            ...r,
+            childName: childMap[r.childId],
+          })),
+        );
       }
 
       return forbidden();
@@ -72,7 +82,9 @@ export async function GET(request: Request) {
 
 async function buildChildNameLookup(reservations: ReservationDTO[]) {
   const userIds = Array.from(
-    new Set(reservations.map(r => (typeof r.userId === 'string' ? r.userId : null)).filter(Boolean)),
+    new Set(
+      reservations.map(r => (typeof r.userId === 'string' ? r.userId : null)).filter(Boolean),
+    ),
   ) as string[];
 
   if (userIds.length === 0) {

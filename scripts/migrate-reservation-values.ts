@@ -15,10 +15,7 @@ async function run() {
 
   await dbConnect();
 
-  const uniforms = await UniformModel.find({})
-    .select({ price: 1 })
-    .lean()
-    .exec();
+  const uniforms = await UniformModel.find({}).select({ price: 1 }).lean().exec();
 
   const uniformPriceById = new Map<string, number>();
   for (const u of uniforms as Array<{ _id: unknown; price?: unknown }>) {

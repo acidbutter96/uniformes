@@ -52,7 +52,10 @@ function parseOptions(argv: string[]): CliOptions {
   const userId = parseArgValue(argv, '--userId') ?? '';
 
   const count = Math.max(1, Math.floor(parseNumber(parseArgValue(argv, '--count'), 80)));
-  const days = Math.min(365, Math.max(7, Math.floor(parseNumber(parseArgValue(argv, '--days'), 120))));
+  const days = Math.min(
+    365,
+    Math.max(7, Math.floor(parseNumber(parseArgValue(argv, '--days'), 120))),
+  );
   const seed = Math.floor(parseNumber(parseArgValue(argv, '--seed'), Date.now()));
 
   const dryRun = hasFlag(argv, '--dry-run');
@@ -76,7 +79,9 @@ function parseOptions(argv: string[]): CliOptions {
 
 function usage() {
   // eslint-disable-next-line no-console
-  console.log(`\nGera reservas mock (com eventos) para popular os gráficos do dashboard.\n\nUso:\n  yarn -s migrate:reservation-mocks --supplierId <ObjectId> --userId <ObjectId> [opções]\n\nOpções:\n  --count <n>            Quantidade de reservas (default: 80)\n  --days <n>             Janela de criação (now - days) (default: 120)\n  --seed <n>             Seed RNG (default: Date.now)\n  --deliveredRate <0-1>  Fração entregues (default: 0.6)\n  --cancelRate <0-1>     Fração canceladas (default: 0.15)\n  --wipRate <0-1>        Fração em andamento (default: 0.25)\n  --dry-run              Não escreve no banco, só imprime resumo\n\nExemplo:\n  yarn -s migrate:reservation-mocks --supplierId 65f0... --userId 65f1... --count 120 --days 180\n`);
+  console.log(
+    `\nGera reservas mock (com eventos) para popular os gráficos do dashboard.\n\nUso:\n  yarn -s migrate:reservation-mocks --supplierId <ObjectId> --userId <ObjectId> [opções]\n\nOpções:\n  --count <n>            Quantidade de reservas (default: 80)\n  --days <n>             Janela de criação (now - days) (default: 120)\n  --seed <n>             Seed RNG (default: Date.now)\n  --deliveredRate <0-1>  Fração entregues (default: 0.6)\n  --cancelRate <0-1>     Fração canceladas (default: 0.15)\n  --wipRate <0-1>        Fração em andamento (default: 0.25)\n  --dry-run              Não escreve no banco, só imprime resumo\n\nExemplo:\n  yarn -s migrate:reservation-mocks --supplierId 65f0... --userId 65f1... --count 120 --days 180\n`,
+  );
 }
 
 // Deterministic PRNG
@@ -296,7 +301,12 @@ async function run() {
       finalStatus = 'entregue';
     } else {
       // WIP
-      finalStatus = randomPick(rng, ['aguardando', 'recebida', 'em-processamento', 'finalizada'] as const);
+      finalStatus = randomPick(rng, [
+        'aguardando',
+        'recebida',
+        'em-processamento',
+        'finalizada',
+      ] as const);
     }
 
     const timeline = buildStatusTimeline({ rng, createdAt, finalStatus, cancelAtStage });
@@ -307,7 +317,9 @@ async function run() {
         : (fallbackSchool!._id as Types.ObjectId);
 
     const sizes = Array.isArray(uniform.sizes) && uniform.sizes.length > 0 ? uniform.sizes : [];
-    const suggestedSize = (sizes.length > 0 ? randomPick(rng, sizes) : randomPick(rng, defaultSizes)).toString();
+    const suggestedSize = (
+      sizes.length > 0 ? randomPick(rng, sizes) : randomPick(rng, defaultSizes)
+    ).toString();
 
     // optional measurements (not used by dashboard analytics)
     const includeMeasurements = rng() < 0.7;

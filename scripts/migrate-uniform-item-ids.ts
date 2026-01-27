@@ -7,9 +7,7 @@ import UniformModel from '@/src/lib/models/uniform';
 
 function normalizeSizes(sizes: unknown): string[] {
   if (!Array.isArray(sizes)) return [];
-  return sizes
-    .map(value => String(value).trim())
-    .filter(Boolean);
+  return sizes.map(value => String(value).trim()).filter(Boolean);
 }
 
 async function run() {
@@ -21,10 +19,7 @@ async function run() {
 
   await dbConnect();
 
-  const uniforms = await UniformModel.find({})
-    .select({ items: 1 })
-    .lean()
-    .exec();
+  const uniforms = await UniformModel.find({}).select({ items: 1 }).lean().exec();
 
   let updatedCount = 0;
   let skippedCount = 0;

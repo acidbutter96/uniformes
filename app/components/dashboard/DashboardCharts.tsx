@@ -103,7 +103,6 @@ function tooltipLabelFormatter(value: unknown) {
 export default function DashboardCharts({
   rangeUnit,
   rangeValue,
-  bucketUnit,
   rangeDays,
   cfd,
   throughput,
@@ -116,14 +115,13 @@ export default function DashboardCharts({
     typeof rangeValue === 'number' && Number.isFinite(rangeValue) && rangeValue > 0
       ? Math.floor(rangeValue)
       : rangeDays;
-  const label = effectiveUnit === 'hours' ? `últimas ${effectiveValue} horas` : `últimos ${rangeDays} dias`;
+  const label =
+    effectiveUnit === 'hours' ? `últimas ${effectiveValue} horas` : `últimos ${rangeDays} dias`;
 
   return (
     <section className="space-y-6">
       <header className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold text-neutral-900">
-          Operação ({label})
-        </h2>
+        <h2 className="text-lg font-semibold text-neutral-900">Operação ({label})</h2>
         <p className="text-sm text-neutral-500">
           Gráficos construídos a partir do histórico de eventos (criação, mudança de status e
           cancelamento).

@@ -14,9 +14,7 @@ type UniformItemSeed = {
 
 function normalizeSizes(sizes: unknown): string[] {
   if (!Array.isArray(sizes)) return [];
-  const normalized = sizes
-    .map(value => String(value).trim())
-    .filter(Boolean);
+  const normalized = sizes.map(value => String(value).trim()).filter(Boolean);
   return Array.from(new Set(normalized));
 }
 
@@ -100,7 +98,8 @@ async function run() {
 
     const shouldUpdateItems =
       JSON.stringify(currentItems) !== JSON.stringify(nextItems) ||
-      (Array.isArray((uniform as any).items) ? (uniform as any).items.length : 0) !== nextItems.length;
+      (Array.isArray((uniform as any).items) ? (uniform as any).items.length : 0) !==
+        nextItems.length;
 
     const shouldUpdateSizes = JSON.stringify(legacySizes) !== JSON.stringify(nextLegacySizes);
 

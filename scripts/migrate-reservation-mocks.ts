@@ -355,7 +355,6 @@ async function run() {
 
   const result = await ReservationModel.insertMany(docs, {
     ordered: false,
-    timestamps: false,
   });
 
   // eslint-disable-next-line no-console

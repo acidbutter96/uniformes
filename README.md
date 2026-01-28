@@ -78,6 +78,11 @@ prettier.config.mjs
 - Paleta de cores centralizada em `tailwind.config.ts` (`brand`, `neutral`, `accent`, `success`, `warning`, `danger`).
 - Tokens adicionais em `app/styles/tokens.css`.
 
+## E-mails (SMTP)
+
+- Envio de e-mails via SMTP (Nodemailer) com suporte a Mailpit em desenvolvimento.
+- Guia: [docs/EMAIL_SMTP.md](docs/EMAIL_SMTP.md)
+
 ## APIs mockadas
 
 Rotas em `/app/api/*` expõem dados mockados para escolas, fornecedores, uniformes e reservas. As respostas retornam `{ data: [...] }`, facilitando o consumo via fetch/React Query quando for integrar com o front.

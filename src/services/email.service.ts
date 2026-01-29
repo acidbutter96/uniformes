@@ -2,6 +2,8 @@ import 'server-only';
 
 import nodemailer from 'nodemailer';
 
+import { logEmailEvent } from '@/src/services/emailLog.service';
+
 export interface SendEmailInput {
   to: string | string[];
   subject: string;
@@ -65,17 +67,49 @@ export function isSmtpConfigured() {
 }
 
 export async function sendEmail(input: SendEmailInput) {
-  const transport = getTransport();
   const from = process.env.SMTP_FROM as string;
 
-  const info = await transport.sendMail({
-    from,
-    to: input.to,
-    subject: input.subject,
-    text: input.text,
-    html: input.html,
-    replyTo: input.replyTo,
-  });
+  try {
+    const config = getSmtpConfig();
+    const transport = getTransport();
 
-  return { messageId: info.messageId };
+    const info = await transport.sendMail({
+      from,
+      to: input.to,
+      subject: input.subject,
+      text: input.text,
+      html: input.html,
+      replyTo: input.replyTo,
+    });
+
+    await logEmailEvent({
+      status: 'sent',
+      from,
+      to: input.to,
+      subject: input.subject,
+      replyTo: input.replyTo,
+      messageId: info.messageId,
+      smtp: { host: config.host, port: config.port, secure: config.secure },
+      content: { html: input.html, text: input.text },
+    });
+
+    return { messageId: info.messageId };
+  } catch (error) {
+    await logEmailEvent({
+      status: 'failed',
+      from,
+      to: input.to,
+      subject: input.subject,
+      replyTo: input.replyTo,
+      smtp: {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? NaN),
+        secure: String(process.env.SMTP_SECURE ?? '').toLowerCase() === 'true',
+      },
+      content: { html: input.html, text: input.text },
+      error,
+    });
+
+    throw error;
+  }
 }

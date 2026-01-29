@@ -4,6 +4,7 @@ import dbConnect from '@/src/lib/database';
 import EmailTokenModel from '@/src/lib/models/emailToken';
 import UserModel from '@/src/lib/models/user';
 import { isSmtpConfigured, sendEmail } from '@/src/services/email.service';
+import { logEmailEvent } from '@/src/services/emailLog.service';
 import { createEmailToken, getAppBaseUrl } from '@/src/services/emailToken.service';
 import {
   renderConfirmEmailChangeEmail,
@@ -141,6 +142,18 @@ export async function requestPasswordReset(params: { email: string }) {
 
   if (recentReset) {
     // Cooldown: do not send another email yet.
+    await logEmailEvent({
+      status: 'skipped',
+      from: process.env.SMTP_FROM,
+      to: normalizedEmail,
+      subject: 'Recuperação de senha',
+      smtp: {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? NaN),
+        secure: String(process.env.SMTP_SECURE ?? '').toLowerCase() === 'true',
+      },
+      reason: 'password_reset_cooldown_2min',
+    });
     return { emailSent: true };
   }
 

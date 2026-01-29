@@ -198,20 +198,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
         const payload = await request<{
-          token: string;
-          refreshToken?: string;
           user: AuthUser;
+          token?: string;
+          refreshToken?: string;
+          verificationRequired?: boolean;
         }>('/api/auth/register', {
           method: 'POST',
           body: JSON.stringify(data),
         });
 
-        persistTokens(payload.token, payload.refreshToken ?? null);
-        dispatch({
-          type: 'SET_TOKENS',
-          payload: { accessToken: payload.token, refreshToken: payload.refreshToken ?? null },
-        });
-        dispatch({ type: 'SET_USER', payload: payload.user });
+        // Registration now requires email verification; do not auto-login.
+        persistTokens(null, null);
+        dispatch({ type: 'SET_TOKENS', payload: { accessToken: null, refreshToken: null } });
+        dispatch({ type: 'SET_USER', payload: null });
 
         return payload.user;
       } finally {

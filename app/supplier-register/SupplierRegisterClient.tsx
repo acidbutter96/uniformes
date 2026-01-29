@@ -299,9 +299,11 @@ export default function SupplierRegisterClient() {
         return;
       }
 
-      setSuccess('Cadastro realizado com sucesso! Você já pode acessar o painel como fornecedor.');
+      setSuccess(
+        'Cadastro realizado! Enviamos um e-mail de confirmação. Confirme para conseguir entrar.',
+      );
       setTimeout(() => {
-        router.push('/login');
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
       }, 2000);
     } catch (err) {
       console.error('Failed to submit supplier registration', err);

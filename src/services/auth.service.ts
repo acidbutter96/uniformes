@@ -134,6 +134,10 @@ export async function loginWithCredentials(email: string, password: string) {
     throw new Error('Invalid credentials.');
   }
 
+  if (!user.verified) {
+    throw new Error('Email not verified.');
+  }
+
   const token = generateAccessToken({ sub: user._id.toString(), role: user.role });
 
   return {

@@ -107,7 +107,24 @@ function LoginView() {
             </p>
           </div>
 
-          {error && <Alert tone="danger" description={error} className="mb-4" />}
+          {error && (
+            <div className="mb-4 space-y-3">
+              <Alert tone="danger" description={error} />
+              {String(error).toLowerCase().includes('não confirmado') && email.trim() && (
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`)
+                    }
+                  >
+                    Reenviar confirmação
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">

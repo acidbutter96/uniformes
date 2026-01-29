@@ -106,15 +106,6 @@ function RegisterView() {
 
   const returnToParam = searchParams?.get('returnTo') ?? null;
 
-  const resolveDestination = (role?: string | null) => {
-    const sanitizedReturnTo = returnToParam && returnToParam.startsWith('/') ? returnToParam : null;
-    if (sanitizedReturnTo) {
-      return sanitizedReturnTo;
-    }
-
-    return role === 'admin' ? '/admin/dashboard' : '/sugestao';
-  };
-
   // Load schools list for selection
   const loadSchools = useCallback(async () => {
     try {
@@ -441,8 +432,8 @@ function RegisterView() {
           schoolId: c.schoolId,
         })),
       });
-      const role = typeof createdUser?.role === 'string' ? createdUser.role : null;
-      router.push(resolveDestination(role));
+      void createdUser;
+      router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Não foi possível criar a conta.';
       setError(message);

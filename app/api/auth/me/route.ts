@@ -64,7 +64,7 @@ export async function PATCH(request: Request) {
 
     const allowed: Record<string, unknown> = {};
     if (typeof body?.name === 'string') allowed.name = body.name;
-    if (typeof body?.email === 'string') allowed.email = body.email.toLowerCase().trim();
+    // Email changes must be confirmed via email. Use POST /api/auth/request-email-change.
     if (body?.birthDate) {
       const d = new Date(body.birthDate);
       if (!Number.isNaN(d.valueOf())) allowed.birthDate = d;

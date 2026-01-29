@@ -153,6 +153,79 @@ export interface RenderSupplierInviteEmailInput {
   logoUrl?: string;
 }
 
+export interface RenderVerifyEmailInput {
+  verifyUrl: string;
+  appName?: string;
+  logoUrl?: string;
+}
+
+export function renderVerifyEmail(input: RenderVerifyEmailInput) {
+  const appName = input.appName ?? DEFAULT_THEME.appName;
+  const title = 'Confirme seu e-mail';
+  const preheader = 'Confirme seu e-mail para ativar sua conta.';
+
+  const safeUrl = escapeHtml(input.verifyUrl);
+
+  const contentHtml = [
+    `<p style="margin:0 0 12px 0;">Para ativar sua conta no <strong>${escapeHtml(appName)}</strong>, confirme seu e-mail clicando no botão abaixo.</p>`,
+    `<p style="margin:14px 0 0 0;font-size:12px;line-height:18px;color:${DEFAULT_THEME.colors.muted};">Link direto: <a href="${safeUrl}" target="_blank" rel="noopener" style="color:${DEFAULT_THEME.colors.primary};text-decoration:underline;">${safeUrl}</a></p>`,
+  ].join('');
+
+  const contentText = `Para ativar sua conta no ${appName}, confirme seu e-mail:\n\n${input.verifyUrl}`;
+
+  const { html, text } = renderEmailLayout({
+    title,
+    preheader,
+    contentHtml,
+    contentText,
+    cta: { label: 'Confirmar e-mail', url: input.verifyUrl },
+    appName,
+    logoUrl: input.logoUrl,
+  });
+
+  return { subject: title, html, text };
+}
+
+export interface RenderConfirmEmailChangeInput {
+  confirmUrl: string;
+  newEmail: string;
+  appName?: string;
+  logoUrl?: string;
+}
+
+export function renderConfirmEmailChangeEmail(input: RenderConfirmEmailChangeInput) {
+  const appName = input.appName ?? DEFAULT_THEME.appName;
+  const title = 'Confirme a alteração de e-mail';
+  const preheader = 'Confirme seu novo e-mail para concluir a alteração.';
+  const safeUrl = escapeHtml(input.confirmUrl);
+
+  const contentHtml = [
+    `<p style="margin:0 0 12px 0;">Recebemos uma solicitação para alterar o e-mail da sua conta no <strong>${escapeHtml(
+      appName,
+    )}</strong> para <strong>${escapeHtml(input.newEmail)}</strong>.</p>`,
+    `<p style="margin:0 0 12px 0;">Para confirmar, clique no botão abaixo:</p>`,
+    `<p style="margin:14px 0 0 0;font-size:12px;line-height:18px;color:${DEFAULT_THEME.colors.muted};">Link direto: <a href="${safeUrl}" target="_blank" rel="noopener" style="color:${DEFAULT_THEME.colors.primary};text-decoration:underline;">${safeUrl}</a></p>`,
+    `<p style="margin:10px 0 0 0;font-size:12px;line-height:18px;color:${DEFAULT_THEME.colors.muted};">Se você não solicitou esta alteração, ignore este e-mail.</p>`,
+  ].join('');
+
+  const contentText =
+    `Confirme a alteração de e-mail no ${appName}.\n\n` +
+    `Novo e-mail: ${input.newEmail}\n\n` +
+    `Confirmar: ${input.confirmUrl}`;
+
+  const { html, text } = renderEmailLayout({
+    title,
+    preheader,
+    contentHtml,
+    contentText,
+    cta: { label: 'Confirmar alteração', url: input.confirmUrl },
+    appName,
+    logoUrl: input.logoUrl,
+  });
+
+  return { subject: title, html, text };
+}
+
 export function renderSupplierInviteEmail(input: RenderSupplierInviteEmailInput) {
   const appName = input.appName ?? DEFAULT_THEME.appName;
   const title = 'Convite para cadastro de fornecedor';

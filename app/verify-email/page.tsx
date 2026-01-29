@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Card } from '@/app/components/ui/Card';
@@ -9,6 +9,14 @@ import { Button } from '@/app/components/ui/Button';
 import { Input } from '@/app/components/ui/Input';
 
 export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={null}>
+      <VerifyEmailView />
+    </Suspense>
+  );
+}
+
+function VerifyEmailView() {
   const searchParams = useSearchParams();
   const router = useRouter();
 

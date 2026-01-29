@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Document, type Model, type Types } from 'mongoose';
 
-export type EmailTokenType = 'verify_email' | 'change_email';
+export type EmailTokenType = 'verify_email' | 'change_email' | 'reset_password';
 
 export interface EmailTokenDocument extends Document {
   userId: Types.ObjectId;
@@ -19,11 +19,11 @@ const EmailTokenSchema = new Schema<EmailTokenDocument>(
     email: { type: String, required: true, lowercase: true, trim: true },
     type: {
       type: String,
-      enum: ['verify_email', 'change_email'],
+      enum: ['verify_email', 'change_email', 'reset_password'],
       required: true,
     },
     tokenHash: { type: String, required: true, unique: true, index: true },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
     usedAt: { type: Date, required: false },
   },
   { timestamps: true },

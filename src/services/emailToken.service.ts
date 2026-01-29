@@ -19,7 +19,9 @@ function getTokenTtlMinutes(type: EmailTokenType) {
   const raw =
     type === 'verify_email'
       ? process.env.EMAIL_VERIFY_TOKEN_TTL_MINUTES
-      : process.env.EMAIL_CHANGE_TOKEN_TTL_MINUTES;
+      : type === 'change_email'
+        ? process.env.EMAIL_CHANGE_TOKEN_TTL_MINUTES
+        : process.env.EMAIL_RESET_PASSWORD_TOKEN_TTL_MINUTES;
 
   const minutes = Number(raw ?? 60);
   if (!Number.isFinite(minutes) || minutes <= 0) return 60;

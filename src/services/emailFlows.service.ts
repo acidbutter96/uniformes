@@ -1,9 +1,15 @@
 import 'server-only';
 
+import dbConnect from '@/src/lib/database';
+import EmailTokenModel from '@/src/lib/models/emailToken';
 import UserModel from '@/src/lib/models/user';
 import { isSmtpConfigured, sendEmail } from '@/src/services/email.service';
 import { createEmailToken, getAppBaseUrl } from '@/src/services/emailToken.service';
-import { renderConfirmEmailChangeEmail, renderVerifyEmail } from '@/src/services/emailTemplates';
+import {
+  renderConfirmEmailChangeEmail,
+  renderPasswordResetEmail,
+  renderVerifyEmail,
+} from '@/src/services/emailTemplates';
 
 function getLogoUrl(baseUrl: string) {
   if (!baseUrl) return undefined;
@@ -90,6 +96,72 @@ export async function requestEmailChange(params: { userId: string; newEmail: str
   } catch {
     // ignore
   }
+
+  return { emailSent: true };
+}
+
+export async function requestPasswordReset(params: { email: string }) {
+  const baseUrl = getAppBaseUrl();
+  if (!baseUrl) {
+    return { emailSent: false, emailError: 'NEXT_APP_URL/NEXT_PUBLIC_URL não configurado.' };
+  }
+  if (!isSmtpConfigured()) {
+    return {
+      emailSent: false,
+      emailError: 'SMTP não configurado (SMTP_HOST/SMTP_PORT/SMTP_FROM).',
+    };
+  }
+
+  const normalizedEmail = params.email.trim().toLowerCase();
+  if (!normalizedEmail) {
+    return { emailSent: false, emailError: 'E-mail é obrigatório.' };
+  }
+
+  await dbConnect();
+
+  const user = await UserModel.findOne({ email: normalizedEmail })
+    .select({ _id: 1, email: 1 })
+    .exec();
+  if (!user) {
+    // Avoid leaking whether user exists
+    return { emailSent: true };
+  }
+
+  const cooldownMs = 2 * 60 * 1000;
+  const cooldownAfter = new Date(Date.now() - cooldownMs);
+  const recentReset = await EmailTokenModel.findOne({
+    email: normalizedEmail,
+    type: 'reset_password',
+    createdAt: { $gt: cooldownAfter },
+  })
+    .select({ _id: 1 })
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+
+  if (recentReset) {
+    // Cooldown: do not send another email yet.
+    return { emailSent: true };
+  }
+
+  const { rawToken } = await createEmailToken({
+    userId: user._id.toString(),
+    email: normalizedEmail,
+    type: 'reset_password',
+  });
+
+  const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
+  const template = renderPasswordResetEmail({
+    resetUrl,
+    logoUrl: getLogoUrl(baseUrl),
+  });
+
+  await sendEmail({
+    to: normalizedEmail,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  });
 
   return { emailSent: true };
 }

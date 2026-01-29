@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Card } from '@/app/components/ui/Card';
@@ -8,6 +8,14 @@ import { Alert } from '@/app/components/ui/Alert';
 import { Button } from '@/app/components/ui/Button';
 
 export default function ConfirmEmailChangePage() {
+  return (
+    <Suspense fallback={null}>
+      <ConfirmEmailChangeView />
+    </Suspense>
+  );
+}
+
+function ConfirmEmailChangeView() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams?.get('token') ?? '';

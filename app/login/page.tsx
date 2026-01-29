@@ -152,6 +152,15 @@ function LoginView() {
               required
             />
 
+            <div className="text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-primary underline-offset-2 hover:underline"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
+
             <Button type="submit" fullWidth disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>

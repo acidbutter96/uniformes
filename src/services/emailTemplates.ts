@@ -159,6 +159,12 @@ export interface RenderVerifyEmailInput {
   logoUrl?: string;
 }
 
+export interface RenderPasswordResetEmailInput {
+  resetUrl: string;
+  appName?: string;
+  logoUrl?: string;
+}
+
 export function renderVerifyEmail(input: RenderVerifyEmailInput) {
   const appName = input.appName ?? DEFAULT_THEME.appName;
   const title = 'Confirme seu e-mail';
@@ -179,6 +185,41 @@ export function renderVerifyEmail(input: RenderVerifyEmailInput) {
     contentHtml,
     contentText,
     cta: { label: 'Confirmar e-mail', url: input.verifyUrl },
+    appName,
+    logoUrl: input.logoUrl,
+  });
+
+  return { subject: title, html, text };
+}
+
+export function renderPasswordResetEmail(input: RenderPasswordResetEmailInput) {
+  const appName = input.appName ?? DEFAULT_THEME.appName;
+  const title = 'Recuperação de senha';
+  const preheader = 'Use o link para definir uma nova senha.';
+
+  const safeUrl = escapeHtml(input.resetUrl);
+
+  const contentHtml = [
+    `<p style="margin:0 0 12px 0;">Recebemos uma solicitação para redefinir a senha da sua conta no <strong>${escapeHtml(
+      appName,
+    )}</strong>.</p>`,
+    `<p style="margin:0 0 12px 0;">Clique no botão abaixo para criar uma nova senha:</p>`,
+    `<p style="margin:14px 0 0 0;font-size:12px;line-height:18px;color:${DEFAULT_THEME.colors.muted};">Link direto: <a href="${safeUrl}" target="_blank" rel="noopener" style="color:${DEFAULT_THEME.colors.primary};text-decoration:underline;">${safeUrl}</a></p>`,
+    `<p style="margin:10px 0 0 0;font-size:12px;line-height:18px;color:${DEFAULT_THEME.colors.muted};">Se você não solicitou isso, ignore este e-mail.</p>`,
+  ].join('');
+
+  const contentText = `Recebemos uma solicitação para redefinir sua senha no ${appName}.
+
+Definir nova senha: ${input.resetUrl}
+
+Se você não solicitou isso, ignore este e-mail.`;
+
+  const { html, text } = renderEmailLayout({
+    title,
+    preheader,
+    contentHtml,
+    contentText,
+    cta: { label: 'Criar nova senha', url: input.resetUrl },
     appName,
     logoUrl: input.logoUrl,
   });

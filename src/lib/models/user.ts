@@ -18,6 +18,7 @@ export interface UserDocument extends Document {
   password: string;
   role: UserRole;
   provider: 'credentials' | 'google';
+  googleSub?: string;
   verified: boolean;
   supplierId?: Types.ObjectId | null;
   cpf?: string;
@@ -60,6 +61,11 @@ const UserSchema = new Schema<UserDocument>(
       type: String,
       enum: ['credentials', 'google'],
       default: 'credentials',
+    },
+    googleSub: {
+      type: String,
+      trim: true,
+      required: false,
     },
     verified: {
       type: Boolean,

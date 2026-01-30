@@ -154,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? (error as { status?: number }).status
           : undefined;
       const message = error instanceof Error ? error.message : undefined;
-      if (status === 401 || message === 'Unauthorized.') {
+      if (status === 401 || status === 403 || message === 'Unauthorized.') {
         dispatch({ type: 'RESET' });
       } else {
         console.error('Failed to load user', error);

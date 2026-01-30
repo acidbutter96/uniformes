@@ -25,6 +25,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'User not found.' }, { status: 404 });
     }
 
+    if (!user.verified) {
+      return NextResponse.json(
+        {
+          error: 'E-mail ainda não confirmado. Verifique sua caixa de entrada.',
+          verificationRequired: true,
+          email: user.email,
+        },
+        { status: 403 },
+      );
+    }
+
     const { password: removedPassword, ...safeUser } = user.toObject();
     void removedPassword;
 
@@ -58,6 +69,22 @@ export async function PATCH(request: Request) {
     const payload = verifyAccessToken<{ sub?: string }>(token);
     if (!payload?.sub) {
       return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const currentUser = await getById(payload.sub);
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+    }
+
+    if (!currentUser.verified) {
+      return NextResponse.json(
+        {
+          error: 'E-mail ainda não confirmado. Verifique sua caixa de entrada.',
+          verificationRequired: true,
+          email: currentUser.email,
+        },
+        { status: 403 },
+      );
     }
 
     const body = await request.json().catch(() => ({}));
@@ -116,11 +143,7 @@ export async function PATCH(request: Request) {
 
     // Permitir definir CPF apenas se ainda não existir
     if (typeof body?.cpf === 'string') {
-      const current = await getById(payload.sub);
-      if (!current) {
-        return NextResponse.json({ error: 'User not found.' }, { status: 404 });
-      }
-      const existingCpf = (current.cpf ?? '').trim();
+      const existingCpf = (currentUser.cpf ?? '').trim();
       const incomingCpf = body.cpf.trim();
 
       if (!existingCpf && incomingCpf) {

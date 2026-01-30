@@ -441,197 +441,204 @@ export default function AdminDashboardPage() {
           <MetricCard title="SLA médio" value="92%" delta="+3% vs. meta" tone="success" />
         </section>
 
-        <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-neutral-900">Séries temporais</h2>
-              <p className="text-sm text-neutral-500">
-                Selecione um range e use o brush para percorrer o período.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:items-end">
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetHours(1)}
-                  disabled={analyticsLoading}
-                >
-                  1h
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetHours(6)}
-                  disabled={analyticsLoading}
-                >
-                  6h
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetHours(12)}
-                  disabled={analyticsLoading}
-                >
-                  12h
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetHours(24)}
-                  disabled={analyticsLoading}
-                >
-                  24h
-                </Button>
-                <span className="mx-1 h-6 w-px bg-neutral-200" />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetDays(7)}
-                  disabled={analyticsLoading}
-                >
-                  Semana
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetDays(30)}
-                  disabled={analyticsLoading}
-                >
-                  Mês
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetDays(90)}
-                  disabled={analyticsLoading}
-                >
-                  Trimestre
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => applyPresetDays(365)}
-                  disabled={analyticsLoading}
-                >
-                  Ano
-                </Button>
-                <Button variant="ghost" size="sm" onClick={resetRange} disabled={analyticsLoading}>
-                  Reset
-                </Button>
+        {analyticsLoading || dashboardChartsEnabled ? (
+          <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-neutral-900">Séries temporais</h2>
+                <p className="text-sm text-neutral-500">
+                  Selecione um range e use o brush para percorrer o período.
+                </p>
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-44">
-                  Range (horas)
-                  <select
-                    className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
-                    value={rangePresetHours}
-                    onChange={e => setRangePresetHours(Number(e.target.value) || 24)}
-                    disabled={Boolean(rangeFrom && rangeTo)}
-                  >
-                    <option value={1}>1</option>
-                    <option value={3}>3</option>
-                    <option value={6}>6</option>
-                    <option value={12}>12</option>
-                    <option value={24}>24</option>
-                    <option value={48}>48</option>
-                    <option value={72}>72</option>
-                    <option value={168}>168</option>
-                  </select>
-                </label>
-
-                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-44">
-                  Range (dias)
-                  <select
-                    className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
-                    value={rangePresetDays}
-                    onChange={e => setRangePresetDays(Number(e.target.value) || 7)}
-                    disabled={Boolean(rangeFrom && rangeTo)}
-                  >
-                    <option value={7}>7</option>
-                    <option value={14}>14</option>
-                    <option value={30}>30</option>
-                    <option value={60}>60</option>
-                    <option value={90}>90</option>
-                    <option value={180}>180</option>
-                    <option value={365}>365</option>
-                  </select>
-                </label>
-
-                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-60">
-                  De (data/hora)
-                  <Input
-                    type="datetime-local"
-                    value={rangeFrom}
-                    onChange={e => setRangeFrom(e.target.value)}
-                  />
-                </label>
-
-                <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-60">
-                  Até (data/hora)
-                  <Input
-                    type="datetime-local"
-                    value={rangeTo}
-                    onChange={e => setRangeTo(e.target.value)}
-                  />
-                </label>
-
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-3 sm:items-end">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
-                    variant="secondary"
-                    onClick={() => {
-                      const hasCustom = Boolean(rangeFrom && rangeTo);
-                      if (hasCustom) {
-                        const wantsHourBucket = Boolean(
-                          rangeFrom.includes('T') || rangeTo.includes('T'),
-                        );
-                        setAnalyticsQuery(
-                          `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}${
-                            wantsHourBucket ? '&bucket=hour' : ''
-                          }`,
-                        );
-                        return;
-                      }
-                      // Prefer hours selector when the user changed it most recently via dropdown.
-                      setAnalyticsQuery(`hours=${encodeURIComponent(String(rangePresetHours))}`);
-                    }}
-                    disabled={
-                      analyticsLoading ||
-                      Boolean(rangeFrom && !rangeTo) ||
-                      Boolean(!rangeFrom && rangeTo)
-                    }
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetHours(1)}
+                    disabled={analyticsLoading}
                   >
-                    {analyticsLoading ? 'Atualizando…' : 'Aplicar'}
+                    1h
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetHours(6)}
+                    disabled={analyticsLoading}
+                  >
+                    6h
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetHours(12)}
+                    disabled={analyticsLoading}
+                  >
+                    12h
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetHours(24)}
+                    disabled={analyticsLoading}
+                  >
+                    24h
+                  </Button>
+                  <span className="mx-1 h-6 w-px bg-neutral-200" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetDays(7)}
+                    disabled={analyticsLoading}
+                  >
+                    Semana
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetDays(30)}
+                    disabled={analyticsLoading}
+                  >
+                    Mês
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetDays(90)}
+                    disabled={analyticsLoading}
+                  >
+                    Trimestre
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPresetDays(365)}
+                    disabled={analyticsLoading}
+                  >
+                    Ano
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetRange}
+                    disabled={analyticsLoading}
+                  >
+                    Reset
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-44">
+                    Range (horas)
+                    <select
+                      className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
+                      value={rangePresetHours}
+                      onChange={e => setRangePresetHours(Number(e.target.value) || 24)}
+                      disabled={Boolean(rangeFrom && rangeTo)}
+                    >
+                      <option value={1}>1</option>
+                      <option value={3}>3</option>
+                      <option value={6}>6</option>
+                      <option value={12}>12</option>
+                      <option value={24}>24</option>
+                      <option value={48}>48</option>
+                      <option value={72}>72</option>
+                      <option value={168}>168</option>
+                    </select>
+                  </label>
+
+                  <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-44">
+                    Range (dias)
+                    <select
+                      className="w-full rounded-card border border-border bg-surface px-md py-sm text-body text-text shadow-sm transition hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60"
+                      value={rangePresetDays}
+                      onChange={e => setRangePresetDays(Number(e.target.value) || 7)}
+                      disabled={Boolean(rangeFrom && rangeTo)}
+                    >
+                      <option value={7}>7</option>
+                      <option value={14}>14</option>
+                      <option value={30}>30</option>
+                      <option value={60}>60</option>
+                      <option value={90}>90</option>
+                      <option value={180}>180</option>
+                      <option value={365}>365</option>
+                    </select>
+                  </label>
+
+                  <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-60">
+                    De (data/hora)
+                    <Input
+                      type="datetime-local"
+                      value={rangeFrom}
+                      onChange={e => setRangeFrom(e.target.value)}
+                    />
+                  </label>
+
+                  <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-neutral-500 sm:w-60">
+                    Até (data/hora)
+                    <Input
+                      type="datetime-local"
+                      value={rangeTo}
+                      onChange={e => setRangeTo(e.target.value)}
+                    />
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        const hasCustom = Boolean(rangeFrom && rangeTo);
+                        if (hasCustom) {
+                          const wantsHourBucket = Boolean(
+                            rangeFrom.includes('T') || rangeTo.includes('T'),
+                          );
+                          setAnalyticsQuery(
+                            `from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}${
+                              wantsHourBucket ? '&bucket=hour' : ''
+                            }`,
+                          );
+                          return;
+                        }
+                        // Prefer hours selector when the user changed it most recently via dropdown.
+                        setAnalyticsQuery(`hours=${encodeURIComponent(String(rangePresetHours))}`);
+                      }}
+                      disabled={
+                        analyticsLoading ||
+                        Boolean(rangeFrom && !rangeTo) ||
+                        Boolean(!rangeFrom && rangeTo)
+                      }
+                    >
+                      {analyticsLoading ? 'Atualizando…' : 'Aplicar'}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-6">
-            {dashboardChartsEnabled && analytics ? (
-              <DashboardCharts
-                rangeDays={Number(analytics.rangeDays) || 30}
-                rangeUnit={analytics.rangeUnit}
-                rangeValue={analytics.rangeValue}
-                bucketUnit={analytics.bucketUnit}
-                cfd={analytics.cfd}
-                throughput={analytics.throughput}
-                cycleTime={analytics.cycleTime}
-                agingWip={analytics.agingWip}
-                staleByStatus={analytics.staleByStatus}
-              />
-            ) : (
-              <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-6 text-sm text-neutral-600">
-                {analyticsLoading
-                  ? 'Carregando analytics…'
-                  : 'Gráficos desabilitados nas configurações ou sem dados.'}
-              </div>
-            )}
-          </div>
-        </section>
+            <div className="mt-6">
+              {dashboardChartsEnabled && analytics ? (
+                <DashboardCharts
+                  rangeDays={Number(analytics.rangeDays) || 30}
+                  rangeUnit={analytics.rangeUnit}
+                  rangeValue={analytics.rangeValue}
+                  bucketUnit={analytics.bucketUnit}
+                  cfd={analytics.cfd}
+                  throughput={analytics.throughput}
+                  cycleTime={analytics.cycleTime}
+                  agingWip={analytics.agingWip}
+                  staleByStatus={analytics.staleByStatus}
+                />
+              ) : (
+                <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-6 text-sm text-neutral-600">
+                  {analyticsLoading
+                    ? 'Carregando analytics…'
+                    : 'Sem dados para o período selecionado.'}
+                </div>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         <section className="rounded-3xl border border-neutral-200 bg-white p-6 shadow-card">
           <header className="flex items-center justify-between">

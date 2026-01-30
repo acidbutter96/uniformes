@@ -36,6 +36,9 @@ export default function AccountPage() {
   );
 
   const [form, setForm] = useState(initial);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailChangeLoading, setEmailChangeLoading] = useState(false);
+  const [emailChangeMessage, setEmailChangeMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -113,7 +116,6 @@ export default function AccountPage() {
   }, [childrenState, initialChildren]);
 
   const profileDirty = useMemo(() => {
-    if (form.email !== initial.email) return true;
     if (cpfIsEmpty && form.cpf !== initial.cpf) return true;
 
     const a = form.address;
@@ -128,7 +130,7 @@ export default function AccountPage() {
       a.city !== b.city ||
       a.state !== b.state
     );
-  }, [cpfIsEmpty, form.address, form.cpf, form.email, initial.address, initial.cpf, initial.email]);
+  }, [cpfIsEmpty, form.address, form.cpf, initial.address, initial.cpf]);
 
   useEffect(() => {
     setForm(initial);
@@ -199,7 +201,7 @@ export default function AccountPage() {
   }, [initialChildren, user]);
 
   const handleChange = useCallback(
-    (field: 'name' | 'email' | 'cpf' | `address.${AddressKey}`, value: string) => {
+    (field: 'name' | 'cpf' | `address.${AddressKey}`, value: string) => {
       if (field.startsWith('address.')) {
         const aKey = field.split('.')[1] as AddressKey;
         setForm(prev => ({ ...prev, address: { ...prev.address, [aKey]: value } }));
@@ -209,6 +211,41 @@ export default function AccountPage() {
     },
     [],
   );
+
+  const requestEmailChange = async () => {
+    if (!accessToken) return;
+    setEmailChangeMessage(null);
+    const normalized = newEmail.trim().toLowerCase();
+    if (!normalized) {
+      setEmailChangeMessage('Informe o novo e-mail.');
+      return;
+    }
+    setEmailChangeLoading(true);
+    try {
+      const res = await fetch('/api/auth/request-email-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ newEmail: normalized }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setEmailChangeMessage(payload?.error ?? 'Não foi possível solicitar a alteração.');
+        return;
+      }
+
+      setEmailChangeMessage(
+        'Enviamos um link de confirmação para o novo e-mail. Confirme para concluir a alteração.',
+      );
+      setNewEmail('');
+    } catch {
+      setEmailChangeMessage('Não foi possível solicitar a alteração.');
+    } finally {
+      setEmailChangeLoading(false);
+    }
+  };
 
   // CEP helpers (same behavior as cadastro)
   const digitsOnly = (value: string) => value.replace(/\D/g, '');
@@ -378,7 +415,6 @@ export default function AccountPage() {
         },
         body: JSON.stringify({
           name: form.name,
-          email: form.email,
           address: form.address,
           // permitir envio de cpf somente se ainda estiver vazio no servidor
           cpf: cpfIsEmpty ? form.cpf : undefined,
@@ -537,13 +573,10 @@ export default function AccountPage() {
               <label htmlFor="email" className="text-sm font-medium">
                 E-mail
               </label>
-              <Input
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={e => handleChange('email', e.target.value)}
-                required
-              />
+              <Input id="email" type="email" value={form.email} readOnly disabled />
+              <p className="text-xs text-text-muted">
+                Para alterar o e-mail, envie uma confirmação para o novo endereço abaixo.
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -682,6 +715,27 @@ export default function AccountPage() {
             {/* submit removed from here; final save button is at page end */}
             <div className="md:col-span-2" />
           </form>
+
+          <section id="alterar-email" className="space-y-3">
+            <label className="text-sm font-medium">Alterar e-mail</label>
+
+            {emailChangeMessage && <Alert tone="info" description={emailChangeMessage} />}
+
+            <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Novo e-mail</label>
+                <Input
+                  type="email"
+                  placeholder="novo@email.com"
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                />
+              </div>
+              <Button type="button" onClick={requestEmailChange} disabled={emailChangeLoading}>
+                {emailChangeLoading ? 'Enviando...' : 'Enviar confirmação'}
+              </Button>
+            </div>
+          </section>
 
           {/* Children (alunos) editor for account owners */}
           <section id="alunos-vinculados" className="space-y-md">

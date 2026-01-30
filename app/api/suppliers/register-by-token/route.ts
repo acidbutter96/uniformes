@@ -5,6 +5,7 @@ import SupplierModel from '@/src/lib/models/supplier';
 import UserModel from '@/src/lib/models/user';
 import { createUser } from '@/src/services/user.service';
 import { hashPassword, isValidCpf, normalizeCpf } from '@/src/services/auth.service';
+import { sendVerifyEmailForUser } from '@/src/services/emailFlows.service';
 
 export async function GET(request: Request) {
   try {
@@ -244,9 +245,25 @@ export async function POST(request: Request) {
     invite.usedAt = new Date();
     await invite.save();
 
+    let emailSent = false;
+    let emailError: string | undefined;
+    try {
+      const result = await sendVerifyEmailForUser({
+        userId: user._id.toString(),
+        email: user.email,
+      });
+      emailSent = Boolean((result as { emailSent?: boolean }).emailSent);
+      emailError = (result as { emailError?: string }).emailError;
+    } catch (err) {
+      console.error('Failed to send verification email for supplier', err);
+      emailError = 'Não foi possível enviar e-mail de confirmação.';
+    }
+
     return ok({
       supplierId: supplierIdToUse.toString(),
       userId: user._id.toString(),
+      emailSent,
+      emailError,
     });
   } catch (error) {
     console.error('Failed to register supplier via token', error);

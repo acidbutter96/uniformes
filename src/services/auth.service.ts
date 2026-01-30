@@ -134,6 +134,10 @@ export async function loginWithCredentials(email: string, password: string) {
     throw new Error('Invalid credentials.');
   }
 
+  if (!user.verified) {
+    throw new Error('Email not verified.');
+  }
+
   const token = generateAccessToken({ sub: user._id.toString(), role: user.role });
 
   return {
@@ -255,7 +259,9 @@ export async function loginWithGoogle(profile: { email?: string; name?: string; 
 
   await dbConnect();
 
-  let user = await UserModel.findOne({ email: profile.email }).exec();
+  const email = profile.email.trim().toLowerCase();
+
+  let user = await UserModel.findOne({ email }).exec();
 
   if (!user) {
     const placeholderPassword = profile.sub
@@ -263,11 +269,29 @@ export async function loginWithGoogle(profile: { email?: string; name?: string; 
       : await hashPassword('google-auth');
     user = await UserModel.create({
       name: profile.name ?? profile.email.split('@')[0],
-      email: profile.email,
+      email,
       password: placeholderPassword,
       provider: 'google',
+      googleSub: profile.sub,
       verified: true,
     });
+  } else {
+    // Link Google credentials to an existing account (avoid duplicate emails)
+    let shouldSave = false;
+
+    if (!user.verified) {
+      user.verified = true;
+      shouldSave = true;
+    }
+
+    if (profile.sub && user.googleSub !== profile.sub) {
+      user.googleSub = profile.sub;
+      shouldSave = true;
+    }
+
+    if (shouldSave) {
+      await user.save();
+    }
   }
 
   const token = generateAccessToken({ sub: user._id.toString(), role: user.role });
